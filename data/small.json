@@ -1,0 +1,63 @@
+[
+  {
+    "uuid": "e93a4b49-f491-470b-9622-f399af0cfaff",
+    "turns": [
+      {
+        "query": "a skinny half-caf latte with two pumps of vanilla",
+        "expected": {
+          "items": [
+            {
+              "quantity": 1,
+              "name": "latte",
+              "options": [
+                {
+                  "quantity": 1,
+                  "name": "half caf"
+                },
+                {
+                  "quantity": 1,
+                  "name": "skim milk"
+                },
+                {
+                  "quantity": 2,
+                  "name": "vanilla syrup"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "uuid": "e93a4b49-f491-470b-9622-f399af0cfaff",
+    "turns": [
+      {
+        "query": "i'd like a latte that's it",
+        "expected": {
+          "items": [
+            {
+              "name": "latte",
+              "temperature": "hot",
+              "size": "grande",
+              "quantity": 1
+            }
+          ]
+        }
+      },
+      {
+        "query": "actually make that decaf with a small coffee",
+        "expected": {
+          "items": [
+            {
+              "name": "latte",
+              "temperature": "hot",
+              "size": "grande",
+              "quantity": 1
+            }
+          ]
+        }
+      }
+    ]
+  }
+]

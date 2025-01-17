@@ -44,8 +44,16 @@ class SimplePipeline(Pipeline):
         async def prepare(result):
             messages = [
                 {"role": "system", "content": await self._template(result)},
-                {"role": "user", "content": result["case"]["text"]},
+                {"role": "assistant", "content": "{\ni items: []\n}\n"},
             ]
+            case = result["case"]
+            for c in case["turns"]:
+                messages.append({"role": "user", "content": c["query"]})
+                messages.append(
+                    {"role": "assistant", "content": json.dumps(c["expected"], indent=2)}
+                )
+            messages.append({"role": "user", "content": case["turns"][-1]["query"]})
+
             return messages
 
         async def infer(result):

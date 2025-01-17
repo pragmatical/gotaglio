@@ -1,6 +1,9 @@
 # TODO
 
 * Top
+  * add-ids subcommand
+  * Documentation
+    * What are the key responsibilities of a pipeline?
   * Assess stage
     * Modify cases
     * Bring over tree compare
@@ -12,6 +15,7 @@
     * pipeline registration chicken+egg - name not available when factory registered
     * runner.summarize() should return string
   * Tactical
+    * May not always need jinja2 template
     * verify poetry on clean venv
     * x rename run.py to runner.py
     * x gotag.bat conflicts with gotag.py

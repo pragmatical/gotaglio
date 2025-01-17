@@ -161,9 +161,4 @@ type EspressoSize = 'solo' | 'doppio' | 'triple' | 'quad';
 type OptionQuantity = 'no' | 'light' | 'regular' | 'extra';
 ~~~
 
-Currently the shopping cart contains {{case.cart | json}}
-"""
-
-# **customer:** "{{case.text}}"
-
 Return the JSON object of type `Cart`.
