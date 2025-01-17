@@ -1,26 +1,20 @@
 # TODO
 
 * Top
-  * x Create github repo
-  * Refactor for example/gotaglio split
-    * x Move load_template() from pipeline.py to templating.py
-    * . Move SimplePipeline from pipelines.py to apps/example.py
-    * x Pass pipelines dict to main() and Runner constructor.
-    * Convert main() to a class. Make constructor take models and pipelines. Create runner.
-    * Retarget gotag.bat, gotag.sh to apps/example
-    * Remove old gotag.py
   * Assess stage
     * Modify cases
     * Bring over tree compare
     * Update summary
   * Multi-turn
     * Modify template
-  * Tactical
-    * rename run.py to runner.py
-    * runner.summarize() should return string
+  * Architecture
+    * How does summarize if pipeline used is no longer available?
     * pipeline registration chicken+egg - name not available when factory registered
+    * runner.summarize() should return string
+  * Tactical
     * verify poetry on clean venv
-    * gotag.bat conflicts with gotag.py
+    * x rename run.py to runner.py
+    * x gotag.bat conflicts with gotag.py
     * figure out where gotag.py belongs
     * summarize and compare should be able to use SHA prefix of `LAST`
     * clean up unused code
@@ -42,3 +36,11 @@
     * Overview
     * Build instructions
     * Run examples
+  * x Create github repo
+  * x Refactor for example/gotaglio split
+    * x Move load_template() from pipeline.py to templating.py
+    * x Move SimplePipeline from pipelines.py to apps/example.py
+    * x Pass pipelines dict to main() and Runner constructor.
+    * x Convert main() to a class. Make constructor take models and pipelines. Create runner.
+    * x Retarget gotag.bat, gotag.sh to apps/example
+    * x Remove old gotag.py

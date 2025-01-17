@@ -1,2 +1,2 @@
 #!/bin/bash
-python gotag.py "$@"
+python apps/example.py "$@"

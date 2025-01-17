@@ -1,7 +1,6 @@
-from .constants import log_folder, model_config_file
+from .constants import log_folder
 from .models import register_models
-from .pipelines import register_pipelines
-from .run import Runner
+from .runner import Runner
 
 import argparse
 import asyncio
@@ -188,8 +187,6 @@ def summarize(runner_factory, prefix):
     with open(os.path.join(log_folder, filenames[0]), "r") as file:
         results = json.load(file)
     runner = runner_factory()
-    register_models(runner, model_config_file)
-    register_pipelines(runner)
     runner.summarize(results)
 
 

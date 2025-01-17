@@ -1,11 +1,11 @@
 from .constants import model_config_file, model_credentials_file
+from .shared import read_json_file
 
 from abc import ABC, abstractmethod
 from azure.ai.inference import ChatCompletionsClient
 from azure.core.credentials import AzureKeyCredential
-import openai
-import os
 import json
+import openai
 
 
 class Model(ABC):
@@ -85,24 +85,13 @@ class Echo(Model):
     def metadata(self):
         return {k: v for k, v in self._config.items() if k != "key"}
 
-def read_json_file(filename, optional):
-    try:
-        if optional and not os.path.isfile(filename):
-            return {}  
-        with open(filename, "r") as file:
-            result = json.load(file)
-    except FileNotFoundError:
-        raise ValueError(f"File {filename} not found.")
-    except json.JSONDecodeError:
-        raise ValueError(f"Error decoding JSON from file {filename}.")
-    return result
 
 def register_models(
     runner, config_file=model_config_file, credentials_file=model_credentials_file
 ):
     config = read_json_file(config_file, False)
 
-    # MErge in keys from credentials file
+    # Merge in keys from credentials file
     credentials = read_json_file(credentials_file, True)
     for model in config:
         if model["name"] in credentials:
