@@ -1,0 +1,20 @@
+[
+  {
+    "name": "phi3",
+    "type": "AZURE_AI",
+    "endpoint": "https://Phi-3-medium-128k-instruct-vysaw.eastus2.models.ai.azure.com",
+    "key": "From .credentials.json"
+  },
+  {
+    "name": "gpt3.5",
+    "type": "AZURE_OPEN_AI",
+    "endpoint": "https://mhop-azure-openai.openai.azure.com/",
+    "deployment": "gpt-35-turbo-16k-0613",
+    "key": "From .credentials.json",
+    "api": "2024-07-01-preview"
+  },
+  {
+    "name": "echo",
+    "type": "ECHO"
+  }
+]

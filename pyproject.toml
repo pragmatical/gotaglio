@@ -1,0 +1,23 @@
+[project]
+name = "gotaglio"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Mike Hopcroft",email = "mhopcroft@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "jinja2 (>=3.1.5,<4.0.0)",
+    "openai (>=1.59.7,<2.0.0)",
+    "azure-ai-inference (>=1.0.0b7,<2.0.0)",
+    "gitpython (>=3.1.44,<4.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+package-mode = false
