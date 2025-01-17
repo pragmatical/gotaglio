@@ -132,10 +132,9 @@ def format_list(values):
 
 
 class Runner:
-    _models = {}
-    _pipelines = {}
-
     def __init__(self):
+        self._models = {}
+        self._pipelines = {}
         pass
 
     def register_model(self, name, model):

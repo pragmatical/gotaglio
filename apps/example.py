@@ -1,17 +1,13 @@
-from .templating import load_template
-
-from abc import ABC, abstractmethod
 import json
+import os
+import sys
 
+# Add the parent directory to the sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-class Pipeline(ABC):
-    @abstractmethod
-    def stages(self):
-        pass
-
-    @abstractmethod
-    def metadata(self):
-        pass
+from gotaglio.tools.main import main
+from gotaglio.tools.pipelines import Pipeline
+from gotaglio.tools.templating import load_template
 
 
 class SimplePipeline(Pipeline):
@@ -22,7 +18,9 @@ class SimplePipeline(Pipeline):
 
         # Template is lazily loaded in self.stages()
         if "template" not in self._config:
-            raise ValueError(f"{self._name} pipeline: missing 'template=<filename>' parameter.")
+            raise ValueError(
+                f"{self._name} pipeline: missing 'template=<filename>' parameter."
+            )
         self._template_file = self._config["template"]
         self._template = None
         self._template_text = None
@@ -80,6 +78,9 @@ class SimplePipeline(Pipeline):
         }
 
 
-def register_pipelines(runner):
-    # This is error-prone as the key might not match the hard-coded self._name field.
-    runner.register_pipeline("simple", SimplePipeline)
+def go():
+    main({"simple2": SimplePipeline})
+
+
+if __name__ == "__main__":
+    go()

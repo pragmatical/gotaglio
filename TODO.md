@@ -1,7 +1,14 @@
 # TODO
 
 * Top
-  * Create github repo
+  * x Create github repo
+  * Refactor for example/gotaglio split
+    * x Move load_template() from pipeline.py to templating.py
+    * . Move SimplePipeline from pipelines.py to apps/example.py
+    * x Pass pipelines dict to main() and Runner constructor.
+    * Convert main() to a class. Make constructor take models and pipelines. Create runner.
+    * Retarget gotag.bat, gotag.sh to apps/example
+    * Remove old gotag.py
   * Assess stage
     * Modify cases
     * Bring over tree compare
@@ -9,6 +16,7 @@
   * Multi-turn
     * Modify template
   * Tactical
+    * rename run.py to runner.py
     * runner.summarize() should return string
     * pipeline registration chicken+egg - name not available when factory registered
     * verify poetry on clean venv
@@ -21,11 +29,15 @@
   * Logger architecture
     * Console logging
     * File logging
+  * Models command
+    * Display description
+  * Pipelines command
+    * Display description
   * Rerun command
     * Unified pipeline configuration architecture
   * Sample pipeline
     * data folder with cases
-    * pipeline code in separate folder with imports
+    * x pipeline code in separate folder with imports
   * README.md
     * Overview
     * Build instructions
