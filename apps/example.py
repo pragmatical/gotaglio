@@ -1,6 +1,9 @@
 from colorama import Fore, Back, Style, init
 import json
 import os
+from rich.console import Console
+from rich.table import Table
+from rich.text import Text
 import sys
 
 # Add the parent directory to the sys.path
@@ -8,7 +11,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from gotaglio.tools.main import main
 from gotaglio.tools.pipelines import Pipeline
-from gotaglio.tools.repair import Edit, EditType, Repair
+from gotaglio.tools.repair import Repair
+from gotaglio.tools.shared import minimal_unique_prefix
 from gotaglio.tools.templating import load_template
 
 
@@ -89,10 +93,9 @@ class SimplePipeline(Pipeline):
         def cost(result):
             if result["succeeded"]:
                 cost = result["stages"]["assess"]["cost"]
-                color = Back.RED if cost > 0 else Back.GREEN
-                return f"{color}{result['stages']['assess']['cost']}{Style.RESET_ALL}"
+                return cost
             else:
-                return ""
+                return None
 
         summary = [
             {
@@ -105,10 +108,23 @@ class SimplePipeline(Pipeline):
         if len(summary) == 0:
             print("No results.")
         else:
+            uuids = [item["uuid"] for item in summary]
+            uuid_prefix_len = minimal_unique_prefix(uuids)
+
+            table = Table(title=f"Summary for {results['uuid']}")
+            table.add_column("id", justify="right", style="cyan", no_wrap=True)
+            table.add_column("run", style="magenta")
+            table.add_column("score", justify="right", style="green")
+            table.add_column("keywords", justify="right", style="green")
+
             for item in summary:
-                print(
-                    f"{item['uuid']} {f"{Back.GREEN}COMPLETE{Style.RESET_ALL}" if item['succeeded'] else f"   {Back.RED}ERROR{Style.RESET_ALL}"} {item['cost']}"
-                )
+                id = item["uuid"][:uuid_prefix_len]
+                complete = Text("COMPLETE", style="bold green") if item["succeeded"] else Text("ERROR", style="bold red")
+                cost = "" if item["cost"] == None else f"{item['cost']:.2f}"
+                score = Text(item['cost'], style="bold green") if item['cost'] == 0 else Text(cost, style="bold red")
+                table.add_row(id, complete, score)
+            console = Console()
+            console.print(table)
 
     def metadata(self):
         return {

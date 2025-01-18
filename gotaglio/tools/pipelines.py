@@ -10,5 +10,9 @@ class Pipeline(ABC):
         pass
 
     @abstractmethod
+    def summarize(self, results):
+        pass
+    
+    @abstractmethod
     def metadata(self):
         pass
