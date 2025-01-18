@@ -7,6 +7,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from gotaglio.tools.main import main
 from gotaglio.tools.pipelines import Pipeline
+from gotaglio.tools.repair import Edit, EditType, Repair
 from gotaglio.tools.templating import load_template
 
 
@@ -47,10 +48,13 @@ class SimplePipeline(Pipeline):
                 {"role": "assistant", "content": "{\ni items: []\n}\n"},
             ]
             case = result["case"]
-            for c in case["turns"]:
+            for c in case["turns"][:-1]:
                 messages.append({"role": "user", "content": c["query"]})
                 messages.append(
-                    {"role": "assistant", "content": json.dumps(c["expected"], indent=2)}
+                    {
+                        "role": "assistant",
+                        "content": json.dumps(c["expected"], indent=2),
+                    }
                 )
             messages.append({"role": "user", "content": case["turns"][-1]["query"]})
 
@@ -65,18 +69,37 @@ class SimplePipeline(Pipeline):
             except json.JSONDecodeError as m:
                 raise ValueError(f"Error decoding JSON: {m}")
 
-        return {"prepare": prepare, "infer": infer, "extract": extract}
+        async def assess(result):
+            repair = Repair("id", "options", [], [], "name")
+            # repair.Repair('id', 'children', [], [], 'name')
+            repair.resetIds()
+            observed = repair.addIds(result["stages"]["extract"]["items"])
+            expected = repair.addIds(result["case"]["turns"][-1]["expected"]["items"])
+            return repair.diff(observed, expected)
+
+        return {
+            "prepare": prepare,
+            "infer": infer,
+            "extract": extract,
+            "assess": assess,
+        }
 
     def summarize(self, results):
         summary = [
-            {"uuid": result["case"]["uuid"], "succeeded": result["succeeded"]}
+            {
+                "uuid": result["case"]["uuid"],
+                "succeeded": result["succeeded"],
+                "cost": result["stages"]["assess"]["cost"] if result["succeeded"] else "",
+            }
             for result in results["results"]
         ]
         if len(summary) == 0:
             print("No results.")
         else:
             for item in summary:
-                print(f"{item['uuid']} {"OK" if item['succeeded'] else "ERROR"}")
+                print(
+                    f"{item['uuid']} {"COMPLETE" if item['succeeded'] else "  ERROR"} {item['cost']}"
+                )
 
     def metadata(self):
         return {

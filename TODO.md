@@ -1,6 +1,8 @@
 # TODO
 
 * Top
+  * BUGS
+    * repair is not mult-threaded - reset id
   * add-ids subcommand
   * Documentation
     * What are the key responsibilities of a pipeline?

@@ -16,7 +16,7 @@
                 },
                 {
                   "quantity": 1,
-                  "name": "skim milk"
+                  "name": "nonfat milk"
                 },
                 {
                   "quantity": 2,
@@ -50,10 +50,22 @@
         "expected": {
           "items": [
             {
+              "name": "dark roast coffee",
+              "temperature": "hot",
+              "size": "short",
+              "quantity": 1
+            },
+            {
               "name": "latte",
               "temperature": "hot",
               "size": "grande",
-              "quantity": 1
+              "quantity": 1,
+              "options": [
+                {
+                  "name": "decaf",
+                  "quantity": 1
+                }
+              ]
             }
           ]
         }
