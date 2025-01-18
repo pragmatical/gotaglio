@@ -2,7 +2,14 @@
 
 * Top
   * BUGS
+    * Why is score 10.99899...? Why not 11? Assuming I subtract .002.
+      * phi3 model
+      * python apps\example.py summarize 575
     * repair is not mult-threaded - reset id
+    * repair doesn't seem to work correctly for first case in
+      * python apps\example.py run data\small.json simple2 template=data\template.txt model=gpt3.5
+      * See trees at end of this file
+      * Also shouldn't have to change attribute quantity to 1 if this is the default
   * add-ids subcommand
   * Documentation
     * What are the key responsibilities of a pipeline?
@@ -50,3 +57,65 @@
     * x Convert main() to a class. Make constructor take models and pipelines. Create runner.
     * x Retarget gotag.bat, gotag.sh to apps/example
     * x Remove old gotag.py
+
+
+  ~~~
+  "extract": {
+    "items": [
+      {
+        "quantity": 1,
+        "name": "latte",
+        "options": [
+          {
+            "quantity": 1,
+            "name": "half caf"
+          },
+          {
+            "quantity": 1,
+            "name": "vanilla syrup",
+            "amount": "regular"
+          }
+        ]
+      }
+    ]
+  },
+~~~
+
+~~~
+  "query": "a skinny half-caf latte with two pumps of vanilla",
+  "expected": {
+    "items": [
+      {
+        "quantity": 1,
+        "name": "latte",
+        "options": [
+          {
+            "quantity": 1,
+            "name": "half caf"
+          },
+          {
+            "quantity": 1,
+            "name": "nonfat milk"
+          },
+          {
+            "quantity": 2,
+            "name": "vanilla syrup"
+          }
+        ]
+      }
+    ]
+  }
+~~~
+
+~~~
+  "assess": {
+    "op": "REPAIR",
+    "cost": 4,
+    "steps": [
+      "0.1:vanilla syrup: change name to `nonfat milk`",
+      "0.1:vanilla syrup: remove amount",
+      "1.2:vanilla syrup: insert default version",
+      "1.2:vanilla syrup: change attribute(quantity) to '2'"
+    ]
+  }
+~~~

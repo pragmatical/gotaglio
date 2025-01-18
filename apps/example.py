@@ -1,3 +1,4 @@
+from colorama import Fore, Back, Style, init
 import json
 import os
 import sys
@@ -70,7 +71,7 @@ class SimplePipeline(Pipeline):
                 raise ValueError(f"Error decoding JSON: {m}")
 
         async def assess(result):
-            repair = Repair("id", "options", [], [], "name")
+            repair = Repair("id", "options", [], ["name"], "name")
             # repair.Repair('id', 'children', [], [], 'name')
             repair.resetIds()
             observed = repair.addIds(result["stages"]["extract"]["items"])
@@ -85,11 +86,19 @@ class SimplePipeline(Pipeline):
         }
 
     def summarize(self, results):
+        def cost(result):
+            if result["succeeded"]:
+                cost = result["stages"]["assess"]["cost"]
+                color = Back.RED if cost > 0 else Back.GREEN
+                return f"{color}{result['stages']['assess']['cost']}{Style.RESET_ALL}"
+            else:
+                return ""
+
         summary = [
             {
                 "uuid": result["case"]["uuid"],
                 "succeeded": result["succeeded"],
-                "cost": result["stages"]["assess"]["cost"] if result["succeeded"] else "",
+                "cost": cost(result),
             }
             for result in results["results"]
         ]
@@ -98,7 +107,7 @@ class SimplePipeline(Pipeline):
         else:
             for item in summary:
                 print(
-                    f"{item['uuid']} {"COMPLETE" if item['succeeded'] else "  ERROR"} {item['cost']}"
+                    f"{item['uuid']} {f"{Back.GREEN}COMPLETE{Style.RESET_ALL}" if item['succeeded'] else f"   {Back.RED}ERROR{Style.RESET_ALL}"} {item['cost']}"
                 )
 
     def metadata(self):
@@ -110,7 +119,7 @@ class SimplePipeline(Pipeline):
 
 
 def go():
-    main({"simple2": SimplePipeline})
+    main({"simple": SimplePipeline})
 
 
 if __name__ == "__main__":
