@@ -4,6 +4,31 @@ import json
 import os
 
 
+def get_filenames_with_prefix(folder_path, prefix):
+    """
+    Returns a list of filenames in the specified folder that start with the given prefix.
+
+    :param folder_path: Path to the folder to search.
+    :param prefix: The prefix to filter filenames.
+    :return: List of filenames that start with the prefix.
+    """
+    try:
+        # List all files in the folder
+        filenames = [
+            filename
+            for filename in os.listdir(folder_path)
+            if os.path.isfile(os.path.join(folder_path, filename))
+            and filename.startswith(prefix)
+        ]
+        return filenames
+    except FileNotFoundError:
+        print(f"Error: Folder '{folder_path}' not found.")
+        return []
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return []
+
+
 def read_json_file(filename, optional):
     try:
         if optional and not os.path.isfile(filename):
@@ -15,6 +40,11 @@ def read_json_file(filename, optional):
     except json.JSONDecodeError:
         raise ValueError(f"Error decoding JSON from file {filename}.")
     return result
+
+
+def write_json_file(filename, data):
+    with open (filename, "w") as file:
+        json.dump(data, file, indent=2)
 
 
 def parse_patches(path_bindings):

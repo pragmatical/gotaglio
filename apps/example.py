@@ -109,7 +109,7 @@ class SimplePipeline(Pipeline):
             print("No results.")
         else:
             uuids = [item["uuid"] for item in summary]
-            uuid_prefix_len = minimal_unique_prefix(uuids)
+            uuid_prefix_len = max(minimal_unique_prefix(uuids), 3)
 
             table = Table(title=f"Summary for {results['uuid']}")
             table.add_column("id", justify="right", style="cyan", no_wrap=True)
@@ -121,7 +121,7 @@ class SimplePipeline(Pipeline):
                 id = item["uuid"][:uuid_prefix_len]
                 complete = Text("COMPLETE", style="bold green") if item["succeeded"] else Text("ERROR", style="bold red")
                 cost = "" if item["cost"] == None else f"{item['cost']:.2f}"
-                score = Text(item['cost'], style="bold green") if item['cost'] == 0 else Text(cost, style="bold red")
+                score = Text(cost, style="bold green") if item['cost'] == 0 else Text(cost, style="bold red")
                 table.add_row(id, complete, score)
             console = Console()
             console.print(table)

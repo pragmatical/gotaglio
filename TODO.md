@@ -1,7 +1,19 @@
 # TODO
 
 * Top
-  * add-ids subcommand
+  * x Break out subcommands folder
+  * pipeline spec
+    * pojo object
+      * name
+      * description
+      * configuration
+      * stages
+      * static
+        * summarize
+        * compare
+        * oneline summarize
+  * x add-ids subcommand
+    * -f or --force
   * Clean up summary code
   * summary keywords
   * . Boolean expression parser
