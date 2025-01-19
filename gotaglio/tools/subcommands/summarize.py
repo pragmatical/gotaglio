@@ -4,7 +4,8 @@ from ..shared import get_filenames_with_prefix
 import json
 import os
 
-def summarize(runner_factory, prefix):
+def summarize(runner_factory, args):
+    prefix = args.prefix
     filenames = get_filenames_with_prefix(log_folder, prefix)
     if not filenames:
         print(f"No files found with prefix '{prefix}'.")

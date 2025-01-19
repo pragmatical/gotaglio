@@ -1,7 +1,11 @@
 # TODO
 
 * Top
-  * x Break out subcommands folder
+  * ability to run each case multiple times
+  * from concurrent.futures import ThreadPoolExecutor
+    * See https://github.com/Textualize/rich/blob/master/examples/downloader.py
+  * . progress bar - https://rich.readthedocs.io/en/latest/progress.html
+  * infer.mock = flakey | perfect | None
   * pipeline spec
     * pojo object
       * name
@@ -12,14 +16,15 @@
         * summarize
         * compare
         * oneline summarize
-  * x add-ids subcommand
-    * -f or --force
   * Clean up summary code
-  * summary keywords
+  * . summary keywords
   * . Boolean expression parser
     * Test suite
       * Original
       * Words [a-zA-Z_.][a-zA-Z_.-0-9]
+  * x add-ids subcommand
+    * x -f or --force
+  * x Break out subcommands folder
   * x Flat dict merge algorithm
   * x Table layout algorithm
     * x Do ANSI terminal characters contribute to string length?

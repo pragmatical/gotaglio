@@ -1,2 +1,2 @@
-def rerun_pipeline():
+def rerun_pipeline(runner_factory, args):
     print("Rerun not yet implemented.")

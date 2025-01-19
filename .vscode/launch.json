@@ -13,9 +13,9 @@
       "args": [
         "run",
         "data\\small.json",
-        "simple2",
+        "simple",
         "template=data\\template.txt",
-        "model=echo"
+        "model=gpt3.5"
       ]
     }
   ]

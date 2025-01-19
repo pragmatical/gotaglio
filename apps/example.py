@@ -76,7 +76,6 @@ class SimplePipeline(Pipeline):
 
         async def assess(result):
             repair = Repair("id", "options", [], ["name"], "name")
-            # repair.Repair('id', 'children', [], [], 'name')
             repair.resetIds()
             observed = repair.addIds(result["stages"]["extract"]["items"])
             expected = repair.addIds(result["case"]["turns"][-1]["expected"]["items"])
@@ -90,41 +89,71 @@ class SimplePipeline(Pipeline):
         }
 
     def summarize(self, results):
-        def cost(result):
-            if result["succeeded"]:
-                cost = result["stages"]["assess"]["cost"]
-                return cost
-            else:
-                return None
-
-        summary = [
-            {
-                "uuid": result["case"]["uuid"],
-                "succeeded": result["succeeded"],
-                "cost": cost(result),
-            }
-            for result in results["results"]
-        ]
-        if len(summary) == 0:
+        if len(results) == 0:
             print("No results.")
         else:
-            uuids = [item["uuid"] for item in summary]
+            uuids = [result["case"]["uuid"] for result in results["results"]]
             uuid_prefix_len = max(minimal_unique_prefix(uuids), 3)
 
             table = Table(title=f"Summary for {results['uuid']}")
             table.add_column("id", justify="right", style="cyan", no_wrap=True)
             table.add_column("run", style="magenta")
             table.add_column("score", justify="right", style="green")
-            table.add_column("keywords", justify="right", style="green")
+            table.add_column("keywords", justify="left", style="green")
 
-            for item in summary:
-                id = item["uuid"][:uuid_prefix_len]
-                complete = Text("COMPLETE", style="bold green") if item["succeeded"] else Text("ERROR", style="bold red")
-                cost = "" if item["cost"] == None else f"{item['cost']:.2f}"
-                score = Text(cost, style="bold green") if item['cost'] == 0 else Text(cost, style="bold red")
-                table.add_row(id, complete, score)
+            total_count = len(results)
+            complete_count = 0
+            passed_count = 0
+            failed_count = 0
+            error_count = 0
+            for result in results["results"]:
+                id = result["case"]["uuid"][:uuid_prefix_len]
+                succeeded = result["succeeded"]
+                cost = result["stages"]["assess"]["cost"] if succeeded else None
+
+                if succeeded:
+                    complete_count += 1
+                    if cost == 0:
+                        passed_count += 1
+                    else:
+                        failed_count += 1
+                else:
+                    error_count += 1
+
+                complete = (
+                    Text("COMPLETE", style="bold green")
+                    if succeeded
+                    else Text("ERROR", style="bold red")
+                )
+                cost_text = "" if cost == None else f"{cost:.2f}"
+                score = (
+                    Text(cost_text, style="bold green")
+                    if cost == 0
+                    else Text(cost_text, style="bold red")
+                )
+                keywords = (
+                    ", ".join(sorted(result["case"]["keywords"]))
+                    if "keywords" in result["case"]
+                    else ""
+                )
+                table.add_row(id, complete, score, keywords)
             console = Console()
             console.print(table)
+            console.print()
+            console.print(f"Total: {total_count}")
+            console.print(
+                f"Complete: {complete_count}/{total_count} ({(complete_count/total_count)*100:.2f}%)"
+            )
+            console.print(
+                f"Error: {error_count}/{total_count} ({(error_count/total_count)*100:.2f}%)"
+            )
+            console.print(
+                f"Passed: {passed_count}/{complete_count} ({(passed_count/total_count)*100:.2f}%)"
+            )
+            console.print(
+                f"Failed: {failed_count}/{complete_count} ({(failed_count/total_count)*100:.2f}%)"
+            )
+            console.print()
 
     def metadata(self):
         return {

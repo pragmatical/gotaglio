@@ -1,16 +1,18 @@
 from .constants import log_folder
+from .shared import format_list
 
 import asyncio
 from datetime import datetime, timedelta, timezone
 import json
 import os
 from git import Repo
+from rich.progress import Progress
 import sys
 import traceback
 import uuid
 
 
-async def process_one_case(case, pipeline):
+async def process_one_case(case, pipeline, completed):
     start = datetime.now().timestamp()
     result = {
         "succeeded": False,
@@ -31,6 +33,8 @@ async def process_one_case(case, pipeline):
             return result
 
     end = datetime.now().timestamp()
+    if completed:
+        completed()
     elapsed = end - start
     result["metadata"]["end"] = str(datetime.fromtimestamp(end, timezone.utc))
     result["metadata"]["elapsed"] = str(timedelta(seconds=elapsed))
@@ -69,7 +73,7 @@ def get_current_edits(repo_path="."):
     return edits
 
 
-async def process_all_cases(cases, pipeline, max_concurrancy):
+async def process_all_cases(cases, pipeline, max_concurrancy, completed):
     #
     # Generate static, pre-run metadata
     #
@@ -97,7 +101,7 @@ async def process_all_cases(cases, pipeline, max_concurrancy):
 
         async def sem_task(case):
             async with semaphore:
-                return await process_one_case(case, pipeline)
+                return await process_one_case(case, pipeline, completed)
 
         tasks = [sem_task(case) for case in cases]
         results = await asyncio.gather(*tasks)
@@ -119,17 +123,6 @@ async def process_all_cases(cases, pipeline, max_concurrancy):
         }
     finally:
         return result
-
-def format_list(values):
-    if not values:
-        return ""
-    elif len(values) == 1:
-        return values[0]
-    elif len(values) == 2:
-        return f"{values[0]} and {values[1]}"
-    else:
-        return f"{', '.join(values[:-1])}, and {values[-1]}"
-
 
 class Runner:
     def __init__(self):
@@ -159,10 +152,10 @@ class Runner:
             raise ValueError(f"Pipeline '{name}' not found. Available pipelines include {names}.")
         return self._pipelines[name]
 
-    async def go(self, cases, pipeline_name, pipeline_config):
+    async def go(self, cases, pipeline_name, pipeline_config, completed):
         pipeline_factory = self.pipeline(pipeline_name)
         pipeline = pipeline_factory(self, pipeline_config)
-        results = await process_all_cases(cases, pipeline, 2)
+        results = await process_all_cases(cases, pipeline, 2, completed)
 
         if not os.path.exists(log_folder):
             os.makedirs(log_folder)
@@ -170,7 +163,7 @@ class Runner:
         with open(output_file, "w") as f:
             json.dump(results, f, indent=2)
 
-        print(json.dumps(results, indent=2))
+        # print(json.dumps(results, indent=2))
         pipeline.summarize(results)
 
         return {"log": output_file, "results": results}

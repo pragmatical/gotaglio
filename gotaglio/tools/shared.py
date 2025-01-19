@@ -1,7 +1,31 @@
+import argparse
 from copy import deepcopy
 from glom import assign
 import json
 import os
+
+def format_list(values):
+    if not values:
+        return ""
+    elif len(values) == 1:
+        return values[0]
+    elif len(values) == 2:
+        return f"{values[0]} and {values[1]}"
+    else:
+        return f"{', '.join(values[:-1])}, and {values[-1]}"
+
+
+def parse_key_value_args(args):
+    """Parse key=value arguments into a dictionary."""
+    config = {}
+    for arg in args:
+        if "=" not in arg:
+            raise argparse.ArgumentTypeError(
+                f"Invalid format: '{arg}'. Expected key=value."
+            )
+        key, value = arg.split("=", 1)
+        config[key] = value
+    return config
 
 
 def get_filenames_with_prefix(folder_path, prefix):
