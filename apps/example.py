@@ -10,7 +10,7 @@ import sys
 # Add the parent directory to the sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from gotaglio.tools.exceptions2 import PersistentContext
+from gotaglio.tools.exceptions import ExceptionContext
 from gotaglio.tools.main import main
 from gotaglio.tools.models import Model
 from gotaglio.tools.pipelines import Pipeline
@@ -84,7 +84,7 @@ class SimplePipeline(Pipeline):
 
         # Check the config for missing values.
         settings = flatten_dict(self._config["stages"])
-        with PersistentContext(f"Pipeline '{self._default_config['name']}' checking settings."):
+        with ExceptionContext(f"Pipeline '{self._default_config['name']}' checking settings."):
             for k, v in settings.items():
                 if v is None:
                     raise ValueError(
@@ -97,7 +97,7 @@ class SimplePipeline(Pipeline):
         self._model = None
 
     def stages(self):
-        with PersistentContext(f"Pipeline '{self._default_config['name']}' configuring stages."):
+        with ExceptionContext(f"Pipeline '{self._default_config['name']}' configuring stages."):
             # Lazily build the prompt template for the prepare stage.
             if not self._template:
                 # If we don't have the template source text, load it from a file.

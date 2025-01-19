@@ -1,5 +1,5 @@
 from .constants import log_folder
-from .exceptions2 import PersistentContext
+from .exceptions import ExceptionContext
 from .shared import format_list
 
 import asyncio
@@ -29,14 +29,14 @@ async def process_one_case(case, pipeline, completed):
             except Exception as e:
                 result["exception"] = {
                     "stage": stage,
-                    "message": PersistentContext.format_message(e),
+                    "message": ExceptionContext.format_message(e),
                     "traceback": traceback.format_exc(),
                     "time": str(datetime.now(timezone.utc)),
                 }
                 return result
     except Exception as e:
         result["exception"] = {
-            "message": PersistentContext.format_message(e),
+            "message": ExceptionContext.format_message(e),
             "traceback": traceback.format_exc(),
             "time": str(datetime.now(timezone.utc)),
         }
