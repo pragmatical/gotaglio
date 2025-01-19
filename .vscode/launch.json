@@ -15,7 +15,7 @@
         "data\\small.json",
         "simple",
         "prepare.template=data\\template.txt",
-        "infer.model=gpt3.5"
+        "infer.model.name=perfect"
       ]
     }
   ]

@@ -1,5 +1,5 @@
 from .constants import program_name
-from .exceptions import format_exception
+from .exceptions2 import PersistentContext
 from .models import register_models
 from .runner import Runner
 from .subcommands.add_ids import add_ids
@@ -134,5 +134,4 @@ def main(pipelines):
             parser.print_help()
     except ValueError as e:
         print("Top level exception")
-        print(format_exception(e))
-        # print(f"Error: {e}")
+        print(PersistentContext.format_message(e))

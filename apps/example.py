@@ -1,4 +1,3 @@
-# from colorama import Fore, Back, Style, init
 from copy import deepcopy
 import json
 import os
@@ -11,7 +10,7 @@ import sys
 # Add the parent directory to the sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from gotaglio.tools.exceptions import context
+from gotaglio.tools.exceptions2 import PersistentContext
 from gotaglio.tools.main import main
 from gotaglio.tools.models import Model
 from gotaglio.tools.pipelines import Pipeline
@@ -24,6 +23,7 @@ from gotaglio.tools.shared import (
 )
 from gotaglio.tools.templating import jinja2_template, load_template
 
+
 class Perfect(Model):
     def __init__(self, runner, configuration):
         runner.register_model("perfect", self)
@@ -33,11 +33,11 @@ class Perfect(Model):
 
     def metadata(self):
         return {}
-        # return {k: v for k, v in self._config.items() if k != "key"}
+
 
 class Flakey(Model):
     def __init__(self, runner, configuration):
-        self._call_count = 0;
+        self._call_count = 0
         runner.register_model("flakey", self)
 
     async def infer(self, messages, context=None):
@@ -50,10 +50,9 @@ class Flakey(Model):
     def metadata(self):
         return {}
 
-# def load(parameter):
-#     return lambda config: read_text_file(config[parameter])
 
-
+# Used to indicate configuration values that are optional.
+# Mainly for template_text, which is loaded from a file.
 def optional():
     pass
 
@@ -82,64 +81,48 @@ class SimplePipeline(Pipeline):
 
     def __init__(self, runner, config_patch):
         self._config = merge_dicts(self._default_config, {"stages": config_patch})
+
+        # Check the config for missing values.
         settings = flatten_dict(self._config["stages"])
-        with context(F"Pipeline '{self._default_config['name']}' checking settings"):
+        with PersistentContext(f"Pipeline '{self._default_config['name']}' checking settings."):
             for k, v in settings.items():
                 if v is None:
-                    raise ValueError(f"{self._default_config['name']} pipeline: missing '{k}' parameter.")
-        # self._name = "simple"
+                    raise ValueError(
+                        f"{self._default_config['name']} pipeline: missing '{k}' parameter."
+                    )
         self._runner = runner
 
-        # # Template is lazily loaded in self.stages()
-        # if "template" not in self._config:
-        #     raise ValueError(
-        #         f"{self._name} pipeline: missing 'template=<filename>' parameter."
-        #     )
-        # self._template_file = self._config["template"]
+        # Template and model are lazily instantiated in self.stages()
         self._template = None
-        # self._template_text = None
-
-        #
-        # Lookup the model
-        #
-        # if "model" not in config:
-        #     raise ValueError("{self._name} pipeline: requires model=<name> parameter.")
-        # self._model = runner.model(config["model"])
         self._model = None
 
     def stages(self):
-        try:
+        with PersistentContext(f"Pipeline '{self._default_config['name']}' configuring stages."):
             # Lazily build the prompt template for the prepare stage.
             if not self._template:
-                if not isinstance(glom(self._config, "stages.prepare.template_text"), str):
-                #     pass
-                # if glom(self._config, "stages.prepare.template_text") is None:
+                # If we don't have the template source text, load it from a file.
+                if not isinstance(
+                    glom(self._config, "stages.prepare.template_text"), str
+                ):
                     assign(
                         self._config,
                         "stages.prepare.template_text",
                         read_text_file(glom(self._config, "stages.prepare.template")),
                     )
+                # Compile the template.
                 self._template = jinja2_template(
                     glom(self._config, "stages.prepare.template_text")
                 )
 
-            # Lazily lookup the model for the infer stage.
+            # Lazily instantiate the model for the infer stage.
             if not self._model:
+                # Register two model mocks.
                 Perfect(self._runner, {})
                 Flakey(self._runner, {})
-                model_name = glom(self._config, "stages.infer.model")
-                # if model_name == "perfect":
-                #     async def perfect():
-                #         pass
-                #     pass
-                # else:
-                self._model = self._runner.model(model_name)
-                # if not self._config[]
-                # (self._template_text, self._template) = load_template(
-                #     self._config["template"]
-                # )
-        except Exception as e:
-            raise ValueError(f"{self._default_config['name']} pipeline: {e}")
+
+                # Instantiate model.
+                self._model = self._runner.model(glom(self._config, "stages.infer.model.name"))
+ 
 
         async def prepare(result):
             messages = [

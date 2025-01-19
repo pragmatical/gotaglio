@@ -1,6 +1,8 @@
 # TODO
 
 * Top
+  * Guard against command-line key-value configure of bad paths
+    * e.g. infer.model=x instead of infer.model.name=x
   * Remove exception handlers not in stages
   * Exception enhancer
     * Add exception trace when there isn't a context? When the exception is unknown?
@@ -8,7 +10,7 @@
     * with log_context() ...
   * Remove colorama
   * Remove Echo model
-  * Key-value shortcuts, eg prepare.template => template, infer.model => model
+  * Key-value shortcuts, eg prepare.template => template, infer.model.name => model
   * pipeline spec
     * pojo object
       * name

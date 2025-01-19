@@ -9,8 +9,11 @@ import openai
 
 
 class Model(ABC):
+    # context parameter provides entire test case context to
+    # assist in implementing mocks that can pull the expected
+    # value ouf of the context.
     @abstractmethod
-    def infer(self, messages):
+    def infer(self, message, context=None):
         pass
 
     @abstractmethod
@@ -24,7 +27,7 @@ class AzureAI(Model):
         self._client = None
         runner.register_model(configuration["name"], self)
 
-    async def infer(self, messages):
+    async def infer(self, messages, context=None):
         if not self._client:
             endpoint = self._config["endpoint"]
             key = self._config["key"]
@@ -46,7 +49,7 @@ class AzureOpenAI(Model):
         self._client = None
         runner.register_model(configuration["name"], self)
 
-    async def infer(self, messages):
+    async def infer(self, messages, context=None):
         if not self._client:
             endpoint = self._config["endpoint"]
             key = self._config["key"]

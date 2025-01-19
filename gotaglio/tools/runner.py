@@ -1,4 +1,5 @@
 from .constants import log_folder
+from .exceptions2 import PersistentContext
 from .shared import format_list
 
 import asyncio
@@ -20,18 +21,27 @@ async def process_one_case(case, pipeline, completed):
         "case": case,
         "stages": {},
     }
-    for stage, func in pipeline.stages().items():
-        try:
-            result["stages"][stage] = await func(result)
-        except Exception as e:
-            result["exception"] = {
-                "stage": stage,
-                "message": str(e),
-                "traceback": traceback.format_exc(),
-                "time": str(datetime.now(timezone.utc)),
-            }
-            return result
-
+    try:
+        stages = pipeline.stages()
+        for stage, func in stages.items():
+            try:
+                result["stages"][stage] = await func(result)
+            except Exception as e:
+                result["exception"] = {
+                    "stage": stage,
+                    "message": PersistentContext.format_message(e),
+                    "traceback": traceback.format_exc(),
+                    "time": str(datetime.now(timezone.utc)),
+                }
+                return result
+    except Exception as e:
+        result["exception"] = {
+            "message": PersistentContext.format_message(e),
+            "traceback": traceback.format_exc(),
+            "time": str(datetime.now(timezone.utc)),
+        }
+        return result
+    
     end = datetime.now().timestamp()
     if completed:
         completed()
@@ -153,10 +163,14 @@ class Runner:
         return self._pipelines[name]
 
     async def go(self, cases, pipeline_name, pipeline_config, progress, completed):
+        # Configure pipeline
         pipeline_factory = self.pipeline(pipeline_name)
         pipeline = pipeline_factory(self, pipeline_config)
+
+        # Run cases
         results = await process_all_cases(cases, pipeline, 2, completed)
 
+        # Write log
         if not os.path.exists(log_folder):
             os.makedirs(log_folder)
         output_file = os.path.join(log_folder, f"{results['uuid']}.json")

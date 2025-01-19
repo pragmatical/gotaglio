@@ -32,6 +32,5 @@ def run_pipeline(runner_factory, args):
 
         x = asyncio.run(runner.go(cases, pipeline_name, pipeline_config, progress, completed))
         progress.update(task1, visible=False)
-        # time.sleep(20)
 
     print(f'Results written to {x["log"]}')

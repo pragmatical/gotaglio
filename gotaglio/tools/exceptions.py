@@ -20,7 +20,7 @@ class ExceptionContext:
             cls._context.value.pop()
 
 @contextmanager
-def context(msg):
+def exception_context(msg):
     ExceptionContext.add_context(msg)
     try:
         yield
