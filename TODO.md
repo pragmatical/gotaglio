@@ -1,14 +1,7 @@
 # TODO
 
 * Top
-  * describe command
-    * pretty prints a case of a run
-  * ability to run each case multiple times
-  * from concurrent.futures import ThreadPoolExecutor
-    * See https://github.com/Textualize/rich/blob/master/examples/downloader.py
-  * . progress bar - https://rich.readthedocs.io/en/latest/progress.html
-    * Revisit progress bar hide fix in Runner.go()
-  * infer.mock = flakey | perfect | None
+  * Remove colorama
   * pipeline spec
     * pojo object
       * name
@@ -19,12 +12,26 @@
         * summarize
         * compare
         * oneline summarize
-  * Clean up summary code
-  * . summary keywords
+  * infer.mock = flakey | perfect | None
   * . Boolean expression parser
     * Test suite
       * Original
       * Words [a-zA-Z_.][a-zA-Z_.-0-9]
+  * Exception enhancer
+    * Adds context and information to raw exceptions (e.g. which pipeline, which case)
+    * with log_context() ...
+  * Logger architecture
+    * Console logging
+    * File logging
+  * describe command
+    * pretty prints a case of a run
+  * ability to run each case multiple times
+  * from concurrent.futures import ThreadPoolExecutor
+    * See https://github.com/Textualize/rich/blob/master/examples/downloader.py
+  * . progress bar - https://rich.readthedocs.io/en/latest/progress.html
+    * Revisit progress bar hide fix in Runner.go()
+  * Clean up summary code
+  * . summary keywords
   * x add-ids subcommand
     * x -f or --force
   * x Break out subcommands folder
@@ -91,11 +98,6 @@
     * x gotag.bat conflicts with gotag.py
     * figure out where gotag.py belongs
     * clean up unused code
-  * Exception enhancer
-    * Adds context and information to raw exceptions (e.g. which pipeline, which case)
-  * Logger architecture
-    * Console logging
-    * File logging
   * Sample pipeline
     * data folder with cases
     * x pipeline code in separate folder with imports

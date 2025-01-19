@@ -14,8 +14,8 @@
         "run",
         "data\\small.json",
         "simple",
-        "template=data\\template.txt",
-        "model=gpt3.5"
+        "prepare.template=data\\template.txt",
+        "infer.model=gpt3.5"
       ]
     }
   ]

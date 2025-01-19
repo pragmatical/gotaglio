@@ -165,7 +165,8 @@ class Runner:
 
         # TODO: This is a temporary fix to get around the fact that the progress bar doesn't
         # disappear when the task is completed. It just stops updating.
-        progress.stop()
+        if progress:
+            progress.stop()
 
         # print(json.dumps(results, indent=2))
         pipeline.summarize(results)

@@ -53,6 +53,15 @@ def get_filenames_with_prefix(folder_path, prefix):
         return []
 
 
+def read_text_file(filename):
+    try:
+        with open(filename, "r") as file:
+            result = file.read()
+    except FileNotFoundError:
+        raise ValueError(f"File {filename} not found.")
+    return result
+
+
 def read_json_file(filename, optional):
     try:
         if optional and not os.path.isfile(filename):
@@ -99,15 +108,54 @@ def apply_patch(target_dict, patches):
     return result
 
 
+def merge_dicts(existing, patch):
+    """
+    Merge the `patch` dictionary into the `existing` dictionary hierarchically.
+    """
+    for key, value in patch.items():
+        if isinstance(value, dict):
+            # If the value is a dictionary, recursively merge
+            existing[key] = merge_dicts(existing.get(key, {}), value)
+        else:
+            # Otherwise, directly set the value
+            existing[key] = value
+    return existing
+
+
+def flatten_dict(d, parent_key='', sep='.'):
+    """
+    Recursively flattens a hierarchical dictionary.
+
+    Args:
+        d (dict): The dictionary to flatten.
+        parent_key (str): The base key for recursion (used for nested levels).
+        sep (str): Separator used to join keys.
+
+    Returns:
+        dict: A flattened dictionary.
+    """
+    items = {}
+    for key, value in d.items():
+        new_key = f"{parent_key}{sep}{key}" if parent_key else key
+        if isinstance(value, dict):
+            # Recurse into nested dictionaries
+            items.update(flatten_dict(value, new_key, sep=sep))
+        else:
+            # Add the value with the flattened key
+            items[new_key] = value
+    return items
+
 # # Existing hierarchical dictionary
 # existing_dict = {
 #     "a": {
 #         "b": {
-#             "c": 1
+#             "c": None
 #         }
 #     },
 #     "d": 4
 # }
+
+# print(json.dumps(flatten_dict(existing_dict), indent=2))
 
 # # Dot-separated key-value pairs to apply as patches
 # # patches = {

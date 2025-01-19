@@ -1,7 +1,8 @@
-from colorama import Fore, Back, Style, init
+# from colorama import Fore, Back, Style, init
 import json
 import os
 from rich.console import Console
+from glom import assign, glom
 from rich.table import Table
 from rich.text import Text
 import sys
@@ -12,40 +13,96 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from gotaglio.tools.main import main
 from gotaglio.tools.pipelines import Pipeline
 from gotaglio.tools.repair import Repair
-from gotaglio.tools.shared import minimal_unique_prefix
-from gotaglio.tools.templating import load_template
+from gotaglio.tools.shared import (
+    flatten_dict,
+    merge_dicts,
+    minimal_unique_prefix,
+    read_text_file,
+)
+from gotaglio.tools.templating import jinja2_template, load_template
+
+
+def load(parameter):
+    return lambda config: read_text_file(config[parameter])
+
+
+def optional():
+    pass
 
 
 class SimplePipeline(Pipeline):
-    def __init__(self, runner, config):
-        self._config = config
-        self._name = "simple"
+    _default_config = {
+        "name": "simple",
+        "stages": {
+            "prepare": {"template": None, "template_text": optional},
+            "infer": {
+                "model": {
+                    "name": None,
+                    "settings": {
+                        "max_tokens": 800,
+                        "temperature": 0.7,
+                        "top_p": 0.95,
+                        "frequency_penalty": 0,
+                        "presence_penalty": 0,
+                    },
+                }
+            },
+            "extract": {},
+            "assess": {},
+        },
+    }
+
+    def __init__(self, runner, config_patch):
+        self._config = merge_dicts(self._default_config, {"stages": config_patch})
+        settings = flatten_dict(self._config["stages"])
+        for k, v in settings.items():
+            if v is None:
+                raise ValueError(f"{self._default_config['name']} pipeline: missing '{k}' parameter.")
+        # self._name = "simple"
         self._runner = runner
 
-        # Template is lazily loaded in self.stages()
-        if "template" not in self._config:
-            raise ValueError(
-                f"{self._name} pipeline: missing 'template=<filename>' parameter."
-            )
-        self._template_file = self._config["template"]
+        # # Template is lazily loaded in self.stages()
+        # if "template" not in self._config:
+        #     raise ValueError(
+        #         f"{self._name} pipeline: missing 'template=<filename>' parameter."
+        #     )
+        # self._template_file = self._config["template"]
         self._template = None
-        self._template_text = None
+        # self._template_text = None
 
         #
         # Lookup the model
         #
-        if "model" not in config:
-            raise ValueError("{self._name} pipeline: requires model=<name> parameter.")
-        self._model = runner.model(config["model"])
+        # if "model" not in config:
+        #     raise ValueError("{self._name} pipeline: requires model=<name> parameter.")
+        # self._model = runner.model(config["model"])
+        self._model = None
 
     def stages(self):
         try:
+            # Lazily build the prompt template for the prepare stage.
             if not self._template:
-                (self._template_text, self._template) = load_template(
-                    self._template_file
+                if not isinstance(glom(self._config, "stages.prepare.template_text"), str):
+                #     pass
+                # if glom(self._config, "stages.prepare.template_text") is None:
+                    assign(
+                        self._config,
+                        "stages.prepare.template_text",
+                        read_text_file(glom(self._config, "stages.prepare.template")),
+                    )
+                self._template = jinja2_template(
+                    glom(self._config, "stages.prepare.template_text")
                 )
+
+            # Lazily lookup the model for the infer stage.
+            if not self._model:
+                self._model = self._runner.model(glom(self._config, "stages.infer.model"))
+                # if not self._config[]
+                # (self._template_text, self._template) = load_template(
+                #     self._config["template"]
+                # )
         except Exception as e:
-            raise ValueError(f"{self._name} pipeline: {e}")
+            raise ValueError(f"{self._default_config['name']} pipeline: {e}")
 
         async def prepare(result):
             messages = [
@@ -156,11 +213,13 @@ class SimplePipeline(Pipeline):
             console.print()
 
     def metadata(self):
-        return {
-            "name": self._name,
-            "config": self._config,
-            "template": self._template_text,
-        }
+        # NOTE: WARNING: this method cannot be called before stages(). Perhaps make a return value of stages()?
+        return self._config
+        # return {
+        #     # "name": self._name,
+        #     "config": self._config,
+        #     # "template": self._template_text,
+        # }
 
 
 def go():
