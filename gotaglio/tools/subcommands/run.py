@@ -32,10 +32,9 @@ def run_pipeline(runner_factory, args):
         task1 = progress.add_task("[red]Processing...", total=len(cases))
 
         def completed():
-            print("completed")
             progress.update(task1, advance=1)
 
-        x = asyncio.run(runner.go(cases, pipeline, config, completed))
+        x = asyncio.run(runner.go(cases, pipeline, config, progress, completed))
         # Console().clear()
         progress.update(task1, visible=False)
         # progress.update(task1, completed=len(cases)+ 1)

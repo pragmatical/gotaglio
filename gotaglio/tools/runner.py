@@ -152,7 +152,7 @@ class Runner:
             raise ValueError(f"Pipeline '{name}' not found. Available pipelines include {names}.")
         return self._pipelines[name]
 
-    async def go(self, cases, pipeline_name, pipeline_config, completed):
+    async def go(self, cases, pipeline_name, pipeline_config, progress, completed):
         pipeline_factory = self.pipeline(pipeline_name)
         pipeline = pipeline_factory(self, pipeline_config)
         results = await process_all_cases(cases, pipeline, 2, completed)
@@ -162,6 +162,10 @@ class Runner:
         output_file = os.path.join(log_folder, f"{results['uuid']}.json")
         with open(output_file, "w") as f:
             json.dump(results, f, indent=2)
+
+        # TODO: This is a temporary fix to get around the fact that the progress bar doesn't
+        # disappear when the task is completed. It just stops updating.
+        progress.stop()
 
         # print(json.dumps(results, indent=2))
         pipeline.summarize(results)

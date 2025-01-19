@@ -1,10 +1,13 @@
 # TODO
 
 * Top
+  * describe command
+    * pretty prints a case of a run
   * ability to run each case multiple times
   * from concurrent.futures import ThreadPoolExecutor
     * See https://github.com/Textualize/rich/blob/master/examples/downloader.py
   * . progress bar - https://rich.readthedocs.io/en/latest/progress.html
+    * Revisit progress bar hide fix in Runner.go()
   * infer.mock = flakey | perfect | None
   * pipeline spec
     * pojo object
@@ -108,6 +111,10 @@
     * x Convert main() to a class. Make constructor take models and pipelines. Create runner.
     * x Retarget gotag.bat, gotag.sh to apps/example
     * x Remove old gotag.py
+  * Links
+    * On python modules
+      * https://stackoverflow.com/questions/14132789/relative-imports-for-the-billionth-time
+      * 
 
 
   ~~~
