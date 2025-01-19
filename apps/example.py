@@ -1,4 +1,5 @@
 # from colorama import Fore, Back, Style, init
+from copy import deepcopy
 import json
 import os
 from rich.console import Console
@@ -10,7 +11,9 @@ import sys
 # Add the parent directory to the sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from gotaglio.tools.exceptions import context
 from gotaglio.tools.main import main
+from gotaglio.tools.models import Model
 from gotaglio.tools.pipelines import Pipeline
 from gotaglio.tools.repair import Repair
 from gotaglio.tools.shared import (
@@ -21,9 +24,34 @@ from gotaglio.tools.shared import (
 )
 from gotaglio.tools.templating import jinja2_template, load_template
 
+class Perfect(Model):
+    def __init__(self, runner, configuration):
+        runner.register_model("perfect", self)
 
-def load(parameter):
-    return lambda config: read_text_file(config[parameter])
+    async def infer(self, messages, context=None):
+        return json.dumps(context["case"]["turns"][-1]["expected"])
+
+    def metadata(self):
+        return {}
+        # return {k: v for k, v in self._config.items() if k != "key"}
+
+class Flakey(Model):
+    def __init__(self, runner, configuration):
+        self._call_count = 0;
+        runner.register_model("flakey", self)
+
+    async def infer(self, messages, context=None):
+        expected = deepcopy(context["case"]["turns"][-1]["expected"])
+        if self._call_count % 2 == 0:
+            expected["items"].append({"quantity": 123, "name": "foobar"})
+        self._call_count += 1
+        return json.dumps(expected)
+
+    def metadata(self):
+        return {}
+
+# def load(parameter):
+#     return lambda config: read_text_file(config[parameter])
 
 
 def optional():
@@ -55,9 +83,10 @@ class SimplePipeline(Pipeline):
     def __init__(self, runner, config_patch):
         self._config = merge_dicts(self._default_config, {"stages": config_patch})
         settings = flatten_dict(self._config["stages"])
-        for k, v in settings.items():
-            if v is None:
-                raise ValueError(f"{self._default_config['name']} pipeline: missing '{k}' parameter.")
+        with context(F"Pipeline '{self._default_config['name']}' checking settings"):
+            for k, v in settings.items():
+                if v is None:
+                    raise ValueError(f"{self._default_config['name']} pipeline: missing '{k}' parameter.")
         # self._name = "simple"
         self._runner = runner
 
@@ -96,7 +125,15 @@ class SimplePipeline(Pipeline):
 
             # Lazily lookup the model for the infer stage.
             if not self._model:
-                self._model = self._runner.model(glom(self._config, "stages.infer.model"))
+                Perfect(self._runner, {})
+                Flakey(self._runner, {})
+                model_name = glom(self._config, "stages.infer.model")
+                # if model_name == "perfect":
+                #     async def perfect():
+                #         pass
+                #     pass
+                # else:
+                self._model = self._runner.model(model_name)
                 # if not self._config[]
                 # (self._template_text, self._template) = load_template(
                 #     self._config["template"]
@@ -123,7 +160,7 @@ class SimplePipeline(Pipeline):
             return messages
 
         async def infer(result):
-            return await self._model.infer(result["stages"]["prepare"])
+            return await self._model.infer(result["stages"]["prepare"], result)
 
         async def extract(result):
             try:

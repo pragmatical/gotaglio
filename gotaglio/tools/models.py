@@ -77,6 +77,7 @@ class AzureOpenAI(Model):
 
 class Echo(Model):
     def __init__(self, runner, configuration):
+        self._config = configuration
         runner.register_model(configuration["name"], self)
 
     async def infer(self, messages):

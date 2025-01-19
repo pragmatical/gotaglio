@@ -1,4 +1,5 @@
 from .constants import program_name
+from .exceptions import format_exception
 from .models import register_models
 from .runner import Runner
 from .subcommands.add_ids import add_ids
@@ -132,4 +133,6 @@ def main(pipelines):
         else:
             parser.print_help()
     except ValueError as e:
-        print(f"Error: {e}")
+        print("Top level exception")
+        print(format_exception(e))
+        # print(f"Error: {e}")

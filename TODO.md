@@ -1,7 +1,14 @@
 # TODO
 
 * Top
+  * Remove exception handlers not in stages
+  * Exception enhancer
+    * Add exception trace when there isn't a context? When the exception is unknown?
+    * Adds context and information to raw exceptions (e.g. which pipeline, which case)
+    * with log_context() ...
   * Remove colorama
+  * Remove Echo model
+  * Key-value shortcuts, eg prepare.template => template, infer.model => model
   * pipeline spec
     * pojo object
       * name
@@ -17,9 +24,6 @@
     * Test suite
       * Original
       * Words [a-zA-Z_.][a-zA-Z_.-0-9]
-  * Exception enhancer
-    * Adds context and information to raw exceptions (e.g. which pipeline, which case)
-    * with log_context() ...
   * Logger architecture
     * Console logging
     * File logging

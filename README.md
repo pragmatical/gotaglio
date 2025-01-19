@@ -39,4 +39,5 @@ options:
 ~~~sh
 python apps/example.py run data/cases.json simple template=data/template.txt model=gpt3.5
 python apps\example.py run data\cases.json simple2 template=data\template.txt model=gpt3.5
+python apps\example.py run data\small.json simple prepare.template=data\template.txt infer.model=flakey
 ~~~
