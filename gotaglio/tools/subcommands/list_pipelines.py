@@ -1,5 +1,5 @@
 def list_pipelines(runner_factory):
     runner = runner_factory()
     print("Available pipelines:")
-    for pipeline in runner._pipelines:
-        print(pipeline)
+    for k, v in runner._pipelines.items():
+        print(f"  {k}: {v._description}")

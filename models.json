@@ -1,12 +1,14 @@
 [
   {
     "name": "phi3",
+    "description": "Phi-3 medium 128k",
     "type": "AZURE_AI",
     "endpoint": "https://Phi-3-medium-128k-instruct-vysaw.eastus2.models.ai.azure.com",
     "key": "From .credentials.json"
   },
   {
     "name": "gpt3.5",
+    "description": "GPT-3.5-turbo 16k",
     "type": "AZURE_OPEN_AI",
     "endpoint": "https://mhop-azure-openai.openai.azure.com/",
     "deployment": "gpt-35-turbo-16k-0613",

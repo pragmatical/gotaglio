@@ -6,8 +6,8 @@ from .subcommands.add_ids import add_ids
 from .subcommands.compare import compare
 from .subcommands.help import show_help
 from .subcommands.history import show_history
-from .subcommands.models import list_models
-from .subcommands.pipelines import list_pipelines
+from .subcommands.list_models import list_models
+from .subcommands.list_pipelines import list_pipelines
 from .subcommands.run import rerun_pipeline, run_pipeline
 from .subcommands.summarize import summarize
 

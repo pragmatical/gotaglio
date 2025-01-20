@@ -1,8 +1,9 @@
 # TODO
 
 * Top
+  * list_models() should show models introduced by pipeline
   * Example.py
-    * Some means of getting static name and description from pipeline before constructing
+    * x Some means of getting static name and description from pipeline before constructing
     * Model configuration for infer needs to be passed to model constructor
     * is there any way of removing default values from the config?
   * Extract command - extract JSON for specific case in specific run
@@ -18,8 +19,8 @@
     * Summmarize cases in common and in one run only
     * Group common by type of diff
   * Convert pipeline into pojo with description and key mapping
-    * name
-    * description
+    * x name
+    * x description
     * key mapping
     * Key-value shortcuts, eg prepare.template => template, infer.model.name => model
     * help
@@ -31,6 +32,8 @@
     * is it ok for pipeline summarization and compare to use rich?
   * Guard against command-line key-value configure of bad paths
     * e.g. infer.model=x instead of infer.model.name=x
+    * At least show better error message
+    * glom.core.PathAccessError: could not access 'name', part 2 of Path('infer', 'model', 'name'), got error: AttributeError("'str' object has no attribute 'name'")
   * x Remove exception handlers not in stages
   * Exception enhancer
     * Add exception trace when there isn't a context? When the exception is unknown?
