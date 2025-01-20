@@ -5,7 +5,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "example",
+      "name": "run",
       "type": "debugpy",
       "request": "launch",
       "program": "apps/example.py",
@@ -16,6 +16,18 @@
         "simple",
         "prepare.template=data\\template.txt",
         "infer.model.name=perfect"
+      ]
+    },
+    {
+      "name": "rerun",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "apps/example.py",
+      "console": "integratedTerminal",
+      "args": [
+        "rerun",
+        "latest",
+        "infer.model.name=flakey"
       ]
     }
   ]

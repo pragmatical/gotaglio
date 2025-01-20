@@ -6,8 +6,17 @@
     * Model configuration for infer needs to be passed to model constructor
     * is there any way of removing default values from the config?
   * Extract command - extract JSON for specific case in specific run
-  * Rerun command
-    * Unified pipeline configuration architecture
+  * Keyword boolean expressions
+    * Would these filter the cases in the log file?
+  * x Rerun command
+    * x Wire up concurrancy for run and rerun
+    * x Handle `latest` prefix
+    * x Function to get logfilename from prefix or throw
+    * x Extract cases from log file
+    * x Unified pipeline configuration architecture
+  * Compare
+    * Summmarize cases in common and in one run only
+    * Group common by type of diff
   * Convert pipeline into pojo with description and key mapping
     * name
     * description

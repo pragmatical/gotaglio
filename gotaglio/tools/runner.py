@@ -58,6 +58,7 @@ async def process_all_cases(id, cases, pipeline, max_concurrancy, completed):
     metadata = {
         "command": " ".join(sys.argv),
         "start": str(datetime.fromtimestamp(start, timezone.utc)),
+        "concurrency": max_concurrancy,
     }
     result = {"results": {}, "metadata": metadata, "uuid": str(id)}
 
@@ -70,7 +71,7 @@ async def process_all_cases(id, cases, pipeline, max_concurrancy, completed):
             metadata["edits"] = edits
 
         (config, stages) = pipeline.stages()
-        metadata["pipeline"] = config
+        metadata["pipeline"] = {"name": pipeline.name(), "config": config}
 
         #
         # Perform the run
@@ -131,9 +132,9 @@ class Runner:
             raise ValueError(f"Pipeline '{name}' not found. Available pipelines include {names}.")
         return self._pipelines[name]
 
-    async def go(self, id, cases, pipeline, progress, completed):
+    async def go(self, id, cases, pipeline, concurrency, progress, completed):
         # Run cases
-        results = await process_all_cases(id, cases, pipeline, 2, completed)
+        results = await process_all_cases(id, cases, pipeline, concurrency, completed)
 
         # Write log
         if not os.path.exists(log_folder):
@@ -148,10 +149,3 @@ class Runner:
             progress.stop()
 
         return {"log": output_file, "results": results}
-
-    def summarize(self, results):
-        pipeline_name = results["metadata"]["pipeline"]["name"]
-        pipeline_config = results["metadata"]["pipeline"]["stages"]
-        pipeline_factory = self.pipeline(pipeline_name)
-        pipeline = pipeline_factory(self, pipeline_config)
-        pipeline.summarize(results)

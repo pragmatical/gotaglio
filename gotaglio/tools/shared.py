@@ -3,6 +3,10 @@ from copy import deepcopy
 from glom import assign
 import json
 import os
+from pathlib import Path
+
+from .constants import log_folder
+
 
 def format_list(values):
     if not values:
@@ -28,6 +32,31 @@ def parse_key_value_args(args):
     return config
 
 
+def get_files_sorted_by_creation(folder_path):
+    """
+    Get a list of file names in a folder, sorted by creation date.
+
+    Args:
+        folder_path (str or Path): Path to the folder.
+
+    Returns:
+        list: File names sorted by creation date.
+    """
+    # Ensure the folder path is a Path object
+    folder = Path(folder_path)
+
+    # Get a list of files in the folder (excluding directories)
+    files = [(f.stem, f.stat().st_birthtime) for f in folder.iterdir() if f.is_file()]
+
+    # Sort files by creation time
+    sorted_files = sorted(files, key=lambda f: f[1])
+    # sorted_files = sorted(files, key=lambda f: f.stat().st_birthtime)
+
+    # Return only the file names
+    # return [f.name for f in sorted_files]
+    return sorted_files
+
+
 def get_filenames_with_prefix(folder_path, prefix):
     """
     Returns a list of filenames in the specified folder that start with the given prefix.
@@ -43,6 +72,24 @@ def get_filenames_with_prefix(folder_path, prefix):
         and filename.startswith(prefix)
     ]
     return filenames
+
+
+def log_file_name_from_prefix(prefix):
+    if prefix.lower() == 'latest':
+        filenames = get_files_sorted_by_creation(log_folder)
+        if not filenames:
+            raise ValueError(f"No runs found in {log_folder}'.")
+        return os.path.join(log_folder, filenames[-1][0] + '.json')
+    else:
+        filenames = get_filenames_with_prefix(log_folder, prefix)
+        if not filenames:
+            raise ValueError(f"No runs found with prefix '{prefix}'.")
+        if len(filenames) > 1:
+            raise ValueError(
+                f"Multiple runs found with prefix '{prefix}':\n{'\n'.join([f"  {os.path.join(log_folder, n)}" for n in filenames])}"
+            )
+
+        return os.path.join(log_folder, filenames[0])
 
 
 def read_text_file(filename):
@@ -61,7 +108,7 @@ def read_json_file(filename, optional=False):
 
 
 def write_json_file(filename, data):
-    with open (filename, "w") as file:
+    with open(filename, "w") as file:
         json.dump(data, file, indent=2)
 
 
@@ -109,7 +156,7 @@ def merge_dicts(base, patch):
     return result
 
 
-def flatten_dict(d, parent_key='', sep='.'):
+def flatten_dict(d, parent_key="", sep="."):
     """
     Recursively flattens a hierarchical dictionary.
 
@@ -131,6 +178,7 @@ def flatten_dict(d, parent_key='', sep='.'):
             # Add the value with the flattened key
             items[new_key] = value
     return items
+
 
 # # Existing hierarchical dictionary
 # existing_dict = {
@@ -176,6 +224,7 @@ def flatten_dict(d, parent_key='', sep='.'):
 #                 break
 #     return prefixes
 
+
 def minimal_unique_prefix(uuids):
     """
     Given a list of UUIDs, return a list of minimal length prefixes
@@ -203,6 +252,7 @@ def minimal_unique_prefix(uuids):
     # uniform_prefixes = [prefix + uuid[len(prefix):max_length] for prefix, uuid in zip(prefixes, uuids)]
 
     # return uniform_prefixes
+
 
 # # Example usage
 # uuids = [

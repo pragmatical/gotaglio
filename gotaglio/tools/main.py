@@ -8,8 +8,7 @@ from .subcommands.help import show_help
 from .subcommands.history import show_history
 from .subcommands.models import list_models
 from .subcommands.pipelines import list_pipelines
-from .subcommands.rerun import rerun_pipeline
-from .subcommands.run import run_pipeline
+from .subcommands.run import rerun_pipeline, run_pipeline
 from .subcommands.summarize import summarize
 
 import argparse
@@ -69,6 +68,10 @@ def main(pipelines):
     # 'run' subcommand
     rerun_parser = subparsers.add_parser(
         "rerun", help="Rerun an experiment with modifications."
+    )
+    rerun_parser.add_argument("id", type=str, help="The id of the case to rerun.")
+    rerun_parser.add_argument(
+        "-c", "--concurrency", type=int, help="Maximum concurrancy for tasks"
     )
     rerun_parser.add_argument(
         "key_values", nargs="*", help="key=value arguments to configure pipeline"
