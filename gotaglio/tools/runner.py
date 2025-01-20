@@ -58,7 +58,6 @@ async def process_all_cases(id, cases, pipeline, max_concurrancy, completed):
     metadata = {
         "command": " ".join(sys.argv),
         "start": str(datetime.fromtimestamp(start, timezone.utc)),
-        "pipeline": pipeline.metadata(),
     }
     result = {"results": {}, "metadata": metadata, "uuid": str(id)}
 
@@ -70,7 +69,8 @@ async def process_all_cases(id, cases, pipeline, max_concurrancy, completed):
         if edits:
             metadata["edits"] = edits
 
-        stages = pipeline.stages()
+        (config, stages) = pipeline.stages()
+        metadata["pipeline"] = config
 
         #
         # Perform the run
@@ -119,7 +119,8 @@ class Runner:
             raise ValueError(f"Model '{name}' not found. Available models include {names}.")
         return self._models[name]
 
-    def register_pipeline(self, name, pipeline):
+    def register_pipeline(self, pipeline):
+        name = pipeline.name()
         if name in self._pipelines:
             raise ValueError(f"Attempting to register duplicate pipeline '{name}'.")
         self._pipelines[name] = pipeline

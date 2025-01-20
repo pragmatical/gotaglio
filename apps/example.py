@@ -1,8 +1,19 @@
+"""
+This module defines example classes and functions for a simple pipeline using the gotaglio tools.
+
+Classes:
+    Perfect(Model): A mock model that always returns the expected answer.
+    Flakey(Model): A mock model that sometimes returns incorrect answers.
+    SimplePipeline(Pipeline): A simple pipeline that prepares, infers, extracts, and assesses results.
+
+Functions:
+    go(): The main entry point for running the SimplePipeline.
+"""
 from copy import deepcopy
 import json
 import os
 from rich.console import Console
-from glom import assign, glom
+from glom import glom
 from rich.table import Table
 from rich.text import Text
 import sys
@@ -13,125 +24,72 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from gotaglio.tools.exceptions import ExceptionContext
 from gotaglio.tools.main import main
 from gotaglio.tools.models import Model
-from gotaglio.tools.pipelines import Pipeline
-from gotaglio.tools.repair import Repair
-from gotaglio.tools.shared import (
-    flatten_dict,
-    merge_dicts,
-    minimal_unique_prefix,
-    read_text_file,
+from gotaglio.tools.pipelines import (
+    build_template,
+    merge_configs,
+    Pipeline,
+    validate_config,
 )
+from gotaglio.tools.repair import Repair
+from gotaglio.tools.shared import minimal_unique_prefix
 from gotaglio.tools.templating import jinja2_template
 
 
-class Perfect(Model):
-    def __init__(self, runner, configuration):
-        runner.register_model("perfect", self)
-
-    async def infer(self, messages, context=None):
-        return json.dumps(context["case"]["turns"][-1]["expected"])
-
-    def metadata(self):
-        return {}
-
-
-class Flakey(Model):
-    def __init__(self, runner, configuration):
-        self._call_count = 0
-        runner.register_model("flakey", self)
-
-    async def infer(self, messages, context=None):
-        expected = deepcopy(context["case"]["turns"][-1]["expected"])
-        if self._call_count == 0:
-            self._call_count += 1
-            return "some text that is not json"
-        if self._call_count % 2 == 0:
-            expected["items"].append({"quantity": 123, "name": "foobar"})
-        self._call_count += 1
-        return json.dumps(expected)
-
-    def metadata(self):
-        return {}
-
-
-# # Used to indicate configuration values that are optional.
-# # Mainly for template_text, which is loaded from a file.
-# def optional():
-#     pass
-
-
 class SimplePipeline(Pipeline):
+    _name = "simple"
+    _description = "An example pipeline"
     _default_config = {
-        "name": "simple",
-        "stages": {
-            "prepare": {"template": None},
-            "infer": {
-                "model": {
-                    "name": None,
-                    "settings": {
-                        "max_tokens": 800,
-                        "temperature": 0.7,
-                        "top_p": 0.95,
-                        "frequency_penalty": 0,
-                        "presence_penalty": 0,
-                    },
-                }
-            },
-            "extract": {},
-            "assess": {},
+        "prepare": {"template": None},
+        "infer": {
+            "model": {
+                "name": None,
+                "settings": {
+                    "max_tokens": 800,
+                    "temperature": 0.7,
+                    "top_p": 0.95,
+                    "frequency_penalty": 0,
+                    "presence_penalty": 0,
+                },
+            }
         },
+        "extract": {},
+        "assess": {},
     }
 
-    def __init__(self, runner, config_patch):
-        self._config = merge_dicts(self._default_config, {"stages": config_patch})
+    def __init__(self, runner, config_patch, replace_config=False):
+        self._runner = runner
+
+        # Update the default config with values provided on the command-line.
+        self._config = merge_configs(self._default_config, config_patch, replace_config)
 
         # Check the config for missing values.
-        settings = flatten_dict(self._config["stages"])
-        with ExceptionContext(
-            f"Pipeline '{self._default_config['name']}' checking settings."
-        ):
-            for k, v in settings.items():
-                if v is None:
-                    raise ValueError(
-                        f"{self._default_config['name']} pipeline: missing '{k}' parameter."
-                    )
-        self._runner = runner
+        validate_config(self._name, self._config)
+
+        # Register two model mocks.
+        Perfect(self._runner, {})
+        Flakey(self._runner, {})
 
         # Template and model are lazily instantiated in self.stages()
         self._template = None
         self._model = None
 
     def stages(self):
-        with ExceptionContext(
-            f"Pipeline '{self._default_config['name']}' configuring stages."
-        ):
+        with ExceptionContext(f"Pipeline '{self._name}' configuring stages."):
             # Lazily build the prompt template for the prepare stage.
             if not self._template:
-                # If we don't have the template source text, load it from a file.
-                if not isinstance(
-                    glom(self._config, "stages.prepare.template_text", default=None),
-                    str,
-                ):
-                    assign(
-                        self._config,
-                        "stages.prepare.template_text",
-                        read_text_file(glom(self._config, "stages.prepare.template")),
-                    )
-                # Compile the template.
-                self._template = jinja2_template(
-                    glom(self._config, "stages.prepare.template_text")
+                self._template = build_template(
+                    self._config,
+                    "prepare.template",
+                    "prepare.template_text",
                 )
 
             # Lazily instantiate the model for the infer stage.
             if not self._model:
-                # Register two model mocks.
-                Perfect(self._runner, {})
-                Flakey(self._runner, {})
+                self._model = self._runner.model(glom(self._config, "infer.model.name"))
 
-                # Instantiate model.
-                self._model = self._runner.model(
-                    glom(self._config, "stages.infer.model.name")
-                )
+        #
+        # Define the pipeline stage functions
+        #
 
         async def prepare(result):
             messages = [
@@ -165,12 +123,15 @@ class SimplePipeline(Pipeline):
             expected = repair.addIds(result["case"]["turns"][-1]["expected"]["items"])
             return repair.diff(observed, expected)
 
-        return {
-            "prepare": prepare,
-            "infer": infer,
-            "extract": extract,
-            "assess": assess,
-        }
+        return (
+            self._config,
+            {
+                "prepare": prepare,
+                "infer": infer,
+                "extract": extract,
+                "assess": assess,
+            },
+        )
 
     def summarize(self, results):
         if len(results) == 0:
@@ -239,13 +200,51 @@ class SimplePipeline(Pipeline):
             )
             console.print()
 
+
+
+class Perfect(Model):
+    """
+    A mock model class that always returns the expected answer
+    from context["case"]["turns"][-1]["expected"]
+    """
+
+    def __init__(self, runner, configuration):
+        runner.register_model("perfect", self)
+
+    async def infer(self, messages, context=None):
+        return json.dumps(context["case"]["turns"][-1]["expected"])
+
     def metadata(self):
-        # NOTE: WARNING: this method cannot be called before stages(). Perhaps make a return value of stages()?
-        return self._config
+        return {}
+
+
+class Flakey(Model):
+    """
+    A mock model class that sometimes returns the expected answer
+    from context["case"]["turns"][-1]["expected"]. Other times it
+    returns a bogus answer.
+    """
+
+    def __init__(self, runner, configuration):
+        self._call_count = 0
+        runner.register_model("flakey", self)
+
+    async def infer(self, messages, context=None):
+        expected = deepcopy(context["case"]["turns"][-1]["expected"])
+        if self._call_count == 0:
+            self._call_count += 1
+            return "some text that is not json"
+        if self._call_count % 2 == 0:
+            expected["items"].append({"quantity": 123, "name": "foobar"})
+        self._call_count += 1
+        return json.dumps(expected)
+
+    def metadata(self):
+        return {}
 
 
 def go():
-    main({"simple": SimplePipeline})
+    main([SimplePipeline])
 
 
 if __name__ == "__main__":

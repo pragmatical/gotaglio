@@ -1,13 +1,20 @@
 # TODO
 
 * Top
-  * Extract flakey and perfect for reusable mocks
+  * Example.py
+    * Some means of getting static name and description from pipeline before constructing
+    * Model configuration for infer needs to be passed to model constructor
+    * is there any way of removing default values from the config?
+  * Extract command - extract JSON for specific case in specific run
+  * Rerun command
+    * Unified pipeline configuration architecture
   * Convert pipeline into pojo with description and key mapping
     * name
     * description
     * key mapping
     * Key-value shortcuts, eg prepare.template => template, infer.model.name => model
     * help
+  * Extract flakey and perfect for reusable mocks
   * Use rich consistantly
     * Replace print()
     * bias towards tools/subcommands
@@ -95,8 +102,6 @@
     * Display description
   * Pipelines command
     * Display description
-  * Rerun command
-    * Unified pipeline configuration architecture
   * Documentation
     * What are the key responsibilities of a pipeline?
   * Assess stage

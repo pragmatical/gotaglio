@@ -93,18 +93,20 @@ def apply_patch(target_dict, patches):
     return result
 
 
-def merge_dicts(existing, patch):
+def merge_dicts(base, patch):
     """
-    Merge the `patch` dictionary into the `existing` dictionary hierarchically.
+    Merge the `patch` dictionary into a deep copy of the
+    `base` dictionary hierarchically.
     """
+    result = deepcopy(base)
     for key, value in patch.items():
         if isinstance(value, dict):
             # If the value is a dictionary, recursively merge
-            existing[key] = merge_dicts(existing.get(key, {}), value)
+            result[key] = merge_dicts(result.get(key, {}), value)
         else:
             # Otherwise, directly set the value
-            existing[key] = value
-    return existing
+            result[key] = value
+    return result
 
 
 def flatten_dict(d, parent_key='', sep='.'):

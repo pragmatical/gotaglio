@@ -20,8 +20,8 @@ def main(pipelines):
     # instantiation exceptions before argument parsing exceptions.
     def runner_factory():
         runner = Runner()
-        for (key, value) in pipelines.items():
-            runner.register_pipeline(key, value)
+        for pipeline in pipelines:
+            runner.register_pipeline(pipeline)
         register_models(runner)
         return runner
 
