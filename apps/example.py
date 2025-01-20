@@ -21,7 +21,7 @@ from gotaglio.tools.shared import (
     minimal_unique_prefix,
     read_text_file,
 )
-from gotaglio.tools.templating import jinja2_template, load_template
+from gotaglio.tools.templating import jinja2_template
 
 
 class Perfect(Model):
@@ -42,6 +42,9 @@ class Flakey(Model):
 
     async def infer(self, messages, context=None):
         expected = deepcopy(context["case"]["turns"][-1]["expected"])
+        if self._call_count == 0:
+            self._call_count += 1
+            return "some text that is not json"
         if self._call_count % 2 == 0:
             expected["items"].append({"quantity": 123, "name": "foobar"})
         self._call_count += 1
@@ -51,17 +54,17 @@ class Flakey(Model):
         return {}
 
 
-# Used to indicate configuration values that are optional.
-# Mainly for template_text, which is loaded from a file.
-def optional():
-    pass
+# # Used to indicate configuration values that are optional.
+# # Mainly for template_text, which is loaded from a file.
+# def optional():
+#     pass
 
 
 class SimplePipeline(Pipeline):
     _default_config = {
         "name": "simple",
         "stages": {
-            "prepare": {"template": None, "template_text": optional},
+            "prepare": {"template": None},
             "infer": {
                 "model": {
                     "name": None,
@@ -84,7 +87,9 @@ class SimplePipeline(Pipeline):
 
         # Check the config for missing values.
         settings = flatten_dict(self._config["stages"])
-        with ExceptionContext(f"Pipeline '{self._default_config['name']}' checking settings."):
+        with ExceptionContext(
+            f"Pipeline '{self._default_config['name']}' checking settings."
+        ):
             for k, v in settings.items():
                 if v is None:
                     raise ValueError(
@@ -97,12 +102,15 @@ class SimplePipeline(Pipeline):
         self._model = None
 
     def stages(self):
-        with ExceptionContext(f"Pipeline '{self._default_config['name']}' configuring stages."):
+        with ExceptionContext(
+            f"Pipeline '{self._default_config['name']}' configuring stages."
+        ):
             # Lazily build the prompt template for the prepare stage.
             if not self._template:
                 # If we don't have the template source text, load it from a file.
                 if not isinstance(
-                    glom(self._config, "stages.prepare.template_text"), str
+                    glom(self._config, "stages.prepare.template_text", default=None),
+                    str,
                 ):
                     assign(
                         self._config,
@@ -121,8 +129,9 @@ class SimplePipeline(Pipeline):
                 Flakey(self._runner, {})
 
                 # Instantiate model.
-                self._model = self._runner.model(glom(self._config, "stages.infer.model.name"))
- 
+                self._model = self._runner.model(
+                    glom(self._config, "stages.infer.model.name")
+                )
 
         async def prepare(result):
             messages = [
@@ -146,10 +155,8 @@ class SimplePipeline(Pipeline):
             return await self._model.infer(result["stages"]["prepare"], result)
 
         async def extract(result):
-            try:
+            with ExceptionContext(f"Extracting JSON from LLM response."):
                 return json.loads(result["stages"]["infer"])
-            except json.JSONDecodeError as m:
-                raise ValueError(f"Error decoding JSON: {m}")
 
         async def assess(result):
             repair = Repair("id", "options", [], ["name"], "name")
@@ -235,11 +242,6 @@ class SimplePipeline(Pipeline):
     def metadata(self):
         # NOTE: WARNING: this method cannot be called before stages(). Perhaps make a return value of stages()?
         return self._config
-        # return {
-        #     # "name": self._name,
-        #     "config": self._config,
-        #     # "template": self._template_text,
-        # }
 
 
 def go():

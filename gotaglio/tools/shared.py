@@ -36,42 +36,27 @@ def get_filenames_with_prefix(folder_path, prefix):
     :param prefix: The prefix to filter filenames.
     :return: List of filenames that start with the prefix.
     """
-    try:
-        # List all files in the folder
-        filenames = [
-            filename
-            for filename in os.listdir(folder_path)
-            if os.path.isfile(os.path.join(folder_path, filename))
-            and filename.startswith(prefix)
-        ]
-        return filenames
-    except FileNotFoundError:
-        print(f"Error: Folder '{folder_path}' not found.")
-        return []
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return []
+    filenames = [
+        filename
+        for filename in os.listdir(folder_path)
+        if os.path.isfile(os.path.join(folder_path, filename))
+        and filename.startswith(prefix)
+    ]
+    return filenames
 
 
 def read_text_file(filename):
-    try:
-        with open(filename, "r") as file:
-            result = file.read()
-    except FileNotFoundError:
-        raise ValueError(f"File {filename} not found.")
+    with open(filename, "r") as file:
+        result = file.read()
     return result
 
 
-def read_json_file(filename, optional):
-    try:
-        if optional and not os.path.isfile(filename):
-            return {}
-        with open(filename, "r") as file:
-            result = json.load(file)
-    except FileNotFoundError:
-        raise ValueError(f"File {filename} not found.")
-    except json.JSONDecodeError:
-        raise ValueError(f"Error decoding JSON from file {filename}.")
+def read_json_file(filename, optional=False):
+    # try:
+    if optional and not os.path.isfile(filename):
+        return {}
+    with open(filename, "r") as file:
+        result = json.load(file)
     return result
 
 

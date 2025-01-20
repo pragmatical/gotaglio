@@ -1,3 +1,6 @@
+import traceback
+
+
 class ExceptionContext:
     # Class-level static context stack
     context_stack = []
@@ -31,7 +34,7 @@ class ExceptionContext:
         cls.context_stack.clear()
 
     @classmethod
-    def format_message(cls, exception):
+    def format_message(cls, exception, format_traceback=False):
         """
         Format an exception message with the current context stack.
 
@@ -42,4 +45,6 @@ class ExceptionContext:
             str: A formatted string including the exception and context.
         """
         context = cls.get_context()
-        return f"Context: {context if context else 'No context available'}\nError: {exception}\n"
+        context_text = f"Context: {context}\n" if context else ""
+        traceback_text = f"{traceback.format_exc()}\n" if format_traceback else ""
+        return f"{context_text}Error: {exception}\n{traceback_text}"

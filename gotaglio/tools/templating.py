@@ -17,25 +17,3 @@ def jinja2_template(source):
         return template.render(**case)
 
     return apply
-
-def load_template(filename):
-    #
-    # Read the template file
-    #
-    if not os.path.isfile(filename):
-        raise FileNotFoundError(f"Template file {filename} does not exist.")
-    try:
-        with open(filename, "r") as file:
-            template_text = file.read()
-    except Exception as e:
-        raise ValueError(f"Error reading template file {filename}: {e}")
-
-    #
-    # Compile the template
-    #
-    try:
-        template = jinja2_template(template_text)
-    except Exception as e:
-        raise ValueError(f"Error compiling template: {e}")
-
-    return (template_text, template)

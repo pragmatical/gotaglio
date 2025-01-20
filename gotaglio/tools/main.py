@@ -132,6 +132,6 @@ def main(pipelines):
 
         else:
             parser.print_help()
-    except ValueError as e:
+    except Exception as e:
         print("Top level exception")
         print(ExceptionContext.format_message(e))

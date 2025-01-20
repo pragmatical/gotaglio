@@ -5,13 +5,17 @@ import json
 import os
 
 def summarize(runner_factory, args):
+    if not os.path.exists(log_folder):
+        print(f"No log folder '{log_folder}'.")
+        return
+
     prefix = args.prefix
     filenames = get_filenames_with_prefix(log_folder, prefix)
     if not filenames:
-        print(f"No files found with prefix '{prefix}'.")
+        print(f"No runs found with prefix '{prefix}'.")
         return
     if len(filenames) > 1:
-        print(f"Multiple files found with prefix '{prefix}':")
+        print(f"Multiple runs found with prefix '{prefix}':")
         for filename in filenames:
             print(filename)
         return

@@ -1,19 +1,18 @@
 from .constants import log_folder
 from .exceptions import ExceptionContext
+from .git import get_current_edits, get_git_sha
 from .shared import format_list
 
 import asyncio
 from datetime import datetime, timedelta, timezone
 import json
 import os
-from git import Repo
-from rich.progress import Progress
 import sys
 import traceback
-import uuid
 
 
-async def process_one_case(case, pipeline, completed):
+async def process_one_case(case, stages, completed):
+    ExceptionContext.clear_context()
     start = datetime.now().timestamp()
     result = {
         "succeeded": False,
@@ -22,7 +21,6 @@ async def process_one_case(case, pipeline, completed):
         "stages": {},
     }
     try:
-        stages = pipeline.stages()
         for stage, func in stages.items():
             try:
                 result["stages"][stage] = await func(result)
@@ -52,42 +50,10 @@ async def process_one_case(case, pipeline, completed):
     return result
 
 
-def get_git_sha(repo_path="."):
-    try:
-        repo = Repo(repo_path)
-        sha = repo.head.commit.hexsha
-        return sha
-    except Exception as e:
-        # print(f"Error: {e}")
-        return None
-
-
-def get_current_edits(repo_path="."):
-    repo = Repo(repo_path)
-    edits = {"modified": [], "added": [], "deleted": [], "untracked": [], "renamed": []}
-
-    # Get modified, added, deleted, and renamed files
-    for item in repo.index.diff(None):
-        if item.change_type == "M":
-            edits["modified"].append(item.a_path)
-        elif item.change_type == "A":
-            edits["added"].append(item.a_path)
-        elif item.change_type == "D":
-            edits["deleted"].append(item.a_path)
-        elif item.change_type == "R":
-            edits["renamed"].append(f"{item.a_path} -> {item.b_path}")
-
-    # Get untracked files
-    edits["untracked"] = repo.untracked_files
-
-    return edits
-
-
-async def process_all_cases(cases, pipeline, max_concurrancy, completed):
+async def process_all_cases(id, cases, pipeline, max_concurrancy, completed):
     #
     # Generate static, pre-run metadata
     #
-    id = uuid.uuid4()
     start = datetime.now().timestamp()
     metadata = {
         "command": " ".join(sys.argv),
@@ -104,6 +70,8 @@ async def process_all_cases(cases, pipeline, max_concurrancy, completed):
         if edits:
             metadata["edits"] = edits
 
+        stages = pipeline.stages()
+
         #
         # Perform the run
         #
@@ -111,7 +79,7 @@ async def process_all_cases(cases, pipeline, max_concurrancy, completed):
 
         async def sem_task(case):
             async with semaphore:
-                return await process_one_case(case, pipeline, completed)
+                return await process_one_case(case, stages, completed)
 
         tasks = [sem_task(case) for case in cases]
         results = await asyncio.gather(*tasks)
@@ -162,13 +130,9 @@ class Runner:
             raise ValueError(f"Pipeline '{name}' not found. Available pipelines include {names}.")
         return self._pipelines[name]
 
-    async def go(self, cases, pipeline_name, pipeline_config, progress, completed):
-        # Configure pipeline
-        pipeline_factory = self.pipeline(pipeline_name)
-        pipeline = pipeline_factory(self, pipeline_config)
-
+    async def go(self, id, cases, pipeline, progress, completed):
         # Run cases
-        results = await process_all_cases(cases, pipeline, 2, completed)
+        results = await process_all_cases(id, cases, pipeline, 2, completed)
 
         # Write log
         if not os.path.exists(log_folder):
@@ -182,14 +146,11 @@ class Runner:
         if progress:
             progress.stop()
 
-        # print(json.dumps(results, indent=2))
-        pipeline.summarize(results)
-
         return {"log": output_file, "results": results}
 
     def summarize(self, results):
         pipeline_name = results["metadata"]["pipeline"]["name"]
-        pipeline_config = results["metadata"]["pipeline"]["config"]
+        pipeline_config = results["metadata"]["pipeline"]["stages"]
         pipeline_factory = self.pipeline(pipeline_name)
         pipeline = pipeline_factory(self, pipeline_config)
         pipeline.summarize(results)

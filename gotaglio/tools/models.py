@@ -1,4 +1,5 @@
 from .constants import model_config_file, model_credentials_file
+from .exceptions import ExceptionContext
 from .shared import read_json_file
 
 from abc import ABC, abstractmethod
@@ -78,18 +79,6 @@ class AzureOpenAI(Model):
         return {k: v for k, v in self._config.items() if k != "key"}
 
 
-class Echo(Model):
-    def __init__(self, runner, configuration):
-        self._config = configuration
-        runner.register_model(configuration["name"], self)
-
-    async def infer(self, messages):
-        return json.dumps(messages)
-
-    def metadata(self):
-        return {k: v for k, v in self._config.items() if k != "key"}
-
-
 def register_models(
     runner, config_file=model_config_file, credentials_file=model_credentials_file
 ):
@@ -101,17 +90,13 @@ def register_models(
         if model["name"] in credentials:
             model["key"] = credentials[model["name"]]
 
-    try:
-        for model in config:
+    for model in config:
+        with ExceptionContext(f"While registering model '{model['name']}':"):
             if model["type"] == "AZURE_AI":
                 AzureAI(runner, model)
             elif model["type"] == "AZURE_OPEN_AI":
                 AzureOpenAI(runner, model)
-            elif model["type"] == "ECHO":
-                Echo(runner, model)
             else:
                 raise ValueError(
                     f"Model {model['name']} has unsupported model type: {model['type']}"
                 )
-    except Exception as e:
-        print(f"An error occurred while registering models: {e}")

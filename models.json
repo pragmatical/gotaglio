@@ -12,9 +12,5 @@
     "deployment": "gpt-35-turbo-16k-0613",
     "key": "From .credentials.json",
     "api": "2024-07-01-preview"
-  },
-  {
-    "name": "echo",
-    "type": "ECHO"
   }
 ]

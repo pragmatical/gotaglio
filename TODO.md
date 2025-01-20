@@ -1,16 +1,29 @@
 # TODO
 
 * Top
+  * Extract flakey and perfect for reusable mocks
+  * Convert pipeline into pojo with description and key mapping
+    * name
+    * description
+    * key mapping
+    * Key-value shortcuts, eg prepare.template => template, infer.model.name => model
+    * help
+  * Use rich consistantly
+    * Replace print()
+    * bias towards tools/subcommands
+    * avoid elsewhere
+    * is it ok for pipeline summarization and compare to use rich?
   * Guard against command-line key-value configure of bad paths
     * e.g. infer.model=x instead of infer.model.name=x
-  * Remove exception handlers not in stages
+  * x Remove exception handlers not in stages
   * Exception enhancer
     * Add exception trace when there isn't a context? When the exception is unknown?
-    * Adds context and information to raw exceptions (e.g. which pipeline, which case)
+    * x Adds context and information to raw exceptions (e.g. which pipeline, which case)
+    * Integrate `with ExceptionContext` into codebase
+    * Reevaluate need for except statements.
     * with log_context() ...
-  * Remove colorama
-  * Remove Echo model
-  * Key-value shortcuts, eg prepare.template => template, infer.model.name => model
+  * x Remove colorama
+  * x Remove Echo model
   * pipeline spec
     * pojo object
       * name
