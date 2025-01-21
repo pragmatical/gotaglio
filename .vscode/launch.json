@@ -29,6 +29,29 @@
         "latest",
         "infer.model.name=flakey"
       ]
+    },
+    {
+      "name": "summarize",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "apps/example.py",
+      "console": "integratedTerminal",
+      "args": [
+        "summarize",
+        "2c44",
+      ]
+    },
+    {
+      "name": "compare",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "apps/example.py",
+      "console": "integratedTerminal",
+      "args": [
+        "compare",
+        "9176",
+        "2c44",
+      ]
     }
   ]
 }

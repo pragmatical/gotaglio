@@ -1,6 +1,7 @@
 """
 This module demonstrates the implementation of a simple pipeline using the gotaglio tools.
 """
+
 from copy import deepcopy
 import json
 import os
@@ -201,6 +202,55 @@ class SimplePipeline(Pipeline):
             )
             console.print()
 
+    def compare(self, a, b):
+        a_cases = {result["case"]["uuid"]: result for result in a["results"]}
+        b_cases = {result["case"]["uuid"]: result for result in b["results"]}
+        a_uuids = set(a_cases.keys())
+        b_uuids = set(b_cases.keys())
+        both = a_uuids.intersection(b_uuids)
+        just_a = a_uuids - b_uuids
+        just_b = b_uuids - a_uuids
+
+        print(f"A: {a["uuid"]}")
+        print(f"B: {b["uuid"]}")
+
+        print(f"{len(just_a)} cases only in A")
+        print(f"{len(just_b)} cases only in B")
+        print(f"{len(both)} cases in both")
+
+        table = Table(title=f"Summary for {"A, B"}")
+        table.add_column("id", justify="right", style="cyan", no_wrap=True)
+        table.add_column("A", justify="right", style="magenta")
+        table.add_column("B", justify="right", style="green")
+        table.add_column("keywords", justify="left", style="green")
+
+        # for uuid in both:
+        both_results = [
+            format_row(uuid, *format_case(a_cases[uuid]), *format_case(b_cases[uuid]))
+            for uuid in both
+        ]
+        both_results.sort(key=lambda x: x[3])
+
+        for row in both_results:
+            table.add_row(row[0], row[1], row[2], "keywords")
+
+        console = Console()
+        console.print(table)
+        console.print()
+        # console.print(f"Total: {total_count}")
+
+
+def format_row(uuid, text_a, order_a, text_b, order_b):
+    return (Text(uuid), text_a, text_b, order_b * 4 + order_a)
+
+def format_case(result):
+    if (result["succeeded"]):
+        if result["stages"]["assess"]["cost"] == 0:
+            return (Text("passed", style="bold green"), 0)
+        else:
+            return (Text("failed", style="bold red"), 1)
+    else:
+        return (Text("error", style="bold red"), 2)
 
 
 class Perfect(Model):

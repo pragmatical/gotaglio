@@ -44,7 +44,12 @@ def main(pipelines):
     compare_parser = subparsers.add_parser(
         "compare", help="Compare two or more label sets"
     )
-    compare_parser.add_argument("files", nargs="+", help="Label set files to compare")
+    compare_parser.add_argument(
+        "prefix_a", type=str, help="Filename prefix for run log A"
+    )
+    compare_parser.add_argument(
+        "prefix_b", type=str, help="Filename prefix for run log B"
+    )
 
     # 'help' subcommand
     help_parser = subparsers.add_parser("help", help="Show help for gotaglio commands")
@@ -107,7 +112,7 @@ def main(pipelines):
             add_ids(args.suite, args.force)
 
         elif args.command == "compare":
-            compare(args)
+            compare(runner_factory, args)
 
         elif args.command == "help":
             show_help(parser, args)

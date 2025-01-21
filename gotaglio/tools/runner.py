@@ -149,3 +149,24 @@ class Runner:
             progress.stop()
 
         return {"log": output_file, "results": results}
+
+
+    # TODO: does summarize() need to be in runner?
+    def summarize(self, results):
+        # TODO: checck that metadata.pipline exists
+        pipeline_name = results["metadata"]["pipeline"]["name"]
+        pipeline_config = results["metadata"]["pipeline"]["config"]
+        pipeline_factory = self.pipeline(pipeline_name)
+        pipeline = pipeline_factory(self, pipeline_config)
+        pipeline.summarize(results)
+
+
+    # TODO: does summarize() need to be in runner?
+    def compare(self, results_a, results_b):
+        # TODO: check that metadata.pipline exists
+        # TODO: check that both results are from the same pipeline
+        pipeline_name = results_a["metadata"]["pipeline"]["name"]
+        pipeline_config = results_a["metadata"]["pipeline"]["config"]
+        pipeline_factory = self.pipeline(pipeline_name)
+        pipeline = pipeline_factory(self, pipeline_config)
+        pipeline.compare(results_a, results_b)

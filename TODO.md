@@ -2,6 +2,10 @@
 
 * Top
   * Compare
+    * Compare and Summarize don't need to be in runner.py
+    * Short uuids
+    * Summary row with counts
+    * Keywords column
     * Enforce same pipeline
     * Check for identical runs
     * Mention git sha diffs
