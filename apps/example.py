@@ -203,6 +203,23 @@ class SimplePipeline(Pipeline):
             console.print()
 
     def compare(self, a, b):
+        console = Console()
+
+        if a["uuid"] == b["uuid"]:
+            console.print(f"Run ids are the same.\n")
+            self.summarize(a)
+            return
+
+        if a["metadata"]["pipeline"]["name"] != b["metadata"]["pipeline"]["name"]:
+            console.print(
+                f"Cannot perform comparison because pipeline names are different: A is '{
+                    a['metadata']['pipeline']['name']
+                }', B is '{
+                    b['metadata']['pipeline']['name']
+                }'"
+            )
+            return
+
         a_cases = {result["case"]["uuid"]: result for result in a["results"]}
         b_cases = {result["case"]["uuid"]: result for result in b["results"]}
         a_uuids = set(a_cases.keys())
@@ -211,40 +228,74 @@ class SimplePipeline(Pipeline):
         just_a = a_uuids - b_uuids
         just_b = b_uuids - a_uuids
 
-        print(f"A: {a["uuid"]}")
-        print(f"B: {b["uuid"]}")
+        console.print(f"A: {a["uuid"]}")
+        console.print(f"B: {b["uuid"]}")
+        console.print("")
+        console.print(f"{len(just_a)} case{'s' if len(just_a) != 1 else ''} only in A")
+        console.print(f"{len(just_b)} case{'s' if len(just_b) != 1 else ''} only in B")
+        console.print(f"{len(both)} cases in both A and B")
+        console.print("")
 
-        print(f"{len(just_a)} cases only in A")
-        print(f"{len(just_b)} cases only in B")
-        print(f"{len(both)} cases in both")
+        # TODO: handle no results case
+        if len(both) == 0:
+            console.print("There are no cases to compare.")
+            console.print()
+            # Fall through to print empty table
 
-        table = Table(title=f"Summary for {"A, B"}")
+        uuids = [uuid for uuid in both]
+        uuid_prefix_len = max(minimal_unique_prefix(uuids), 3)
+
+        table = Table(title=f"Comparison of {"A, B"}", show_footer=True)
         table.add_column("id", justify="right", style="cyan", no_wrap=True)
         table.add_column("A", justify="right", style="magenta")
         table.add_column("B", justify="right", style="green")
         table.add_column("keywords", justify="left", style="green")
 
-        # for uuid in both:
-        both_results = [
-            format_row(uuid, *format_case(a_cases[uuid]), *format_case(b_cases[uuid]))
-            for uuid in both
-        ]
-        both_results.sort(key=lambda x: x[3])
+        rows = []
+        pass_count_a = 0
+        pass_count_b = 0
+        for uuid in both:
+            (text_a, order_a) = format_case(a_cases[uuid])
+            (text_b, order_b) = format_case(b_cases[uuid])
+            keywords = ", ".join(sorted(a_cases[uuid]["case"].get("keywords", [])))
+            if order_a == 0:
+                pass_count_a += 1
+            if order_b == 0:
+                pass_count_b += 1
+            rows.append(
+                (
+                    (Text(uuid[:uuid_prefix_len]), text_a, text_b, keywords),
+                    order_b * 4 + order_a,
+                )
+            )
+        rows.sort(key=lambda x: x[1])
+        for row in rows:
+            table.add_row(*row[0])
 
-        for row in both_results:
-            table.add_row(row[0], row[1], row[2], "keywords")
+        table.columns[0].footer = "Total"
+        table.columns[1].footer = Text(
+            f"{pass_count_a}/{len(both)} ({(pass_count_a/len(both))*100:.0f}%)"
+        )
+        table.columns[2].footer = Text(
+            f"{pass_count_b}/{len(both)} ({(pass_count_b/len(both))*100:.0f}%)"
+        )
 
-        console = Console()
         console.print(table)
         console.print()
-        # console.print(f"Total: {total_count}")
 
 
-def format_row(uuid, text_a, order_a, text_b, order_b):
-    return (Text(uuid), text_a, text_b, order_b * 4 + order_a)
+def format_row(uuid, keywords, text_a, order_a, text_b, order_b):
+    return (
+        Text(uuid),
+        text_a,
+        text_b,
+        Text(", ".join(sorted(keywords))),
+        order_b * 4 + order_a,
+    )
+
 
 def format_case(result):
-    if (result["succeeded"]):
+    if result["succeeded"]:
         if result["stages"]["assess"]["cost"] == 0:
             return (Text("passed", style="bold green"), 0)
         else:

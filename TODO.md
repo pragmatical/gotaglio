@@ -1,18 +1,20 @@
 # TODO
 
 * Top
+  * prefix search should only find uuid.json files
   * Compare
-    * Compare and Summarize don't need to be in runner.py
-    * Short uuids
-    * Summary row with counts
-    * Keywords column
-    * Enforce same pipeline
-    * Check for identical runs
     * Mention git sha diffs
     * Mention config diffs
-    * Summmarize cases in common and those in one run only
-    * Group common cases by type of diff
-    * Totals and percentages at bottom
+    * --compare flag for run and rerun
+    * Compare and Summarize don't need to be in runner.py
+    * x Short uuids
+    * x Summary row with counts
+    * x Keywords column
+    * x Enforce same pipeline
+    * x Check for identical runs
+    * x Summmarize cases in common and those in one run only
+    * x Group common cases by type of diff
+    * x Totals and percentages at bottom
   * Example.py
     * Need a way to pass configurations to stages. Runner should do this.
     * Model configuration for infer needs to be passed to model constructor
