@@ -1,23 +1,30 @@
 # TODO
 
 * Top
-  * list_models() should show models introduced by pipeline
+  * Compare
+    * Enforce same pipeline
+    * Check for identical runs
+    * Mention git sha diffs
+    * Mention config diffs
+    * Summmarize cases in common and those in one run only
+    * Group common cases by type of diff
+    * Totals and percentages at bottom
   * Example.py
-    * x Some means of getting static name and description from pipeline before constructing
+    * Need a way to pass configurations to stages. Runner should do this.
     * Model configuration for infer needs to be passed to model constructor
     * is there any way of removing default values from the config?
+    * should summarize() and compare() be static class methods?
+    * x Some means of getting static name and description from pipeline before constructing
   * Extract command - extract JSON for specific case in specific run
-  * Keyword boolean expressions
+  * Keyword boolean filter expressions
     * Would these filter the cases in the log file?
+  * list_models() should show models introduced by pipeline
   * x Rerun command
     * x Wire up concurrancy for run and rerun
     * x Handle `latest` prefix
     * x Function to get logfilename from prefix or throw
     * x Extract cases from log file
     * x Unified pipeline configuration architecture
-  * Compare
-    * Summmarize cases in common and in one run only
-    * Group common by type of diff
   * Convert pipeline into pojo with description and key mapping
     * x name
     * x description

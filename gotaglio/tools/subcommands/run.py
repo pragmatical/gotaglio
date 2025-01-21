@@ -44,6 +44,8 @@ def rerun_pipeline(runner_factory, args):
     id = uuid.uuid4()
 
     cases = [record["case"] for record in results["results"]]
+    if "pipeline" not in results["metadata"]:
+        raise Exception("No pipeline metadata found in results file")
     pipeline_name = results["metadata"]["pipeline"]["name"]
     original_config = results["metadata"]["pipeline"]["config"]
     pipeline_patches = parse_key_value_args(args.key_values)

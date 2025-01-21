@@ -41,4 +41,6 @@ python apps\example.py run data\small.json simple prepare.template=data\template
 python apps\example.py run data\small.json simple prepare.template=data\template.txt infer.model.name=perfect
 python apps\example.py run data\small.json simple prepare.template=data\template.txt infer.model.name=gpt3.5
 python apps\example.py run data\small.json simple prepare.template=data\template.txt infer.model.name=phi3
+
+python apps\example.py rerun LATEST infer.model.name=flakey
 ~~~

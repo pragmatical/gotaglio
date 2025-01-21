@@ -1,13 +1,5 @@
 """
-This module defines example classes and functions for a simple pipeline using the gotaglio tools.
-
-Classes:
-    Perfect(Model): A mock model that always returns the expected answer.
-    Flakey(Model): A mock model that sometimes returns incorrect answers.
-    SimplePipeline(Pipeline): A simple pipeline that prepares, infers, extracts, and assesses results.
-
-Functions:
-    go(): The main entry point for running the SimplePipeline.
+This module demonstrates the implementation of a simple pipeline using the gotaglio tools.
 """
 from copy import deepcopy
 import json
@@ -36,8 +28,13 @@ from gotaglio.tools.templating import jinja2_template
 
 
 class SimplePipeline(Pipeline):
+    # The Pipeline abstract base class requires _name and _description.
     _name = "simple"
     _description = "An example pipeline"
+
+    # Dictionary of default configuration dicts for each pipeline stage.
+    # The structure of each configuration dict is dictated by the corresponding
+    # pipeline stage.
     _default_config = {
         "prepare": {"template": None},
         "infer": {
@@ -52,6 +49,7 @@ class SimplePipeline(Pipeline):
                 },
             }
         },
+        # TODO: should should not be required to include empty dicts.
         "extract": {},
         "assess": {},
     }
@@ -65,11 +63,14 @@ class SimplePipeline(Pipeline):
         # Check the config for missing values.
         validate_config(self._name, self._config)
 
-        # Register two model mocks.
+        # Construct and register two model mocks, specific to this pipeline.
         Perfect(self._runner, {})
         Flakey(self._runner, {})
 
-        # Template and model are lazily instantiated in self.stages()
+        # Template and model are lazily instantiated in self.stages().
+        # This allows us to use the pipeline for other purposes without
+        # loading and compiling the prompt template.
+        # TODO: should summarize() and compare() be static class methods?
         self._template = None
         self._model = None
 
