@@ -228,3 +228,33 @@
     ]
   }
 ~~~
+
+
+## Service
+
+* schemas
+    GET returns a list of schemas
+    POST creates a new schema and returns its id
+* schemas/id
+    GET returns the schema description
+    DELETE
+    Schemas are immutable
+    The schema defines the type system for is cases
+* schemas/id/cases
+    GET returns all cases or those matching query
+    POST schemas/id/cases creates a new case and returns its id
+* schemas/id/aschemas
+    GET returns a list of annotation-schemas
+    POST creates a new annotation-schema and returns its id
+    The annotation-schema contains templates for the cases and the annotation create/edit form
+* schemas/id1/aschems/id2/
+    GET returns all annotations or those matching query
+    POST creates a new annotation-schema
+    PATCH modifies an annotation
+
+## Views
+
+* Table of case join annotation.
+    Filtering
+    Sorting
+    Editing annotation
