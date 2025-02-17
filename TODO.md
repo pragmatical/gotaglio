@@ -1,8 +1,14 @@
 # TODO
 
 * Top top
+  * Examples to README.md
+    * Update for new folders - api and menu
+    * Also document cases data structure JSON
   * Subcommand to add/remove tags from uuid or LATEST
   * Subcommand to format case as markdown
+  * Should logging be in folders named after pipelines?
+    * Pipeline names must be legal filenames
+  * Don't print out run configuration if command line fails before starting (e.g. bad pipeline name)
 * Top
   * prefix search should only find uuid.json files
   * Compare

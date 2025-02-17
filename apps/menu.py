@@ -1,5 +1,6 @@
 """
 This module demonstrates the implementation of a simple pipeline using the gotaglio tools.
+This pipeline is for a restaurant ordering system.
 """
 
 from copy import deepcopy
@@ -21,21 +22,28 @@ from gotaglio.tools.pipelines import (
     build_template,
     merge_configs,
     Pipeline,
-    validate_config,
+    ensure_required_configs,
 )
 from gotaglio.tools.repair import Repair
 from gotaglio.tools.shared import minimal_unique_prefix
 from gotaglio.tools.templating import jinja2_template
 
 
-class SimplePipeline(Pipeline):
+class MenuPipeline(Pipeline):
     # The Pipeline abstract base class requires _name and _description.
-    _name = "simple"
-    _description = "An example pipeline"
+    _name = "menu"
+    _description = "An example pipeline for restaurant ordering."
 
     # Dictionary of default configuration dicts for each pipeline stage.
-    # The structure of each configuration dict is dictated by the corresponding
-    # pipeline stage.
+    # The structure and interpretation of each configuration dict is determines
+    # by the corresponding pipeline stage.
+    #
+    # A value of None indicates that the value must be provided on the command
+    # line.
+    #
+    # There is no requirement to define a configuration dict for each stage.
+    # It is the implementation of the pipeline that determines which stages
+    # require configuration dicts.
     _default_config = {
         "prepare": {"template": None},
         "infer": {
@@ -50,19 +58,17 @@ class SimplePipeline(Pipeline):
                 },
             }
         },
-        # TODO: should should not be required to include empty dicts.
-        "extract": {},
-        "assess": {},
     }
 
     def __init__(self, runner, config_patch, replace_config=False):
+        # Save runner here for later use in the stages() method.
         self._runner = runner
 
         # Update the default config with values provided on the command-line.
         self._config = merge_configs(self._default_config, config_patch, replace_config)
 
         # Check the config for missing values.
-        validate_config(self._name, self._config)
+        ensure_required_configs(self._name, self._config)
 
         # Construct and register two model mocks, specific to this pipeline.
         Perfect(self._runner, {})
@@ -93,12 +99,12 @@ class SimplePipeline(Pipeline):
         # Define the pipeline stage functions
         #
 
-        async def prepare(result):
+        async def prepare(context):
             messages = [
-                {"role": "system", "content": await self._template(result)},
+                {"role": "system", "content": await self._template(context)},
                 {"role": "assistant", "content": "{\ni items: []\n}\n"},
             ]
-            case = result["case"]
+            case = context["case"]
             for c in case["turns"][:-1]:
                 messages.append({"role": "user", "content": c["query"]})
                 messages.append(
@@ -111,18 +117,18 @@ class SimplePipeline(Pipeline):
 
             return messages
 
-        async def infer(result):
-            return await self._model.infer(result["stages"]["prepare"], result)
+        async def infer(context):
+            return await self._model.infer(context["stages"]["prepare"], context)
 
-        async def extract(result):
+        async def extract(context):
             with ExceptionContext(f"Extracting JSON from LLM response."):
-                return json.loads(result["stages"]["infer"])
+                return json.loads(context["stages"]["infer"])
 
-        async def assess(result):
+        async def assess(context):
             repair = Repair("id", "options", [], ["name"], "name")
             repair.resetIds()
-            observed = repair.addIds(result["stages"]["extract"]["items"])
-            expected = repair.addIds(result["case"]["turns"][-1]["expected"]["items"])
+            observed = repair.addIds(context["stages"]["extract"]["items"])
+            expected = repair.addIds(context["case"]["turns"][-1]["expected"]["items"])
             return repair.diff(observed, expected)
 
         return (
@@ -135,25 +141,25 @@ class SimplePipeline(Pipeline):
             },
         )
 
-    def summarize(self, results):
-        if len(results) == 0:
+    def summarize(self, context):
+        if len(context) == 0:
             print("No results.")
         else:
-            uuids = [result["case"]["uuid"] for result in results["results"]]
+            uuids = [result["case"]["uuid"] for result in context["results"]]
             uuid_prefix_len = max(minimal_unique_prefix(uuids), 3)
 
-            table = Table(title=f"Summary for {results['uuid']}")
+            table = Table(title=f"Summary for {context['uuid']}")
             table.add_column("id", justify="right", style="cyan", no_wrap=True)
             table.add_column("run", style="magenta")
             table.add_column("score", justify="right", style="green")
             table.add_column("keywords", justify="left", style="green")
 
-            total_count = len(results)
+            total_count = len(context)
             complete_count = 0
             passed_count = 0
             failed_count = 0
             error_count = 0
-            for result in results["results"]:
+            for result in context["results"]:
                 id = result["case"]["uuid"][:uuid_prefix_len]
                 succeeded = result["succeeded"]
                 cost = result["stages"]["assess"]["cost"] if succeeded else None
@@ -284,14 +290,14 @@ class SimplePipeline(Pipeline):
         console.print()
 
 
-def format_row(uuid, keywords, text_a, order_a, text_b, order_b):
-    return (
-        Text(uuid),
-        text_a,
-        text_b,
-        Text(", ".join(sorted(keywords))),
-        order_b * 4 + order_a,
-    )
+# def format_row(uuid, keywords, text_a, order_a, text_b, order_b):
+#     return (
+#         Text(uuid),
+#         text_a,
+#         text_b,
+#         Text(", ".join(sorted(keywords))),
+#         order_b * 4 + order_a,
+#     )
 
 
 def format_case(result):
@@ -346,7 +352,7 @@ class Flakey(Model):
 
 
 def go():
-    main([SimplePipeline])
+    main([MenuPipeline])
 
 
 if __name__ == "__main__":

@@ -5,10 +5,24 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "api",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "apps/api.py",
+      "console": "integratedTerminal",
+      "args": [
+        "run",
+        "data\\api\\cases.json",
+        "api",
+        "prepare.template=data\\api\\template.txt",
+        "infer.model.name=gpt4o"
+      ]
+    },
+    {
       "name": "run",
       "type": "debugpy",
       "request": "launch",
-      "program": "apps/example.py",
+      "program": "apps/menu.py",
       "console": "integratedTerminal",
       "args": [
         "run",
@@ -22,7 +36,7 @@
       "name": "rerun",
       "type": "debugpy",
       "request": "launch",
-      "program": "apps/example.py",
+      "program": "apps/menu.py",
       "console": "integratedTerminal",
       "args": [
         "rerun",
@@ -34,7 +48,7 @@
       "name": "summarize",
       "type": "debugpy",
       "request": "launch",
-      "program": "apps/example.py",
+      "program": "apps/menu.py",
       "console": "integratedTerminal",
       "args": [
         "summarize",
@@ -45,7 +59,7 @@
       "name": "compare",
       "type": "debugpy",
       "request": "launch",
-      "program": "apps/example.py",
+      "program": "apps/menu.py",
       "console": "integratedTerminal",
       "args": [
         "compare",

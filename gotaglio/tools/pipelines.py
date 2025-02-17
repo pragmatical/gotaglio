@@ -38,7 +38,17 @@ def merge_configs(base_config, patch_config, replace_config=False):
         return merge_dicts(base_config, patch_config)
 
 
-def validate_config(name, config):
+def ensure_required_configs(name, config):
+    """
+    Raises a ValueError if any required configuration setting is missing.
+
+    Args:
+        name (str): The name of the pipeline.
+        config (dict): The configuration dictionary to validate.
+
+    Raises:
+        ValueError: If any setting in the configuration is `None`.
+    """
     settings = flatten_dict(config)
     with ExceptionContext(
         f"Pipeline '{name}' checking settings."
