@@ -1,14 +1,16 @@
+import argparse
+
 def show_help(parser, args):
     subcommand = args.subcommand
     if subcommand:
-        subcommand_parser = next(
-            (
-                p
-                for p in parser._subparsers._actions[1].choices.values()
-                if p.prog.endswith(subcommand)
-            ),
-            None,
+        # Find the subparsers action
+        subparsers_action = next(
+            action for action in parser._actions if isinstance(action, argparse._SubParsersAction)
         )
+        
+        # Find the subcommand parser
+        subcommand_parser = subparsers_action.choices.get(subcommand)
+        
         if subcommand_parser:
             subcommand_parser.print_help()
         else:

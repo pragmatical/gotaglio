@@ -1,5 +1,8 @@
 # TODO
 
+* Top top
+  * Subcommand to add/remove tags from uuid or LATEST
+  * Subcommand to format case as markdown
 * Top
   * prefix search should only find uuid.json files
   * Compare

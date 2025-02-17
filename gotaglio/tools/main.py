@@ -70,7 +70,7 @@ def main(pipelines):
         "pipelines", help="List available pipelines"
     )
 
-    # 'run' subcommand
+    # 'rerun' subcommand
     rerun_parser = subparsers.add_parser(
         "rerun", help="Rerun an experiment with modifications."
     )
