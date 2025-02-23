@@ -14,27 +14,83 @@ Gotaglio is a lightweight python toolbox for creating ML pipelines for model eva
 
 ## Running GoTaglio
 
+You can use the `gotag` command to run the built-in restaurant menu pipeline demo.
+
 ~~~sh
 % gotag
-usage: gotag [-h] {help,history,models,pipelines,rerun,run,summarize,compare} ...
+usage: gotag [-h] {add-ids,compare,help,history,models,pipelines,rerun,run,summarize} ...
 
 A tool for managing and running ML pipelines.
 
 positional arguments:
-  {help,history,models,pipelines,rerun,run,summarize,compare}
+  {add-ids,compare,help,history,models,pipelines,rerun,run,summarize}
                         Subcommands
-    help                Show help for gotag
+    add-ids             Add uuids to a suite
+    compare             Compare two or more label sets
+    help                Show help for gotaglio commands
     history             Show information about recent runs
     models              List available models
     pipelines           List available pipelines
     rerun               Rerun an experiment with modifications.
     run                 Run a named pipeline
     summarize           Summarize a run
-    compare             Compare two or more label sets
 
 options:
   -h, --help            show this help message and exit
 ~~~
+
+Here's an example session that exercises most of the subcommands.
+
+~~~sh
+TODO: DEMO SESSION
+~~~
+
+## Gotaglio Configuration/Authentication
+
+* models.json
+* credentials.json
+
+## Gotaglio Principles
+
+* Everything is logged
+* Logs contain most information needed to reproduce a result.
+* One can easily rerun an experiment with different parameters.
+* File and case naming convention
+* Keywords/tags on cases
+* Pipeline errors are tracked and used for evaluation
+
+## Gotaglio Concepts
+
+* Suite - a suite is a list of cases to be run through the pipeline.
+* Case - a case specifies the user input and other contextual information for starting the pipeline and it can also contain expected results for use by an evaluation stage.
+* Context - a Context records everything about a case as it moves through a pipeline. It has all of the configuration information for the pipeline and it stores the output of each stage and information about errors.
+* Pipline - a pipeline is a user-defined set of processing stages. Typical stages include
+  * a **preparation stage** that uses templating to form the system prompt and compose it with chat context and user input.
+  * an **inference stage** the invokes the model
+  * an **extraction stage** that parses or otherwise transforms the output of the model
+  * an **evaluation stage** that produces a vector of score componets for the result
+* Stage - a stage processes the output of earlier stages to produce its own output for use by later stages. The output of each stage is stored in the context.
+* Model - a wrapper for an external AI model. Holds configuration data and handles network calls and authentication.
+* Runlog - the runlog stores the pipeline configuration along with the contexts associated with each case in the suite.
+
+## Implementing a Pipeline
+
+Steps:
+
+* Your pipeline should extend the Pipeline abstract base class.
+  * _name
+  * _description
+  * stages() method returns tuple of (configuration, dict of stage functions)
+  * summarize()
+  * compare()
+
+### Pipeline.stages()
+
+### Pipeline.summarize()
+
+### Pipeline.compare()
+
+### Mock models
 
 ~~~sh
 python apps\example.py run data\small.json simple prepare.template=data\template.txt infer.model.name=flakey
@@ -96,4 +152,8 @@ python apps\example.py help run
 python apps\example.py help rerun
 python apps\example.py help run
 doskey /history
+
+python apps\menu.py run data\menu\small.json menu prepare.template=data\menu\template.txt infer.model.name=gpt4o
+
 ~~~
+
