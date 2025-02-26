@@ -11,6 +11,7 @@ from glom import glom
 from rich.table import Table
 from rich.text import Text
 import sys
+import tiktoken
 
 # Add the parent directory to the sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -102,7 +103,7 @@ class MenuPipeline(Pipeline):
         async def prepare(context):
             messages = [
                 {"role": "system", "content": await self._template(context)},
-                {"role": "assistant", "content": "{\ni items: []\n}\n"},
+                {"role": "assistant", "content": json.dumps({"items": []}, indent=2)},
             ]
             case = context["case"]
             for c in case["turns"][:-1]:
@@ -122,7 +123,14 @@ class MenuPipeline(Pipeline):
 
         async def extract(context):
             with ExceptionContext(f"Extracting JSON from LLM response."):
-                return json.loads(context["stages"]["infer"])
+                text = context["stages"]["infer"]
+
+                # Strip off fenced code block markers, if present.
+                marker = "```json\n"
+                if text.startswith(marker):
+                    text = text[len(marker) :]
+                text = text.strip("```")
+                return json.loads(text)
 
         async def assess(context):
             repair = Repair("id", "options", [], ["name"], "name")
@@ -140,6 +148,48 @@ class MenuPipeline(Pipeline):
                 "assess": assess,
             },
         )
+
+    def format(self, results):
+        if len(results) == 0:
+            print("No results.")
+            return
+
+        uuids = [result["case"]["uuid"] for result in results["results"]]
+        uuid_prefix_len = max(minimal_unique_prefix(uuids), 3)
+
+        tokenizer = tiktoken.get_encoding("cl100k_base")
+
+        for result in results["results"]:
+            # print("---------------------------------------------")
+            id = result["case"]["uuid"][:uuid_prefix_len]
+            print(f"## Case {id}")
+            print(result["case"]["comment"])
+            print()
+            succeeded = result["succeeded"]
+            cost = result["stages"]["assess"]["cost"] if succeeded else None
+
+            tokens_in = 0
+            for x in result["stages"]["prepare"]:
+                tokens_in += len(tokenizer.encode(x["content"]))
+            tokens_out = len(tokenizer.encode(result["stages"]["infer"]))
+
+            print(f"Tokens in: {tokens_in}, tokens out: {tokens_out}")
+            print()
+
+            for x in result["stages"]["prepare"]:
+                if x["role"] == "assistant":
+                    print(f"**{x['role']}:**")
+                    print("```json")
+                    print(x["content"])
+                    print("```")
+                elif x["role"] == "user":
+                    print(f"**{x['role']}:** _{x['content']}_")
+                print()
+            print(f"**assistant:**")
+            print("```json")
+            print(json.dumps(result["stages"]["extract"], indent=2))
+            print("```")
+            print()
 
     def summarize(self, context):
         if len(context) == 0:

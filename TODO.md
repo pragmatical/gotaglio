@@ -24,7 +24,7 @@
     * x Summmarize cases in common and those in one run only
     * x Group common cases by type of diff
     * x Totals and percentages at bottom
-  * Example.py
+  * example.py
     * Need a way to pass configurations to stages. Runner should do this.
     * Model configuration for infer needs to be passed to model constructor
     * is there any way of removing default values from the config?

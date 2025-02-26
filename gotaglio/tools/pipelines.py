@@ -8,6 +8,37 @@ from .shared import flatten_dict, merge_dicts, read_text_file
 from .templating import jinja2_template
 
 class Pipeline(ABC):
+    """
+    Abstract base class for pipelines.
+
+    Attributes:
+        _name (str): The name of the pipeline. Must be defined in subclasses.
+        _description (str): A brief description of the pipeline. Must be defined in subclasses.
+
+    Methods:
+        name(cls):
+            Returns the name of the pipeline.
+        
+        stages(self):
+            Abstract method that returns a dict of named stages in the pipeline.
+            Each stage is a function that takes a single, `results` object parameter.
+            Stages are run in the order they appear in the dict.
+        
+        compare(self, a, b):
+            Abstract method that compares results from two pipeline runs.
+            No return value. Should either print a summary or write it to a file.
+        
+        format(self, results):
+            Abstract method that should format the results of a pipeline run.
+            No return value. Should either print a summary or write it to a file.
+        
+        summarize(self, results):
+            Abstract method that should summarize the results of a pipeline run.
+            No return value. Should either print a summary or write it to a file.
+
+    Raises:
+        NotImplementedError: If the subclass does not define _name or _description attributes.
+    """
     _name = None
     _description = None
 
@@ -24,6 +55,14 @@ class Pipeline(ABC):
 
     @abstractmethod
     def stages(self):   
+        pass
+
+    @abstractmethod
+    def compare(self, a, b):
+        pass
+
+    @abstractmethod
+    def format(self, results):
         pass
 
     @abstractmethod

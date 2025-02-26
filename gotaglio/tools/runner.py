@@ -151,19 +151,32 @@ class Runner:
         return {"log": output_file, "results": results}
 
 
-    # TODO: does summarize() need to be in runner?
+    # TODO: does summarize() really need to be in runner?
     def summarize(self, results):
         # TODO: checck that metadata.pipline exists
+        # It probably exists because it is initialized in very early in
+        # process_all_cases().
         pipeline_name = results["metadata"]["pipeline"]["name"]
         pipeline_config = results["metadata"]["pipeline"]["config"]
         pipeline_factory = self.pipeline(pipeline_name)
         pipeline = pipeline_factory(self, pipeline_config)
         pipeline.summarize(results)
 
+    def format(self, results):
+        # TODO: checck that metadata.pipline exists
+        # It probably exists because it is initialized in very early in
+        # process_all_cases().
+        pipeline_name = results["metadata"]["pipeline"]["name"]
+        pipeline_config = results["metadata"]["pipeline"]["config"]
+        pipeline_factory = self.pipeline(pipeline_name)
+        pipeline = pipeline_factory(self, pipeline_config)
+        pipeline.format(results)
 
     # TODO: does summarize() need to be in runner?
     def compare(self, results_a, results_b):
         # TODO: check that metadata.pipline exists
+        # It probably exists because it is initialized in very early in
+        # process_all_cases().
         # TODO: check that both results are from the same pipeline
         pipeline_name = results_a["metadata"]["pipeline"]["name"]
         pipeline_config = results_a["metadata"]["pipeline"]["config"]

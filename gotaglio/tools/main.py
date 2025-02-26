@@ -4,6 +4,7 @@ from .models import register_models
 from .runner import Runner
 from .subcommands.add_ids import add_ids
 from .subcommands.compare import compare
+from .subcommands.format import format
 from .subcommands.help import show_help
 from .subcommands.history import show_history
 from .subcommands.list_models import list_models
@@ -96,10 +97,16 @@ def main(pipelines):
         "key_values", nargs="*", help="key=value arguments to configure pipeline"
     )
 
+    # 'format' subcommand
+    format_parser = subparsers.add_parser("format", help="Pretty print a run")
+    format_parser.add_argument(
+        "prefix", type=str, help="Filename prefix for run log (or 'lastest')"
+    )
+
     # 'summarize' subcommand
     summarize_parser = subparsers.add_parser("summarize", help="Summarize a run")
     summarize_parser.add_argument(
-        "prefix", type=str, help="Filename prefix for run log"
+        "prefix", type=str, help="Filename prefix for run log (or 'latest')"
     )
 
 
@@ -135,11 +142,15 @@ def main(pipelines):
         elif args.command == "run":
             run_pipeline(runner_factory, args)
 
+        elif args.command == "format":
+            format(runner_factory, args)
+
         elif args.command == "summarize":
             summarize(runner_factory, args)
 
         else:
             parser.print_help()
+
     except Exception as e:
         print("Top level exception")
         print(ExceptionContext.format_message(e))
