@@ -1,6 +1,14 @@
 # TODO
 
 * Top top
+  * Diagnose startup time
+  * Table formatting utilities
+  * Simpler lazy initialization for pipelines
+  * Help with compare function
+  * Break out log folders by pipeline - enforce pipeline name can be legal file name
+  * Better error reporting and usage regarding missing configuration
+  * OpenAI and Anthropic APIs
+  * format command shows pass/fail status and edit distance
   * Examples to README.md
     * Update for new folders - api and menu
     * Also document cases data structure JSON

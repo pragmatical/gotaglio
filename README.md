@@ -6,11 +6,11 @@ Gotaglio is a lightweight python toolbox for creating ML pipelines for model eva
 
 1. Verify you have python version >=3.12. Note that 3.13 may not be supported yet.
 1. `pip install poetry` outside of any virtual environment
-1. `git clone gotaglio`
+1. `git clone https://github.com/MikeHopcroft/gotaglio`
 1. `cd gotaglio`
 1. `python -m venv .venv`
 1. `.venv\Scripts\activate`
-1. `poetry install`
+1. `poetry install --no-root`
 
 ## Running GoTaglio
 
