@@ -1,6 +1,14 @@
 # TODO
 
 * Top top
+  * Table helper functions for summarize
+  * Use better formatting/word wrap for list pipelinesn
+  * Remove gotaglio/tools folder
+  * Rename piplines.py to singular pipeline.py
+  * Pass config to pipeline?
+  * Move pipeline parameter in run
+  * rerun detect git mismatch
+  * User_Fill or CmdLine or User or Param
   * Diagnose startup time
   * Table formatting utilities
   * Simpler lazy initialization for pipelines
