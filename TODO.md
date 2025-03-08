@@ -1,31 +1,40 @@
 # TODO
 
 * Top top
-  * x Remove gotaglio/tools folder
-  * Move run code from registry
-  * Move data to samples
-  * Template for models.json, .credentials.json
-  * Optional case id for format
+  * Move/reorder pipeline parameter in run
+  * gotag help format should explain what format does. Other subcommands as well.
+  * Move summarize, format, compare from Registry
+  * Registry.pipeline should actually create the pipeline - needs a config param
+  * Usage should show name of script
   * Summarize should print out run configuration details
-  * Move pipeline parameter in run
-  * Simplify config merging
+    * Really want to call out patches over default_config
+    * How to get cases file? Add cases to metadata? Copy cases in rerun?
+  * Configuration patching
+    * . Prompt class
+    * Helpful error message - display glom path and prompt, list other required patches
+    * Interactive user prompt for missing config
+    * Better error reporting and usage regarding missing configuration
+  * Rerun should call out patch values that are different
+  * Move data to samples
   * Better error message
     * when setting infer.model=gpt3.5 instead of infer.model.name=gpt3.5
-  * x Rename Runner to Registry
-    * x runner_factory() => create_registry()?
-  * x Rename piplines.py to singular pipeline.py
   * Deprecate or remove merge_configs()?
   * upgrade api.py
   * upgrade menu.py
-  * Rerun should call out patch values that are different
-  * x Rename apps to samples
   * Make summarize resilient to missing ids
   * Organize logs by pipeline
-  * Model not found error
-    * python apps\simple.py run data\api\cases.json sample prepare.template=data\api\template.txt infer.model.name=parrot
-    * Detect and report before run summary
-    * List available models
-  * Better error reporting and usage regarding missing configuration
+  * x Model not found error
+    * x python apps\simple.py run data\api\cases.json sample prepare.template=data\api\template.txt infer.model.name=parrot
+    * x Detect and report before run summary
+    * x List available models
+  * x Move run code from Registry
+  * x Optional case id for format
+  * x Remove gotaglio/tools folder
+  * x Template for models.json, .credentials.json
+  * x Rename Runner to Registry
+    * x runner_factory() => create_registry()?
+  * x Rename piplines.py to singular pipeline.py
+  * x Rename apps to samples
   * 
   * User_Fill or CmdLine or User or Param
   * 

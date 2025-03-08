@@ -1,7 +1,7 @@
 from .constants import program_name
 from .exceptions import ExceptionContext
 from .models import register_models
-from .runner import Registry
+from .registry import Registry
 from .subcommands.add_ids import add_ids
 from .subcommands.compare import compare
 from .subcommands.format import format
@@ -100,7 +100,10 @@ def main(pipelines):
     # 'format' subcommand
     format_parser = subparsers.add_parser("format", help="Pretty print a run")
     format_parser.add_argument(
-        "prefix", type=str, help="Filename prefix for run log (or 'lastest')"
+        "prefix", type=str, help="Filename prefix for run log (or 'latest')"
+    )
+    format_parser.add_argument(
+        "case_id_prefix", type=str, nargs='?', help="Optional case id prefix to show a single case"
     )
 
     # 'summarize' subcommand
@@ -134,10 +137,7 @@ def main(pipelines):
             list_pipelines(create_registry)
 
         elif args.command == "rerun":
-            # config = parse_key_value_args(args.key_values)
             rerun_pipeline(create_registry, args)
-            # print("Rerun not yet implemented.")
-            # run_pipeline(args.cases, args.pipeline, config)
 
         elif args.command == "run":
             run_pipeline(create_registry, args)

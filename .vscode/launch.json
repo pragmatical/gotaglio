@@ -70,6 +70,18 @@
       ]
     },
     {
+      "name": "format",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "samples/simple/simple.py",
+      "console": "integratedTerminal",
+      "args": [
+        "format",
+        "cdef",
+        "e09"
+      ]
+    },
+    {
       "name": "compare",
       "type": "debugpy",
       "request": "launch",

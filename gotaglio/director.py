@@ -10,113 +10,6 @@ import uuid
 from .constants import log_folder
 from .exceptions import ExceptionContext
 from .git import get_current_edits, get_git_sha
-from .shared import format_list
-
-
-async def process_one_case(case, stages, completed):
-    ExceptionContext.clear_context()
-    start = datetime.now().timestamp()
-    result = {
-        "succeeded": False,
-        "metadata": {"start": str(datetime.fromtimestamp(start, timezone.utc))},
-        "case": case,
-        "stages": {},
-    }
-    try:
-        for stage, func in stages.items():
-            try:
-                result["stages"][stage] = await func(result)
-            except Exception as e:
-                result["exception"] = {
-                    "stage": stage,
-                    "message": ExceptionContext.format_message(e),
-                    "traceback": traceback.format_exc(),
-                    "time": str(datetime.now(timezone.utc)),
-                }
-                return result
-    except Exception as e:
-        result["exception"] = {
-            "message": ExceptionContext.format_message(e),
-            "traceback": traceback.format_exc(),
-            "time": str(datetime.now(timezone.utc)),
-        }
-        return result
-
-    end = datetime.now().timestamp()
-    if completed:
-        completed()
-    elapsed = end - start
-    result["metadata"]["end"] = str(datetime.fromtimestamp(end, timezone.utc))
-    result["metadata"]["elapsed"] = str(timedelta(seconds=elapsed))
-    result["succeeded"] = True
-    return result
-
-
-class Registry:
-    def __init__(self):
-        self._models = {}
-        self._pipelines = {}
-        pass
-
-    def register_model(self, name, model):
-        if name in self._models:
-            raise ValueError(f"Attempting to register duplicate model '{name}'.")
-        self._models[name] = model
-
-    def model(self, name):
-        if name not in self._models:
-            names = format_list([k for k in self._models.keys()])
-            raise ValueError(
-                f"Model '{name}' not found. Available models include {names}."
-            )
-        return self._models[name]
-
-    def register_pipeline(self, pipeline):
-        name = pipeline.name()
-        if name in self._pipelines:
-            raise ValueError(f"Attempting to register duplicate pipeline '{name}'.")
-        self._pipelines[name] = pipeline
-
-    def pipeline(self, name):
-        if name not in self._pipelines:
-            names = format_list([k for k in self._pipelines.keys()])
-            raise ValueError(
-                f"Pipeline '{name}' not found. Available pipelines include {names}."
-            )
-        return self._pipelines[name]
-
-    # TODO: does summarize() really need to be in Registry?
-    def summarize(self, results):
-        # TODO: checck that metadata.pipline exists
-        # It probably exists because it is initialized in very early in
-        # process_all_cases().
-        pipeline_name = results["metadata"]["pipeline"]["name"]
-        pipeline_config = results["metadata"]["pipeline"]["config"]
-        pipeline_factory = self.pipeline(pipeline_name)
-        pipeline = pipeline_factory(self, pipeline_config, {})
-        pipeline.summarize(results)
-
-    def format(self, results):
-        # TODO: checck that metadata.pipline exists
-        # It probably exists because it is initialized in very early in
-        # process_all_cases().
-        pipeline_name = results["metadata"]["pipeline"]["name"]
-        pipeline_config = results["metadata"]["pipeline"]["config"]
-        pipeline_factory = self.pipeline(pipeline_name)
-        pipeline = pipeline_factory(self, pipeline_config, {})
-        pipeline.format(results)
-
-    # TODO: does summarize() need to be in runner?
-    def compare(self, results_a, results_b):
-        # TODO: check that metadata.pipline exists
-        # It probably exists because it is initialized in very early in
-        # process_all_cases().
-        # TODO: check that both results are from the same pipeline
-        pipeline_name = results_a["metadata"]["pipeline"]["name"]
-        pipeline_config = results_a["metadata"]["pipeline"]["config"]
-        pipeline_factory = self.pipeline(pipeline_name)
-        pipeline = pipeline_factory(self, pipeline_config, {})
-        pipeline.compare(results_a, results_b)
 
 
 class Director:
@@ -214,6 +107,7 @@ class Director:
         self._pipeline.summarize(self._results)
         print(f'Results written to {self._output_file}')
 
+
 def validate_cases(cases):
     if not isinstance(cases, list):
         raise ValueError("Cases must be a list.")
@@ -235,3 +129,42 @@ def validate_cases(cases):
         if case["uuid"] in uuids:
             raise ValueError(f"Encountered duplicate uuid: {case['uuid']}")
         uuids.add(case["uuid"])
+
+
+async def process_one_case(case, stages, completed):
+    ExceptionContext.clear_context()
+    start = datetime.now().timestamp()
+    result = {
+        "succeeded": False,
+        "metadata": {"start": str(datetime.fromtimestamp(start, timezone.utc))},
+        "case": case,
+        "stages": {},
+    }
+    try:
+        for stage, func in stages.items():
+            try:
+                result["stages"][stage] = await func(result)
+            except Exception as e:
+                result["exception"] = {
+                    "stage": stage,
+                    "message": ExceptionContext.format_message(e),
+                    "traceback": traceback.format_exc(),
+                    "time": str(datetime.now(timezone.utc)),
+                }
+                return result
+    except Exception as e:
+        result["exception"] = {
+            "message": ExceptionContext.format_message(e),
+            "traceback": traceback.format_exc(),
+            "time": str(datetime.now(timezone.utc)),
+        }
+        return result
+
+    end = datetime.now().timestamp()
+    if completed:
+        completed()
+    elapsed = end - start
+    result["metadata"]["end"] = str(datetime.fromtimestamp(end, timezone.utc))
+    result["metadata"]["elapsed"] = str(timedelta(seconds=elapsed))
+    result["succeeded"] = True
+    return result

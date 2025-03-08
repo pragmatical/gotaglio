@@ -31,7 +31,7 @@ from gotaglio.exceptions import ExceptionContext
 from gotaglio.helpers import IdShortener
 from gotaglio.main import main
 from gotaglio.models import Model
-from gotaglio.pipeline import Pipeline
+from gotaglio.pipeline import Pipeline, Prompt
 from gotaglio.shared import build_template
 
 
@@ -62,8 +62,8 @@ class SamplePipeline(Pipeline):
         # The structure and interpretation of each configuration dict is
         # dictated by the needs of corresponding pipeline stage.
         #
-        # A value of None indicates that the value must be provided on the
-        # command line. In this case, the user would need to provide values
+        # An instance of Prompt indicates that the value must be provided on
+        # the command line. In this case, the user would need to provide values
         # for the following keys on the command line:
         #   - prepare.template
         #   - infer.model.name
@@ -72,10 +72,10 @@ class SamplePipeline(Pipeline):
         # It is the implementation of the pipeline that determines which stages
         # require configuration dicts.
         default_config = {
-            "prepare": {"template": None},
+            "prepare": {"template": Prompt("Template file for system message")},
             "infer": {
                 "model": {
-                    "name": None,
+                    "name": Prompt("Model name to use for inference stage"),
                     "settings": {
                         "max_tokens": 800,
                         "temperature": 0.7,
@@ -96,6 +96,12 @@ class SamplePipeline(Pipeline):
         Perfect(registry, {})
         Parrot(registry, {})
 
+    # The structure of the pipeline is defined by the stages() method.
+    # This example demonstrates a simple, linear pipeline with four stages.
+    #
+    # COMING SOON: it is also possible to define pipelines that are directed
+    # acyclic graphs (DAGs), where the output of one stage can be used as input
+    # to multiple other stages.
     def stages(self):
         #
         # Perform some setup here so that any initialization errors encountered
@@ -200,7 +206,6 @@ class SamplePipeline(Pipeline):
                     if cost == 0:
                         passed_count += 1
                     else:
-                        # Cost is None or a non-zero number
                         failed_count += 1
                 else:
                     error_count += 1
@@ -242,7 +247,9 @@ class SamplePipeline(Pipeline):
             )
             console.print()
 
-    def format(self, context):
+    # If uuid_prefix is specified, format those cases whose uuids start with
+    # uuid_prefix. Otherwise, format all cases.
+    def format(self, context, uuid_prefix):
         # Lazily load the GPT-4o tokenizer here so that we don't slow down
         # other scenarios that don't need it.
         if not hasattr(self, "_tokenizer"):
@@ -256,6 +263,8 @@ class SamplePipeline(Pipeline):
             short_id = IdShortener(context["results"], "uuid")
 
             for result in context["results"]:
+                if uuid_prefix and not result["case"]["uuid"].startswith(uuid_prefix):
+                    continue
                 print(f"## Case: {short_id(result)}")
                 if result["succeeded"]:
                     if result["stages"]["assess"] == 0:
@@ -278,6 +287,7 @@ class SamplePipeline(Pipeline):
                     # print(f"Inference: {result['stages']['infer']}")
                     print(f"Traceback: {result['exception']['traceback']}")
                     print(f"Time: {result['exception']['time']}")
+
 
     def compare(self, a, b):
         console = Console()

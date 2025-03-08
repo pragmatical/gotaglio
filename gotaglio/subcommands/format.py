@@ -10,7 +10,8 @@ def format(registry_factory, args):
         return
 
     prefix = args.prefix
+    case_uuid_prefix = args.case_id_prefix
     results = read_json_file(log_file_name_from_prefix(prefix))
 
     registry = registry_factory()
-    registry.format(results)
+    registry.format(results, case_uuid_prefix)

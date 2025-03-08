@@ -88,13 +88,16 @@ class Pipeline(ABC, metaclass=EnsureSuperInitMeta):
         pass
 
     @abstractmethod
-    def format(self, results):
+    def format(self, results, case_uuid_prefix):
         pass
 
     @abstractmethod
     def summarize(self, results):
         pass
     
+class Prompt:
+    def __init__(self, description):
+        self._description = description
 
 # TODO: can we deprecate and remove this?
 def merge_configs(base_config, patch_config, replace_config=False):
@@ -120,8 +123,7 @@ def ensure_required_configs(name, config):
         f"Pipeline '{name}' checking settings."
     ):
         for k, v in settings.items():
-            if v is None:
+            if isinstance(v, Prompt):
                 raise ValueError(
-                    f"{name} pipeline: missing '{k}' parameter."
+                    f"{name} pipeline: missing '{k}' parameter. {v._description}"
                 )
-

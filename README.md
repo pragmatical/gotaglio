@@ -5,7 +5,7 @@ GoTaglio is a lightweight python toolbox for creating ML pipelines for model eva
 GoTaglio includes the following key elements:
 * Ability to rapidly define and run end-to-end ML pipelines.
 * Automatic logging and organization of information about runs.
-* The ability to rerun an earlier experiment with small changes.
+* The ability to rerun an earlier experiment with small changes introduced on the command-line (see [documentation](documentation/tool.md)).
 * Structured logging to facilitate run analysis, comparing runs and tracking key metrics over time as the pipeline evolves.
 * A python library that can be accessed from [Jupyter notebooks](https://jupyter.org/).
 * A command-line tool to simplify common operations.

@@ -3,7 +3,7 @@ from rich.progress import Progress, SpinnerColumn, TimeElapsedColumn
 
 from ..constants import default_concurrancy, log_folder
 
-from ..runner import Director
+from ..director import Director
 from ..shared import (
     log_file_name_from_prefix,
     parse_key_value_args,
