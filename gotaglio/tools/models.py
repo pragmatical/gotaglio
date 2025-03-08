@@ -23,10 +23,10 @@ class Model(ABC):
 
 
 class AzureAI(Model):
-    def __init__(self, runner, configuration):
+    def __init__(self, registry, configuration):
         self._config = configuration
         self._client = None
-        runner.register_model(configuration["name"], self)
+        registry.register_model(configuration["name"], self)
 
     async def infer(self, messages, context=None):
         if not self._client:
@@ -45,10 +45,10 @@ class AzureAI(Model):
 
 
 class AzureOpenAI(Model):
-    def __init__(self, runner, configuration):
+    def __init__(self, registry, configuration):
         self._config = configuration
         self._client = None
-        runner.register_model(configuration["name"], self)
+        registry.register_model(configuration["name"], self)
 
     async def infer(self, messages, context=None):
         if not self._client:
@@ -80,7 +80,7 @@ class AzureOpenAI(Model):
 
 
 def register_models(
-    runner, config_file=model_config_file, credentials_file=model_credentials_file
+    registry, config_file=model_config_file, credentials_file=model_credentials_file
 ):
     config = read_json_file(config_file, False)
 
@@ -93,9 +93,9 @@ def register_models(
     for model in config:
         with ExceptionContext(f"While registering model '{model['name']}':"):
             if model["type"] == "AZURE_AI":
-                AzureAI(runner, model)
+                AzureAI(registry, model)
             elif model["type"] == "AZURE_OPEN_AI":
-                AzureOpenAI(runner, model)
+                AzureOpenAI(registry, model)
             else:
                 raise ValueError(
                     f"Model {model['name']} has unsupported model type: {model['type']}"

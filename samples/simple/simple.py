@@ -18,8 +18,7 @@ from gotaglio.tools.exceptions import ExceptionContext
 from gotaglio.tools.helpers import IdShortener
 from gotaglio.tools.main import main
 from gotaglio.tools.models import Model
-from gotaglio.tools.pipelines import (
-    # build_template,
+from gotaglio.tools.pipeline import (
     merge_configs,
     Pipeline,
     ensure_required_configs,
@@ -37,15 +36,15 @@ class SamplePipeline(Pipeline):
       _name (str): The name of the pipeline.
       _description (str): A brief description of the pipeline.
       _default_config (dict): Default configuration dictionaries for each pipeline stage.
-      _runner: The runner instance used for executing the pipeline stages.
+      _registry: The Registry instance used for instantiating models
       _config (dict): The merged configuration dictionary.
       _template: The prompt template for the prepare stage, lazily instantiated.
       _model: The model for the infer stage, lazily instantiated.
       _tokenizer: The tokenizer used for encoding text.
 
     Methods:
-      __init__(runner, config_patch, replace_config=False):
-        Initializes the ApiPipeline with the given runner and configuration.
+      __init__(registry, config_patch, replace_config=False):
+        Initializes the pipeline with the given Registry and configuration.
 
       stages():
         Defines and returns the pipeline stage functions.
@@ -61,54 +60,39 @@ class SamplePipeline(Pipeline):
     _name = "simple"
     _description = "An example pipeline for converting natural language to api calls."
 
-    # Dictionary of default configuration dicts for each pipeline stage.
-    # The structure and interpretation of each configuration dict is determined
-    # by the corresponding pipeline stage.
-    #
-    # A value of None indicates that the value must be provided on the command
-    # line.
-    #
-    # There is no requirement to define a configuration dict for each stage.
-    # It is the implementation of the pipeline that determines which stages
-    # require configuration dicts.
-    # _default_config = {
-    #     "prepare": {"template": None},
-    #     "infer": {
-    #         "model": {
-    #             "name": None,
-    #             "settings": {
-    #                 "max_tokens": 800,
-    #                 "temperature": 0.7,
-    #                 "top_p": 0.95,
-    #                 "frequency_penalty": 0,
-    #                 "presence_penalty": 0,
-    #             },
-    #         }
-    #     },
-    # }
 
-    def __init__(self, runner, replacement_config, flat_config_patch):
+    def __init__(self, registry, replacement_config, flat_config_patch):
         """
-        Initialize the pipeline with the given runner and configuration.
+        Initialize the pipeline with the given Registry and configuration.
 
         Args:
-          runner: The runner instance to be used in the stages() method. The runner provides
-            access to system resources such as models.
+          registry: The Registry instance to be used in the stages() method. 
+            The Registry provides access to system resources such as models.
           config_patch: A dictionary containing configuration value overrides from the command line.
           replace_config (bool): If True, replace the default config with config_patch entirely.
             If False, merge config_patch with the default config. Used when rerunning a case from
             a structure log.
 
         Attributes:
-          _runner: Stores the runner instance for later use.
+          _registry: Stores the Registry instance for later use.
           _config: The merged configuration dictionary.
           _template: Lazily instantiated template, initially set to None.
           _model: Lazily instantiated model, initially set to None.
           _tokenizer: The GPT-4o tokenizer loaded with the "cl100k_base" encoding.
         """
-        # Save runner here for later use in the stages() method.
-        self._runner = runner
+        # Save registry here for later use in the stages() method.
+        self._registry = registry
 
+        # Dictionary of default configuration dicts for each pipeline stage.
+        # The structure and interpretation of each configuration dict is determined
+        # by the corresponding pipeline stage.
+        #
+        # A value of None indicates that the value must be provided on the command
+        # line.
+        #
+        # There is no requirement to define a configuration dict for each stage.
+        # It is the implementation of the pipeline that determines which stages
+        # require configuration dicts.
         default_config = {
             "prepare": {"template": None},
             "infer": {
@@ -126,62 +110,17 @@ class SamplePipeline(Pipeline):
         }
         super().__init__(default_config, replacement_config, flat_config_patch)
 
-        # # Update the default config with values provided on the command-line.
-        # self._config = merge_configs(self._default_config, config_patch, replace_config)
-
-        # # Check the config for missing values.
-        # ensure_required_configs(self._name, self._config)
 
         # Construct and register some model mocks, specific to this pipeline.
-        Flakey(runner, {})
-        Perfect(runner, {})
-        Parrot(runner, {})
+        Flakey(registry, {})
+        Perfect(registry, {})
+        Parrot(registry, {})
 
-        # # Template and model are lazily instantiated in self.stages().
-        # # This allows us to use the pipeline for other purposes without
-        # # loading and compiling the prompt template.
-        # # TODO: should summarize() and compare() be static class methods?
-        # self._template = None
-        # self._model = None
-
-        # # The tokenizer is lazily loaded in SamplePipeline.format().
-        # self._tokenizer = None
-
-    # def on_before_run(self, runner):
-    #     # Perform some setup here so that any errors encountered
-    #     # are caught before running the cases.
-    #     # with ExceptionContext(f"Pipeline '{self._name}' configuring stages."):
-
-    #     # Lazily build the prompt template for the prepare stage
-    #     if not self._template:
-    #         self._template = build_template(
-    #             self._config,
-    #             "prepare.template",
-    #             "prepare.template_text",
-    #         )
-
-    #     # Lazily instantiate the model for the infer stage.
-    #     if not self._model:
-    #         self._model = runner.model(glom(self._config, "infer.model.name"))
-
-    #     return self._config
 
     def stages(self):
         # # Perform some setup here so that any errors encountered
         # # are caught before running the cases.
         # with ExceptionContext(f"Pipeline '{self._name}' configuring stages."):
-        #     # Lazily build the prompt template for the prepare stage.
-        #     if not self._template:
-        #         self._template = build_template(
-        #             self._config,
-        #             "prepare.template",
-        #             "prepare.template_text",
-        #         )
-
-        #     # Lazily instantiate the model for the infer stage.
-        #     if not self._model:
-        #         self._model = self._runner.model(glom(self._config, "infer.model.name"))
-
         #
         # Initialize objects used by the pipeline stages.
         #
@@ -194,7 +133,7 @@ class SamplePipeline(Pipeline):
         )
 
         # Instantiate the model for the infer stage.
-        model = self._runner.model(glom(self.config(), "infer.model.name"))
+        model = self._registry.model(glom(self.config(), "infer.model.name"))
 
         #
         # Define the pipeline stage functions
@@ -425,9 +364,9 @@ class Flakey(Model):
       3. raising an exception
     """
 
-    def __init__(self, runner, configuration):
+    def __init__(self, registry, configuration):
         self._counter = -1
-        runner.register_model("flakey", self)
+        registry.register_model("flakey", self)
 
     async def infer(self, messages, context=None):
         self._counter += 1
@@ -448,8 +387,8 @@ class Parrot(Model):
     from context["case"]["turns"][-1]["expected"]
     """
 
-    def __init__(self, runner, configuration):
-        runner.register_model("parrot", self)
+    def __init__(self, registry, configuration):
+        registry.register_model("parrot", self)
 
     async def infer(self, messages, context=None):
         return f'{messages[-1]["role"]} says "{messages[-1]["content"]}"'
@@ -464,8 +403,8 @@ class Perfect(Model):
     from context["case"]["turns"][-1]["expected"]
     """
 
-    def __init__(self, runner, configuration):
-        runner.register_model("perfect", self)
+    def __init__(self, registry, configuration):
+        registry.register_model("perfect", self)
 
     async def infer(self, messages, context=None):
         return f'{context["case"]["answer"]}'

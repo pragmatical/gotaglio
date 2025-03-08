@@ -51,7 +51,7 @@ async def process_one_case(case, stages, completed):
     return result
 
 
-class Runner:
+class Registry:
     def __init__(self):
         self._models = {}
         self._pipelines = {}
@@ -84,7 +84,7 @@ class Runner:
             )
         return self._pipelines[name]
 
-    # TODO: does summarize() really need to be in runner?
+    # TODO: does summarize() really need to be in Registry?
     def summarize(self, results):
         # TODO: checck that metadata.pipline exists
         # It probably exists because it is initialized in very early in
@@ -121,7 +121,7 @@ class Runner:
 class Director:
     def __init__(
         self,
-        runner_factory,
+        registry_factory,
         pipeline_name,
         cases,
         replacement_config,
@@ -132,11 +132,9 @@ class Director:
         self._concurrancy = max_concurrancy
         self._pipeline_name = pipeline_name
 
-        # self._runner = runner_factory()
-        runner = runner_factory()
-        pipeline_factory = runner.pipeline(pipeline_name)
-        # config_patch = apply_patch({}, flat_config_patch)
-        self._pipeline = pipeline_factory(runner, replacement_config, flat_config_patch)
+        registry = registry_factory()
+        pipeline_factory = registry.pipeline(pipeline_name)
+        self._pipeline = pipeline_factory(registry, replacement_config, flat_config_patch)
         self._stages = self._pipeline.stages()
         self._config = self._pipeline.config()
 

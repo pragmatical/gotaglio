@@ -11,7 +11,7 @@ from ..shared import (
 )
 
 
-def run_pipeline(runner_factory, args):
+def run_pipeline(registry_factory, args):
     cases_file = args.cases
     pipeline_name = args.pipeline
     flat_config_patch = parse_key_value_args(args.key_values)
@@ -20,7 +20,7 @@ def run_pipeline(runner_factory, args):
     cases = read_json_file(cases_file, False)
 
     director = Director(
-        runner_factory,
+        registry_factory,
         pipeline_name,
         cases,
         None,
@@ -43,7 +43,7 @@ def run_pipeline(runner_factory, args):
     director.summarize_results()
 
 
-def rerun_pipeline(runner_factory, args):
+def rerun_pipeline(registry_factory, args):
     original_id = args.id
     log_file_name = log_file_name_from_prefix(original_id)
     log = read_json_file(log_file_name, False)
@@ -60,7 +60,7 @@ def rerun_pipeline(runner_factory, args):
     flat_config_patch = parse_key_value_args(args.key_values)
 
     director = Director(
-        runner_factory,
+        registry_factory,
         pipeline_name,
         cases,
         replacement_config,

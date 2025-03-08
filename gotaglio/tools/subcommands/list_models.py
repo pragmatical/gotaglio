@@ -1,5 +1,5 @@
-def list_models(runner_factory):
-    runner = runner_factory()
+def list_models(registry_factory):
+    registry = registry_factory()
     print("Available models:")
-    for k, v in runner._models.items():
+    for k, v in registry._models.items():
         print(f"  {k}: {v.metadata()["description"]}")

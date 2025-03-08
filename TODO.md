@@ -1,7 +1,11 @@
 # TODO
 
 * Top top
+  * Better error message
+    * when setting infer.model=gpt3.5 instead of infer.model.name=gpt3.5
+  * Summarize should print out run configuration details
   * Rename Runner to Registry
+    * runner_factory() => create_registry()?
   * Rename piplines.py to singular pipeline.py
   * Move pipeline parameter in run
   * Deprecate or remove merge_configs()?

@@ -19,7 +19,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from gotaglio.tools.exceptions import ExceptionContext
 from gotaglio.tools.main import main
 from gotaglio.tools.models import Model
-from gotaglio.tools.pipelines import (
+from gotaglio.tools.pipeline import (
     build_template,
     merge_configs,
     Pipeline,
