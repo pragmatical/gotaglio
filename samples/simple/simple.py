@@ -372,16 +372,6 @@ class SamplePipeline(Pipeline):
         # console.print()
 
 
-# def format_row(uuid, keywords, text_a, order_a, text_b, order_b):
-#     return (
-#         Text(uuid),
-#         text_a,
-#         text_b,
-#         Text(", ".join(sorted(keywords))),
-#         order_b * 4 + order_a,
-#     )
-
-
 def format_case(result):
     if result["succeeded"]:
         if result["stages"]["assess"]["cost"] == 0:

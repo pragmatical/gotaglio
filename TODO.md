@@ -1,6 +1,18 @@
 # TODO
 
 * Top top
+  * simple.py
+    * Rename context parameter in simple.py. Fix comments for Flakey, Perfect, Parrot.
+    * Implement compare()
+    * Update summary() to report errors.
+  * In logs\777d0acd-0ed0-495b-ba3d-98496d9cf2b4.json
+    * "message": "Context: Extracting numerical answer from LLM response. ...
+    * Better wording in case we want to put the first few words in the summary table.
+  * Consider removing tree-diff. Might need for menu sample.
+  * One sample that unifies all pipelines? Maybe revert to gotag.bat?
+  * .gitignore models.json
+  * Merge to main - add a tag?
+  * Improve documentation
   * Move/reorder pipeline parameter in run
   * gotag help format should explain what format does. Other subcommands as well.
   * Move summarize, format, compare from Registry
@@ -15,14 +27,22 @@
     * Interactive user prompt for missing config
     * Better error reporting and usage regarding missing configuration
   * Rerun should call out patch values that are different
-  * Move data to samples
   * Better error message
     * when setting infer.model=gpt3.5 instead of infer.model.name=gpt3.5
   * Deprecate or remove merge_configs()?
-  * upgrade api.py
-  * upgrade menu.py
+  * Samples
+    * Move data to samples
+    * upgrade api.py - erase
+    * upgrade menu.py - keep?
   * Make summarize resilient to missing ids
   * Organize logs by pipeline
+      * OPTION: pipeline folder?
+      * OPTION: pipeline suffix?
+      * Enforce pipeline names can be part of filename. No delimiters.
+  * rerun detect git mismatch
+  * Diagnose startup time
+  * OpenAI and Anthropic APIs
+  * DAG pipelines
   * x Model not found error
     * x python apps\simple.py run data\api\cases.json sample prepare.template=data\api\template.txt infer.model.name=parrot
     * x Detect and report before run summary
@@ -36,17 +56,13 @@
   * x Rename piplines.py to singular pipeline.py
   * x Rename apps to samples
   * 
-  * User_Fill or CmdLine or User or Param
+  * x User_Fill or CmdLine or User or Param
   * 
   * End-to-end demo
   * Table helper functions for summarize
   * Use better formatting/word wrap for list pipelinesn
   * 
-  * OpenAI and Anthropic APIs
-  * DAG pipelines
   * Pass config to pipeline?
-  * rerun detect git mismatch
-  * Diagnose startup time
   * Table formatting utilities
   * Simpler lazy initialization for pipelines
   * Help with compare function
