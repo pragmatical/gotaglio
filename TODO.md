@@ -1,7 +1,8 @@
 # TODO
 
 * Top top
-  * Remove gotaglio/tools folder
+  * x Remove gotaglio/tools folder
+  * Move run code from registry
   * Move data to samples
   * Template for models.json, .credentials.json
   * Optional case id for format

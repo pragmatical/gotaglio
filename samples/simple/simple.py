@@ -27,12 +27,12 @@ import tiktoken
 # gotaglio package, as if it had been installed.
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from gotaglio.tools.exceptions import ExceptionContext
-from gotaglio.tools.helpers import IdShortener
-from gotaglio.tools.main import main
-from gotaglio.tools.models import Model
-from gotaglio.tools.pipeline import Pipeline
-from gotaglio.tools.shared import build_template
+from gotaglio.exceptions import ExceptionContext
+from gotaglio.helpers import IdShortener
+from gotaglio.main import main
+from gotaglio.models import Model
+from gotaglio.pipeline import Pipeline
+from gotaglio.shared import build_template
 
 
 class SamplePipeline(Pipeline):

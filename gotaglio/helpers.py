@@ -1,6 +1,6 @@
 import re
 
-from gotaglio.tools.shared import minimal_unique_prefix
+from gotaglio.shared import minimal_unique_prefix
 
 
 # class IdHelper:

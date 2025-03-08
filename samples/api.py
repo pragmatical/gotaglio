@@ -15,18 +15,18 @@ import tiktoken
 # Add the parent directory to the sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from gotaglio.tools.exceptions import ExceptionContext
-from gotaglio.tools.main import main
-from gotaglio.tools.models import Model
-from gotaglio.tools.pipeline import (
+from gotaglio.exceptions import ExceptionContext
+from gotaglio.main import main
+from gotaglio.models import Model
+from gotaglio.pipeline import (
     build_template,
     merge_configs,
     Pipeline,
     ensure_required_configs,
 )
-from gotaglio.tools.repair import Repair
-from gotaglio.tools.shared import minimal_unique_prefix
-from gotaglio.tools.templating import jinja2_template
+from gotaglio.repair import Repair
+from gotaglio.shared import minimal_unique_prefix
+from gotaglio.templating import jinja2_template
 
 
 class ApiPipeline(Pipeline):
