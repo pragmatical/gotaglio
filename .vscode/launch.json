@@ -22,7 +22,7 @@
       "name": "api",
       "type": "debugpy",
       "request": "launch",
-      "program": "apps/api.py",
+      "program": "samples/api.py",
       "console": "integratedTerminal",
       "args": [
         "run",
@@ -36,7 +36,7 @@
       "name": "run",
       "type": "debugpy",
       "request": "launch",
-      "program": "apps/menu.py",
+      "program": "samples/menu.py",
       "console": "integratedTerminal",
       "args": [
         "run",
@@ -50,7 +50,7 @@
       "name": "rerun",
       "type": "debugpy",
       "request": "launch",
-      "program": "apps/menu.py",
+      "program": "samples/menu.py",
       "console": "integratedTerminal",
       "args": [
         "rerun",
@@ -62,7 +62,7 @@
       "name": "summarize",
       "type": "debugpy",
       "request": "launch",
-      "program": "apps/menu.py",
+      "program": "samples/menu.py",
       "console": "integratedTerminal",
       "args": [
         "summarize",
@@ -73,7 +73,7 @@
       "name": "compare",
       "type": "debugpy",
       "request": "launch",
-      "program": "apps/menu.py",
+      "program": "samples/menu.py",
       "console": "integratedTerminal",
       "args": [
         "compare",

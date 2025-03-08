@@ -55,15 +55,10 @@ class Pipeline(ABC):
         super().__init__()
         base_config = replacement_config if replacement_config is not None else default_config
         self._config = apply_patch(base_config, flat_config_patch)
-        # self._config = merge_configs(default_config, config_patch, replace_config)
         ensure_required_configs(self._name, self._config)
 
     def config(self):
         return self._config
-    
-    # @abstractmethod
-    # def on_before_run(self, runner):
-    #     pass
     
     @abstractmethod
     def stages(self):   
@@ -82,6 +77,7 @@ class Pipeline(ABC):
         pass
     
 
+# TODO: can we deprecate and remove this?
 def merge_configs(base_config, patch_config, replace_config=False):
     if replace_config:
         return deepcopy(patch_config)

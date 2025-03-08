@@ -1,14 +1,18 @@
 # TODO
 
 * Top top
+  * Rename Runner to Registry
+  * Rename piplines.py to singular pipeline.py
+  * Move pipeline parameter in run
+  * Deprecate or remove merge_configs()?
+  * upgrade api.py
+  * upgrade menu.py
   * Rerun should call out patch values that are different
-  * Rename apps to samples
+  * x Rename apps to samples
   * Make summarize resilient to missing ids
   * Simplify config merging
   * Remove gotaglio/tools folder
-  * Rename piplines.py to singular pipeline.py
   * Move data to samples
-  * Move pipeline parameter in run
   * Organize logs by pipeline
   * Model not found error
     * python apps\simple.py run data\api\cases.json sample prepare.template=data\api\template.txt infer.model.name=parrot

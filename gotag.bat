@@ -1,2 +1,2 @@
 @echo off
-python apps\example.py %*
+python samples\simple\simple.py %*

@@ -9,7 +9,7 @@ import uuid
 from .constants import log_folder
 from .exceptions import ExceptionContext
 from .git import get_current_edits, get_git_sha
-from .shared import apply_patch, format_list, read_json_file
+from .shared import format_list
 
 
 async def process_one_case(case, stages, completed):
@@ -51,99 +51,6 @@ async def process_one_case(case, stages, completed):
     return result
 
 
-async def process_all_cases(
-    id, cases, pipeline_name, stages, config, max_concurrancy, completed
-):
-    #
-    # Generate static, pre-run metadata
-    #
-    start = datetime.now().timestamp()
-    metadata = {
-        "command": " ".join(sys.argv),
-        "start": str(datetime.fromtimestamp(start, timezone.utc)),
-        "concurrency": max_concurrancy,
-        "pipeline": {"name": pipeline_name, "config": config},
-    }
-    result = {"results": {}, "metadata": metadata, "uuid": str(id)}
-
-    try:
-        sha = get_git_sha()
-        edits = get_current_edits() if sha else None
-        if sha:
-            metadata["sha"] = sha
-        if edits:
-            metadata["edits"] = edits
-
-        # stages = pipeline.stages()
-        # metadata["pipeline"] = {"name": pipeline_name, "config": config}
-
-        #
-        # Perform the run
-        #
-        semaphore = asyncio.Semaphore(max_concurrancy)
-
-        async def sem_task(case):
-            async with semaphore:
-                return await process_one_case(case, stages, completed)
-
-        tasks = [sem_task(case) for case in cases]
-        results = await asyncio.gather(*tasks)
-
-        #
-        # Gather and record post-run metadata
-        #
-        end = datetime.now().timestamp()
-        elapsed = end - start
-        metadata["end"] = str(datetime.fromtimestamp(end, timezone.utc))
-        metadata["elapsed"] = str(timedelta(seconds=elapsed))
-        result["results"] = results
-
-    except Exception as e:
-        metadata["exception"] = {
-            "message": str(e),
-            "traceback": traceback.format_exc(),
-            "time": str(datetime.now(timezone.utc)),
-        }
-    finally:
-        return result
-
-
-# async def process_all_cases2(
-#     id, cases, pipeline_name, stages, config, max_concurrancy, completed
-# ):
-
-#     try:
-#         #
-#         # Perform the run
-#         #
-#         semaphore = asyncio.Semaphore(max_concurrancy)
-
-#         async def sem_task(case):
-#             async with semaphore:
-#                 return await process_one_case(case, stages, completed)
-
-#         tasks = [sem_task(case) for case in cases]
-#         results = await asyncio.gather(*tasks)
-
-#         #
-#         # Gather and record post-run metadata
-#         #
-#         end = datetime.now().timestamp()
-#         elapsed = end - start
-#         metadata["end"] = str(datetime.fromtimestamp(end, timezone.utc))
-#         metadata["elapsed"] = str(timedelta(seconds=elapsed))
-#         result["results"] = results
-
-#     except Exception as e:
-#         metadata["exception"] = {
-#             "message": str(e),
-#             "traceback": traceback.format_exc(),
-#             "time": str(datetime.now(timezone.utc)),
-#         }
-#     finally:
-#         return result
-
-
 class Runner:
     def __init__(self):
         self._models = {}
@@ -177,28 +84,6 @@ class Runner:
             )
         return self._pipelines[name]
 
-    async def go(
-        self, id, cases, pipeline_name, stages, config, concurrency, progress, completed
-    ):
-        # Run cases
-        results = await process_all_cases(
-            id, cases, pipeline_name, stages, config, concurrency, completed
-        )
-
-        # Write log
-        if not os.path.exists(log_folder):
-            os.makedirs(log_folder)
-        output_file = os.path.join(log_folder, f"{results['uuid']}.json")
-        with open(output_file, "w") as f:
-            json.dump(results, f, indent=2)
-
-        # TODO: This is a temporary fix to get around the fact that the progress bar doesn't
-        # disappear when the task is completed. It just stops updating.
-        if progress:
-            progress.stop()
-
-        return {"log": output_file, "results": results}
-
     # TODO: does summarize() really need to be in runner?
     def summarize(self, results):
         # TODO: checck that metadata.pipline exists
@@ -207,7 +92,7 @@ class Runner:
         pipeline_name = results["metadata"]["pipeline"]["name"]
         pipeline_config = results["metadata"]["pipeline"]["config"]
         pipeline_factory = self.pipeline(pipeline_name)
-        pipeline = pipeline_factory(self, {}, {})
+        pipeline = pipeline_factory(self, pipeline_config, {})
         pipeline.summarize(results)
 
     def format(self, results):
@@ -217,7 +102,7 @@ class Runner:
         pipeline_name = results["metadata"]["pipeline"]["name"]
         pipeline_config = results["metadata"]["pipeline"]["config"]
         pipeline_factory = self.pipeline(pipeline_name)
-        pipeline = pipeline_factory(self, {}, {})
+        pipeline = pipeline_factory(self, pipeline_config, {})
         pipeline.format(results)
 
     # TODO: does summarize() need to be in runner?
@@ -229,7 +114,7 @@ class Runner:
         pipeline_name = results_a["metadata"]["pipeline"]["name"]
         pipeline_config = results_a["metadata"]["pipeline"]["config"]
         pipeline_factory = self.pipeline(pipeline_name)
-        pipeline = pipeline_factory(self, {}, {})
+        pipeline = pipeline_factory(self, pipeline_config, {})
         pipeline.compare(results_a, results_b)
 
 
@@ -278,8 +163,7 @@ class Director:
             self._metadata["edits"] = edits
 
         self._cases = cases
-        # self._case_file = cases_file
-        # self._cases = read_json_file(cases_file, False)
+
 
     async def process_all_cases(self, progress, completed):
         try:

@@ -1,8 +1,6 @@
 from copy import deepcopy
 import numpy as np
-print("before scipy")
 from scipy.optimize import linear_sum_assignment
-print("after scipy")
 from typing import TypedDict
 
 

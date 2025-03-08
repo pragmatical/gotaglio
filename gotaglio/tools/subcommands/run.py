@@ -1,20 +1,10 @@
 import asyncio
-import json
-import os
-from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TimeElapsedColumn
-import uuid
 
 from ..constants import default_concurrancy, log_folder
 
-# from gotaglio.tools.pipelines import (
-#     merge_configs,
-#     ensure_required_configs,
-# )
 from ..runner import Director
 from ..shared import (
-    apply_patch,
-    flatten_dict,
     log_file_name_from_prefix,
     parse_key_value_args,
     read_json_file,
@@ -48,7 +38,6 @@ def run_pipeline(runner_factory, args):
     print("")
 
     run_with_progress_bar(director)
-    # perform_run(runner_factory, pipeline_name, pipeline_config, concurrency, id, cases)
 
     director.write_results()
     director.summarize_results()
@@ -95,106 +84,6 @@ def rerun_pipeline(runner_factory, args):
     director.summarize_results()
 
 
-
-# def perform_run(
-#     runner_factory, pipeline_name, config_patch, replace_config, concurrency, id, cases
-# ):
-#     # Configure pipeline
-#     runner = runner_factory()
-#     pipeline_factory = runner.pipeline(pipeline_name)
-#     pipeline = pipeline_factory(runner)
-#     # Want to run initialization code in pipeline.stages()
-#     # before starting progress spinner.
-#     stages = pipeline.stages()
-#     config = pipeline._config
-
-#     # # Update the default config with values provided on the command-line.
-#     # config = merge_configs(pipeline._config, config_patch, replace_config)
-
-#     # # Check the config for missing values.
-#     # ensure_required_configs(pipeline._name, config)
-
-#     # with ExceptionContext(f"Pipeline '{pipeline_name}' configuring stages."):
-#     #     pass
-#     # config = pipeline.on_before_run(runner)
-
-#     with Progress(
-#         SpinnerColumn(),
-#         *Progress.get_default_columns(),
-#         TimeElapsedColumn(),
-#         transient=True,
-#     ) as progress:
-#         task1 = progress.add_task("[red]Processing...", total=len(cases))
-
-#         def completed():
-#             progress.update(task1, advance=1)
-
-#         x = asyncio.run(
-#             runner.go(
-#                 id,
-#                 cases,
-#                 pipeline_name,
-#                 stages,
-#                 config,
-#                 concurrency,
-#                 progress,
-#                 completed,
-#             )
-#         )
-#         results = x["results"]
-#         progress.update(task1, visible=False)
-
-#         exception = results["metadata"].get("exception", None)
-#         if exception:
-#             print(f"Exception prior to run: {exception["message"]}\n\n")
-#         else:
-#             pipeline.summarize(results)
-
-#     print(f'Results written to {x["log"]}')
-
-
-async def perform_run2(
-    runner_factory,
-    pipeline_name,
-    cases_file,
-    flat_config_patch,
-    replace_config,
-    max_concurrency,
-):
-    director = Director(
-        runner_factory,
-        pipeline_name,
-        cases_file,
-        flat_config_patch,
-        replace_config,
-        max_concurrency,
-    )
-
-    with Progress(
-        SpinnerColumn(),
-        *Progress.get_default_columns(),
-        TimeElapsedColumn(),
-        transient=True,
-    ) as progress:
-        task1 = progress.add_task("[red]Processing...", total=len(director._cases))
-
-        def completed():
-            progress.update(task1, advance=1)
-
-        x = asyncio.run(
-            director.process_all_cases(progress, completed)
-        )
-        progress.update(task1, visible=False)
-
-        # exception = results["metadata"].get("exception", None)
-        # if exception:
-        #     print(f"Exception prior to run: {exception["message"]}\n\n")
-        # else:
-
-    director.write_results()
-    director.summarize_results()
-    # print(f'Results written to {x["log"]}')
-
 def run_with_progress_bar(
     director,
 ):
@@ -209,7 +98,5 @@ def run_with_progress_bar(
         def completed():
             progress.update(task1, advance=1)
 
-        x = asyncio.run(
-            director.process_all_cases(progress, completed)
-        )
+        x = asyncio.run(director.process_all_cases(progress, completed))
         progress.update(task1, visible=False)
