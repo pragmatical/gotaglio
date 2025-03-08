@@ -1,6 +1,90 @@
 # GoTaglio
 
-Gotaglio is a lightweight python toolbox for creating ML pipelines for model evaluation and case labelling.
+GoTaglio is a lightweight python toolbox for creating ML pipelines for model evaluation and case labeling. Its goal is to accelerate the Applied Science inner loop by allowing principled experimentation to start informally on an engineer's machine in minutes.
+
+GoTaglio includes the following key elements:
+* Ability to rapidly define and run end-to-end ML pipelines.
+* Automatic logging and organization of information about runs.
+* The ability to rerun an earlier experiment with small changes.
+* Structured logging to facilitate run analysis, comparing runs and tracking key metrics over time as the pipeline evolves.
+* A python library that can be accessed from [Jupyter notebooks](https://jupyter.org/).
+* A command-line tool to simplify common operations.
+* [COMMING SOON] A web-based tool for oragnizing and labeling cases.
+
+GoTaglio is designed to be very low friction. It is kind of like your thumb drive, loaded with all your tools, that will work in any Python environment.
+* It does not require cloud deployment. All that is needed are model endpoints and credentials to access them.
+* It can be used in cloud environments like [AzureML](https://azure.microsoft.com/en-us/products/machine-learning) or with frameworks like [mlflow](https://mlflow.org/).
+* Pipeline code can be incorporated into production systems.
+
+## Using GoTaglio
+
+### Installing GoTaglio
+GoTaglio is a python package that can be installed in your python environment.
+
+Installing with [pip](https://pip.pypa.io/en/stable/):
+~~~bash
+pip install git+https://github.com/MikeHopcroft/gotaglio
+~~~
+
+Installing with [poetry](https://python-poetry.org/):
+~~~bash
+poetry add git+https://github.com/MikeHopcroft/gotaglio
+~~~
+
+### Configuring GoTaglio
+
+See the documentation on [configuring models](documentation/models.md).
+
+Create a `models.json` file:
+~~~json
+[
+  {
+    "name": "phi3",
+    "description": "Phi-3 medium 128k",
+    "type": "AZURE_AI",
+    "endpoint": <ENDPOINT>,
+    "key": "From .credentials.json"
+  },
+  {
+    "name": "gpt3.5",
+    "description": "GPT-3.5-turbo 16k",
+    "type": "AZURE_OPEN_AI",
+    "endpoint": <ENDPOINT>,
+    "deployment": "gpt-35-turbo-16k-0613",
+    "key": "From .credentials.json",
+    "api": "2024-07-01-preview"
+  },
+  {
+    "name": "gpt4o",
+    "description": "gpt-4o-2024-11-20",
+    "type": "AZURE_OPEN_AI",
+    "endpoint": <ENDPOINT>,
+    "deployment": "gpt-4o-2024-11-20",
+    "key": "From .credentials.json",
+    "api": "2024-08-01-preview"
+  }
+]
+~~~
+
+Create a `.credentials.json` file. There should be one
+model-key pair for each model in models.json. Note that `.credentials.json` is .gitignored to prevent accidentally
+committing credentials.
+~~~json
+{
+  "phi3": <PHI3 KEY>,
+  "gpt3.5": <GPT 3.5 KEY>,
+  "gpt4o": <GPT 4o KEY>
+}
+~~~
+
+### Implementing a pipeline
+
+See the documentation on [implementing a pipeline](documentation/pipelines.md).
+
+Import into python source files:
+~~~python
+from gotaglio import main
+~~~
 
 ## Building GoTaglio
 
@@ -11,6 +95,10 @@ Gotaglio is a lightweight python toolbox for creating ML pipelines for model eva
 1. `python -m venv .venv`
 1. `.venv\Scripts\activate`
 1. `poetry install --no-root`
+
+## Configuring Gotaglio
+
+TODO: coming soon
 
 ## Running GoTaglio
 

@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 import json
 import os
+import re
 import sys
 import traceback
 import uuid
@@ -160,6 +161,7 @@ class Director:
         if edits:
             self._metadata["edits"] = edits
 
+        validate_cases(cases)
         self._cases = cases
 
 
@@ -211,3 +213,25 @@ class Director:
     def summarize_results(self):
         self._pipeline.summarize(self._results)
         print(f'Results written to {self._output_file}')
+
+def validate_cases(cases):
+    if not isinstance(cases, list):
+        raise ValueError("Cases must be a list.")
+
+    guid_pattern = re.compile(
+        r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    )
+
+    for index, case in enumerate(cases):
+        if not isinstance(case, dict):
+            raise ValueError(f"Case {index} not a dictionary.")
+        if "uuid" not in case:
+            raise ValueError(f"Case {index} missing uuid.")
+        if not guid_pattern.match(case["uuid"]):
+            raise ValueError(f"Encountered invalid uuid: {case['uuid']}")
+
+    uuids = set()
+    for case in cases:
+        if case["uuid"] in uuids:
+            raise ValueError(f"Encountered duplicate uuid: {case['uuid']}")
+        uuids.add(case["uuid"])

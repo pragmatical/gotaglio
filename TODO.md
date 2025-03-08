@@ -1,22 +1,24 @@
 # TODO
 
 * Top top
+  * Remove gotaglio/tools folder
+  * Move data to samples
+  * Template for models.json, .credentials.json
+  * Optional case id for format
+  * Summarize should print out run configuration details
+  * Move pipeline parameter in run
+  * Simplify config merging
   * Better error message
     * when setting infer.model=gpt3.5 instead of infer.model.name=gpt3.5
-  * Summarize should print out run configuration details
-  * Rename Runner to Registry
-    * runner_factory() => create_registry()?
-  * Rename piplines.py to singular pipeline.py
-  * Move pipeline parameter in run
+  * x Rename Runner to Registry
+    * x runner_factory() => create_registry()?
+  * x Rename piplines.py to singular pipeline.py
   * Deprecate or remove merge_configs()?
   * upgrade api.py
   * upgrade menu.py
   * Rerun should call out patch values that are different
   * x Rename apps to samples
   * Make summarize resilient to missing ids
-  * Simplify config merging
-  * Remove gotaglio/tools folder
-  * Move data to samples
   * Organize logs by pipeline
   * Model not found error
     * python apps\simple.py run data\api\cases.json sample prepare.template=data\api\template.txt infer.model.name=parrot
@@ -27,7 +29,6 @@
   * User_Fill or CmdLine or User or Param
   * 
   * End-to-end demo
-  * Template for models.json, .credentials.json
   * Table helper functions for summarize
   * Use better formatting/word wrap for list pipelinesn
   * 

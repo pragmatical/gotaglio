@@ -1,11 +1,29 @@
-from abc import ABC, abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
 from copy import deepcopy
 
 
 from .exceptions import ExceptionContext
 from .shared import apply_patch, flatten_dict, merge_dicts, read_text_file
 
-class Pipeline(ABC):
+class EnsureSuperInitMeta(ABCMeta):
+    """
+    Metaclass to ensure that the base class's __init__ method is called in subclasses.
+    This is useful for enforcing that subclasses properly initialize their base class.
+    """
+    def __init__(cls, name, bases, dct):
+        original_init = cls.__init__
+
+        def new_init(self, *args, **kwargs):
+            # Call the original __init__ method
+            original_init(self, *args, **kwargs)
+            # Check if the base class __init__ was called
+            if not hasattr(self, '_super_init_called'):
+                raise RuntimeError(f"super().__init__() was not called in {name}.__init__")
+
+        cls.__init__ = new_init
+        super().__init__(name, bases, dct)
+
+class Pipeline(ABC, metaclass=EnsureSuperInitMeta):
     """
     Abstract base class for pipelines.
 
@@ -52,6 +70,7 @@ class Pipeline(ABC):
             raise NotImplementedError(f"Class {cls.__name__} must define a static _description attribute")
 
     def __init__(self, default_config, replacement_config, flat_config_patch):
+        self._super_init_called = True
         super().__init__()
         base_config = replacement_config if replacement_config is not None else default_config
         self._config = apply_patch(base_config, flat_config_patch)

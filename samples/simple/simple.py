@@ -1,8 +1,20 @@
 """
-This module demonstrates the implementation of a simple pipeline using the gotaglio tools.
+This module demonstrates the implementation of a simple, linear pipeline
+using the gotaglio tools. The pipeline has the following stages:
+    - prepare: prepares the system, agent, and user messages for the
+               for the model. Uses a jinga2 template to format the system
+               message.
+    - infer: invokes the model to generate a response.
+    - extract: extracts a numerical answer from the model response.
+    - assess: compares the model response to the expected answer.
+
+The pipeline also provides implementations the following sub-commnads,
+which can be invoked from the command line:
+    - summarize: prints a summary of the results.
+    - format: pretty prints the each case
+    - compare: compares two pipeline runs.
 """
 
-from copy import deepcopy
 import os
 from rich.console import Console
 from glom import glom
@@ -11,84 +23,50 @@ from rich.text import Text
 import sys
 import tiktoken
 
-# Add the parent directory to the sys.path
+# Add the parent directory to the sys.path so that we can import from the
+# gotaglio package, as if it had been installed.
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from gotaglio.tools.exceptions import ExceptionContext
 from gotaglio.tools.helpers import IdShortener
 from gotaglio.tools.main import main
 from gotaglio.tools.models import Model
-from gotaglio.tools.pipeline import (
-    merge_configs,
-    Pipeline,
-    ensure_required_configs,
-)
-from gotaglio.tools.repair import Repair
-from gotaglio.tools.shared import build_template, minimal_unique_prefix
-from gotaglio.tools.templating import jinja2_template
+from gotaglio.tools.pipeline import Pipeline
+from gotaglio.tools.shared import build_template
 
 
 class SamplePipeline(Pipeline):
-    """
-    SamplePipeline demonstrates a simple two-stage LLM pipeline.
-
-    Attributes:
-      _name (str): The name of the pipeline.
-      _description (str): A brief description of the pipeline.
-      _default_config (dict): Default configuration dictionaries for each pipeline stage.
-      _registry: The Registry instance used for instantiating models
-      _config (dict): The merged configuration dictionary.
-      _template: The prompt template for the prepare stage, lazily instantiated.
-      _model: The model for the infer stage, lazily instantiated.
-      _tokenizer: The tokenizer used for encoding text.
-
-    Methods:
-      __init__(registry, config_patch, replace_config=False):
-        Initializes the pipeline with the given Registry and configuration.
-
-      stages():
-        Defines and returns the pipeline stage functions.
-
-      summarize(context):
-        Summarizes the results of the pipeline execution.
-
-      compare(a, b):
-        Compares the results of two pipeline executions.
-    """
-
     # The Pipeline abstract base class requires _name and _description.
+    # These are used by the Registry to list and instantiate pipelines.
+    # The `pipelines` subcommand will print a list of available pipelines,
+    # with their names and descriptions.
     _name = "simple"
     _description = "An example pipeline for converting natural language to api calls."
 
-
     def __init__(self, registry, replacement_config, flat_config_patch):
         """
-        Initialize the pipeline with the given Registry and configuration.
+        Initializes the pipeline with the given Registry and configuration.
 
         Args:
-          registry: The Registry instance to be used in the stages() method. 
-            The Registry provides access to system resources such as models.
-          config_patch: A dictionary containing configuration value overrides from the command line.
-          replace_config (bool): If True, replace the default config with config_patch entirely.
-            If False, merge config_patch with the default config. Used when rerunning a case from
-            a structure log.
-
-        Attributes:
-          _registry: Stores the Registry instance for later use.
-          _config: The merged configuration dictionary.
-          _template: Lazily instantiated template, initially set to None.
-          _model: Lazily instantiated model, initially set to None.
-          _tokenizer: The GPT-4o tokenizer loaded with the "cl100k_base" encoding.
+          - registry: an instance of class Registry. Provides access to models.
+          - replacement_config: a configuration that should be used instead of the
+              default configuration provided by the pipeline. The replacement_config
+              is used when rerunning a case from a log file.
+          - flat_config_patch: a dictionary of glom-style key-value pairs that that
+              override individual configuration values. These key-value pairs come from
+              the command line and allow one to adjust model parameters or rerun a case
+              with, say, a different model.
         """
-        # Save registry here for later use in the stages() method.
-        self._registry = registry
 
-        # Dictionary of default configuration dicts for each pipeline stage.
-        # The structure and interpretation of each configuration dict is determined
-        # by the corresponding pipeline stage.
+        # Default configuration values for each pipeline stage.
+        # The structure and interpretation of each configuration dict is
+        # dictated by the needs of corresponding pipeline stage.
         #
-        # A value of None indicates that the value must be provided on the command
-        # line.
+        # A value of None indicates that the value must be provided on the
+        # command line. In this case, the user would need to provide values
+        # for the following keys on the command line:
+        #   - prepare.template
+        #   - infer.model.name
         #
         # There is no requirement to define a configuration dict for each stage.
         # It is the implementation of the pipeline that determines which stages
@@ -110,35 +88,50 @@ class SamplePipeline(Pipeline):
         }
         super().__init__(default_config, replacement_config, flat_config_patch)
 
+        # Save registry here for later use in the stages() method.
+        self._registry = registry
 
         # Construct and register some model mocks, specific to this pipeline.
         Flakey(registry, {})
         Perfect(registry, {})
         Parrot(registry, {})
 
-
     def stages(self):
-        # # Perform some setup here so that any errors encountered
-        # # are caught before running the cases.
-        # with ExceptionContext(f"Pipeline '{self._name}' configuring stages."):
         #
-        # Initialize objects used by the pipeline stages.
+        # Perform some setup here so that any initialization errors encountered
+        # are caught before running the cases.
         #
 
-        # Compile the jinja2 template used in the infer stage.
+        # Compile the jinja2 template used in the `prepare` stage.
         template = build_template(
             self.config(),
             "prepare.template",
             "prepare.template_text",
         )
 
-        # Instantiate the model for the infer stage.
+        # Instantiate the model for the `infer` stage.
         model = self._registry.model(glom(self.config(), "infer.model.name"))
 
         #
         # Define the pipeline stage functions
         #
+        """
+        Define the pipeline stage functions. Each stage function is a coroutine
+        that takes a context dictionary as an argument.
 
+        context["case"] has the `case` data for the current case. Typically
+        this comes from the cases JSON file specified as a parameter to the
+        `run` sub-command.
+
+        context["stages"][name] has the return value for stage `name`. Note
+        that context["stages"][name] will only be defined if after the stage
+        has to conclusion without raising an exception.
+
+        Note that a stage function will only be invoked if the previous stage
+        has completed with a return value. 
+        """
+
+        # Create the system and user messages
         async def prepare(context):
             messages = [
                 {"role": "system", "content": await template(context)},
@@ -147,16 +140,24 @@ class SamplePipeline(Pipeline):
 
             return messages
 
+        # Invoke the model to generate a response
         async def infer(context):
             return await model.infer(context["stages"]["prepare"], context)
 
+        # Attempt to extract a numerical answer from the model response.
+        # Note that this method will raise an exception if the response is not
+        # a number.
         async def extract(context):
             with ExceptionContext(f"Extracting numerical answer from LLM response."):
                 return float(context["stages"]["infer"])
 
+        # Compare the model response to the expected answer.
         async def assess(context):
             return context["stages"]["extract"] - context["case"]["answer"]
 
+        # The pipeline stages will be executed in the order specified in the
+        # dictionary returned by the stages() method. The keys of the
+        # dictionary are the names of the stages.
         return {
             "prepare": prepare,
             "infer": infer,
@@ -164,26 +165,33 @@ class SamplePipeline(Pipeline):
             "assess": assess,
         }
 
+    # This method is used to summarize the results of each a pipeline run.
+    # It is invoked by the `run`, `rerun`, and `summarize` sub-commands.
     def summarize(self, context):
         if len(context) == 0:
             print("No results.")
         else:
+            # To make the summary more readable, create a short, unique prefix
+            # for each case id.
             short_id = IdShortener(context["results"], "uuid")
 
+            # Using Table from the rich text library.
+            # https://rich.readthedocs.io/en/stable/introduction.html
             table = Table(title=f"Summary for {context['uuid']}")
             table.add_column("id", justify="right", style="cyan", no_wrap=True)
             table.add_column("run", style="magenta")
             table.add_column("score", justify="right", style="green")
             table.add_column("keywords", justify="left", style="green")
 
+            # Set up some counters for totals to be presented after the table.
             total_count = len(context)
             complete_count = 0
             passed_count = 0
             failed_count = 0
             error_count = 0
+
+            # Add one row for each case.
             for result in context["results"]:
-                id = short_id(result)
-                # id = result["case"]["uuid"][:uuid_prefix_len]
                 succeeded = result["succeeded"]
                 cost = result["stages"]["assess"] if succeeded else None
 
@@ -213,7 +221,9 @@ class SamplePipeline(Pipeline):
                     if "keywords" in result["case"]
                     else ""
                 )
-                table.add_row(id, complete, score, keywords)
+                table.add_row(short_id(result), complete, score, keywords)
+
+            # Display the table and the totals.
             console = Console()
             console.print(table)
             console.print()
@@ -225,28 +235,44 @@ class SamplePipeline(Pipeline):
                 f"Error: {error_count}/{total_count} ({(error_count/total_count)*100:.2f}%)"
             )
             console.print(
-                f"Passed: {passed_count}/{complete_count} ({(passed_count/total_count)*100:.2f}%)"
+                f"Passed: {passed_count}/{total_count} ({(passed_count/total_count)*100:.2f}%)"
             )
             console.print(
-                f"Failed: {failed_count}/{complete_count} ({(failed_count/total_count)*100:.2f}%)"
+                f"Failed: {failed_count}/{total_count} ({(failed_count/total_count)*100:.2f}%)"
             )
             console.print()
 
     def format(self, context):
-        # Load the GPT-4o tokenizer
-        if not self:
+        # Lazily load the GPT-4o tokenizer here so that we don't slow down
+        # other scenarios that don't need it.
+        if not hasattr(self, "_tokenizer"):
             self._tokenizer = tiktoken.get_encoding("cl100k_base")
 
         if len(context) == 0:
             print("No results.")
         else:
-            print("TODO: format()")
+            # To make the report more readable, create a short, unique prefix
+            # for each case id.
+            short_id = IdShortener(context["results"], "uuid")
+
             for result in context["results"]:
+                print(f"## Case: {short_id(result)}")
                 if result["succeeded"]:
-                    print(f"Result: {result['stages']['infer']}")
-                    print(
-                        f"Output tokens : {len(self._tokenizer.encode(result['stages']['infer']))}"
+                    if result["stages"]["assess"] == 0:
+                        print("**PASSED**  ")
+                    else:
+                        print(f"**FAILED**: expected {result['case']['answer']}, got {result['stages']['extract']}  ")
+                    input_tokens = sum(
+                        len(self._tokenizer.encode(message["content"]))
+                        for message in result["stages"]["prepare"]
                     )
+                    print(
+                        f"Input tokens: {input_tokens}, output tokens: {len(self._tokenizer.encode(result['stages']['infer']))}"
+                    )
+                    print()
+                    for message in result["stages"]["prepare"]:
+                        print(f"**{message['role']}**: {message['content']}\n")
+                    print(f"**assistant**: {result['stages']['extract']}")
                 else:
                     print(f"Error: {result['exception']['message']}")
                     # print(f"Inference: {result['stages']['infer']}")

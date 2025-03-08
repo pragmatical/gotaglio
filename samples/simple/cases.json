@@ -6,6 +6,7 @@
       "addition"
     ],
     "user": "1+1",
+    "base": 10,
     "answer": 2
   },
   {
@@ -16,14 +17,25 @@
       "multiplication"
     ],
     "user": "1 + 2 * 3",
+    "base": 10,
     "answer": 7
   },
   {
     "uuid": "e86add04-88e2-42e0-b37e-af137868eec7",
     "keywords": [
-      "division"
+      "division, hexidecimal"
     ],
-    "user": "20 / 5",
-    "answer": 4
+    "user": "a0 / 4",
+    "base": 16,
+    "answer": 40
+  },
+  {
+    "uuid": "d739e6a7-70d4-42d8-9f4b-7438529ebadd",
+    "keywords": [
+      "division, hexidecimal, fails"
+    ],
+    "user": "a1 / 4",
+    "base": 16,
+    "answer": 40.25
   }
 ]
