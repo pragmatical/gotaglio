@@ -1,21 +1,37 @@
 # TODO
 
 * Top top
-  * Table helper functions for summarize
-  * Use better formatting/word wrap for list pipelinesn
+  * Rerun should call out patch values that are different
+  * Rename apps to samples
+  * Make summarize resilient to missing ids
+  * Simplify config merging
   * Remove gotaglio/tools folder
   * Rename piplines.py to singular pipeline.py
-  * Pass config to pipeline?
+  * Move data to samples
   * Move pipeline parameter in run
-  * rerun detect git mismatch
+  * Organize logs by pipeline
+  * Model not found error
+    * python apps\simple.py run data\api\cases.json sample prepare.template=data\api\template.txt infer.model.name=parrot
+    * Detect and report before run summary
+    * List available models
+  * Better error reporting and usage regarding missing configuration
+  * 
   * User_Fill or CmdLine or User or Param
+  * 
+  * End-to-end demo
+  * Template for models.json, .credentials.json
+  * Table helper functions for summarize
+  * Use better formatting/word wrap for list pipelinesn
+  * 
+  * OpenAI and Anthropic APIs
+  * DAG pipelines
+  * Pass config to pipeline?
+  * rerun detect git mismatch
   * Diagnose startup time
   * Table formatting utilities
   * Simpler lazy initialization for pipelines
   * Help with compare function
   * Break out log folders by pipeline - enforce pipeline name can be legal file name
-  * Better error reporting and usage regarding missing configuration
-  * OpenAI and Anthropic APIs
   * format command shows pass/fail status and edit distance
   * Examples to README.md
     * Update for new folders - api and menu

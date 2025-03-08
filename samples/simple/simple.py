@@ -3,7 +3,6 @@ This module demonstrates the implementation of a simple pipeline using the gotag
 """
 
 from copy import deepcopy
-import json
 import os
 from rich.console import Console
 from glom import glom
@@ -13,26 +12,27 @@ import sys
 import tiktoken
 
 # Add the parent directory to the sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from gotaglio.tools.exceptions import ExceptionContext
+from gotaglio.tools.helpers import IdShortener
 from gotaglio.tools.main import main
 from gotaglio.tools.models import Model
 from gotaglio.tools.pipelines import (
-    build_template,
+    # build_template,
     merge_configs,
     Pipeline,
     ensure_required_configs,
 )
 from gotaglio.tools.repair import Repair
-from gotaglio.tools.shared import minimal_unique_prefix
+from gotaglio.tools.shared import build_template, minimal_unique_prefix
 from gotaglio.tools.templating import jinja2_template
 
 
 class SamplePipeline(Pipeline):
     """
     SamplePipeline demonstrates a simple two-stage LLM pipeline.
-    
+
     Attributes:
       _name (str): The name of the pipeline.
       _description (str): A brief description of the pipeline.
@@ -42,23 +42,23 @@ class SamplePipeline(Pipeline):
       _template: The prompt template for the prepare stage, lazily instantiated.
       _model: The model for the infer stage, lazily instantiated.
       _tokenizer: The tokenizer used for encoding text.
-    
+
     Methods:
       __init__(runner, config_patch, replace_config=False):
         Initializes the ApiPipeline with the given runner and configuration.
-      
+
       stages():
         Defines and returns the pipeline stage functions.
-      
+
       summarize(context):
         Summarizes the results of the pipeline execution.
-      
+
       compare(a, b):
         Compares the results of two pipeline executions.
     """
 
     # The Pipeline abstract base class requires _name and _description.
-    _name = "api"
+    _name = "simple"
     _description = "An example pipeline for converting natural language to api calls."
 
     # Dictionary of default configuration dicts for each pipeline stage.
@@ -71,23 +71,23 @@ class SamplePipeline(Pipeline):
     # There is no requirement to define a configuration dict for each stage.
     # It is the implementation of the pipeline that determines which stages
     # require configuration dicts.
-    _default_config = {
-        "prepare": {"template": None},
-        "infer": {
-            "model": {
-                "name": None,
-                "settings": {
-                    "max_tokens": 800,
-                    "temperature": 0.7,
-                    "top_p": 0.95,
-                    "frequency_penalty": 0,
-                    "presence_penalty": 0,
-                },
-            }
-        },
-    }
+    # _default_config = {
+    #     "prepare": {"template": None},
+    #     "infer": {
+    #         "model": {
+    #             "name": None,
+    #             "settings": {
+    #                 "max_tokens": 800,
+    #                 "temperature": 0.7,
+    #                 "top_p": 0.95,
+    #                 "frequency_penalty": 0,
+    #                 "presence_penalty": 0,
+    #             },
+    #         }
+    #     },
+    # }
 
-    def __init__(self, runner, config_patch, replace_config=False):
+    def __init__(self, runner, replacement_config, flat_config_patch):
         """
         Initialize the pipeline with the given runner and configuration.
 
@@ -95,7 +95,7 @@ class SamplePipeline(Pipeline):
           runner: The runner instance to be used in the stages() method. The runner provides
             access to system resources such as models.
           config_patch: A dictionary containing configuration value overrides from the command line.
-          replace_config (bool): If True, replace the default config with config_patch entirely. 
+          replace_config (bool): If True, replace the default config with config_patch entirely.
             If False, merge config_patch with the default config. Used when rerunning a case from
             a structure log.
 
@@ -109,42 +109,92 @@ class SamplePipeline(Pipeline):
         # Save runner here for later use in the stages() method.
         self._runner = runner
 
-        # Update the default config with values provided on the command-line.
-        self._config = merge_configs(self._default_config, config_patch, replace_config)
+        default_config = {
+            "prepare": {"template": None},
+            "infer": {
+                "model": {
+                    "name": None,
+                    "settings": {
+                        "max_tokens": 800,
+                        "temperature": 0.7,
+                        "top_p": 0.95,
+                        "frequency_penalty": 0,
+                        "presence_penalty": 0,
+                    },
+                }
+            },
+        }
+        super().__init__(default_config, replacement_config, flat_config_patch)
 
-        # Check the config for missing values.
-        ensure_required_configs(self._name, self._config)
+        # # Update the default config with values provided on the command-line.
+        # self._config = merge_configs(self._default_config, config_patch, replace_config)
+
+        # # Check the config for missing values.
+        # ensure_required_configs(self._name, self._config)
 
         # Construct and register some model mocks, specific to this pipeline.
-        Parrot(self._runner, {})
-        Flakey(self._runner, {})
+        Flakey(runner, {})
+        Perfect(runner, {})
+        Parrot(runner, {})
 
-        # Template and model are lazily instantiated in self.stages().
-        # This allows us to use the pipeline for other purposes without
-        # loading and compiling the prompt template.
-        # TODO: should summarize() and compare() be static class methods?
-        self._template = None
-        self._model = None
+        # # Template and model are lazily instantiated in self.stages().
+        # # This allows us to use the pipeline for other purposes without
+        # # loading and compiling the prompt template.
+        # # TODO: should summarize() and compare() be static class methods?
+        # self._template = None
+        # self._model = None
 
-        # Load the GPT-4o tokenizer
-        self._tokenizer = tiktoken.get_encoding("cl100k_base")
+        # # The tokenizer is lazily loaded in SamplePipeline.format().
+        # self._tokenizer = None
 
+    # def on_before_run(self, runner):
+    #     # Perform some setup here so that any errors encountered
+    #     # are caught before running the cases.
+    #     # with ExceptionContext(f"Pipeline '{self._name}' configuring stages."):
+
+    #     # Lazily build the prompt template for the prepare stage
+    #     if not self._template:
+    #         self._template = build_template(
+    #             self._config,
+    #             "prepare.template",
+    #             "prepare.template_text",
+    #         )
+
+    #     # Lazily instantiate the model for the infer stage.
+    #     if not self._model:
+    #         self._model = runner.model(glom(self._config, "infer.model.name"))
+
+    #     return self._config
 
     def stages(self):
-        # Perform some setup here so that any errors encountered
-        # are caught before running the cases.
-        with ExceptionContext(f"Pipeline '{self._name}' configuring stages."):
-            # Lazily build the prompt template for the prepare stage.
-            if not self._template:
-                self._template = build_template(
-                    self._config,
-                    "prepare.template",
-                    "prepare.template_text",
-                )
+        # # Perform some setup here so that any errors encountered
+        # # are caught before running the cases.
+        # with ExceptionContext(f"Pipeline '{self._name}' configuring stages."):
+        #     # Lazily build the prompt template for the prepare stage.
+        #     if not self._template:
+        #         self._template = build_template(
+        #             self._config,
+        #             "prepare.template",
+        #             "prepare.template_text",
+        #         )
 
-            # Lazily instantiate the model for the infer stage.
-            if not self._model:
-                self._model = self._runner.model(glom(self._config, "infer.model.name"))
+        #     # Lazily instantiate the model for the infer stage.
+        #     if not self._model:
+        #         self._model = self._runner.model(glom(self._config, "infer.model.name"))
+
+        #
+        # Initialize objects used by the pipeline stages.
+        #
+
+        # Compile the jinja2 template used in the infer stage.
+        template = build_template(
+            self.config(),
+            "prepare.template",
+            "prepare.template_text",
+        )
+
+        # Instantiate the model for the infer stage.
+        model = self._runner.model(glom(self.config(), "infer.model.name"))
 
         #
         # Define the pipeline stage functions
@@ -152,99 +202,117 @@ class SamplePipeline(Pipeline):
 
         async def prepare(context):
             messages = [
-                {"role": "system", "content": await self._template(context)},
+                {"role": "system", "content": await template(context)},
                 {"role": "user", "content": context["case"]["user"]},
             ]
 
             return messages
 
         async def infer(context):
-            return await self._model.infer(context["stages"]["prepare"], context)
+            return await model.infer(context["stages"]["prepare"], context)
 
-        return (
-            self._config,
-            {
-                "prepare": prepare,
-                "infer": infer,
-            },
-        )
+        async def extract(context):
+            with ExceptionContext(f"Extracting numerical answer from LLM response."):
+                return float(context["stages"]["infer"])
+
+        async def assess(context):
+            return context["stages"]["extract"] - context["case"]["answer"]
+
+        return {
+            "prepare": prepare,
+            "infer": infer,
+            "extract": extract,
+            "assess": assess,
+        }
 
     def summarize(self, context):
         if len(context) == 0:
             print("No results.")
         else:
-            print("TODO: summarize()")
+            short_id = IdShortener(context["results"], "uuid")
+
+            table = Table(title=f"Summary for {context['uuid']}")
+            table.add_column("id", justify="right", style="cyan", no_wrap=True)
+            table.add_column("run", style="magenta")
+            table.add_column("score", justify="right", style="green")
+            table.add_column("keywords", justify="left", style="green")
+
+            total_count = len(context)
+            complete_count = 0
+            passed_count = 0
+            failed_count = 0
+            error_count = 0
+            for result in context["results"]:
+                id = short_id(result)
+                # id = result["case"]["uuid"][:uuid_prefix_len]
+                succeeded = result["succeeded"]
+                cost = result["stages"]["assess"] if succeeded else None
+
+                if succeeded:
+                    complete_count += 1
+                    if cost == 0:
+                        passed_count += 1
+                    else:
+                        # Cost is None or a non-zero number
+                        failed_count += 1
+                else:
+                    error_count += 1
+
+                complete = (
+                    Text("COMPLETE", style="bold green")
+                    if succeeded
+                    else Text("ERROR", style="bold red")
+                )
+                cost_text = "" if cost == None else f"{cost:.2f}"
+                score = (
+                    Text(cost_text, style="bold green")
+                    if cost == 0
+                    else Text(cost_text, style="bold red")
+                )
+                keywords = (
+                    ", ".join(sorted(result["case"]["keywords"]))
+                    if "keywords" in result["case"]
+                    else ""
+                )
+                table.add_row(id, complete, score, keywords)
+            console = Console()
+            console.print(table)
+            console.print()
+            console.print(f"Total: {total_count}")
+            console.print(
+                f"Complete: {complete_count}/{total_count} ({(complete_count/total_count)*100:.2f}%)"
+            )
+            console.print(
+                f"Error: {error_count}/{total_count} ({(error_count/total_count)*100:.2f}%)"
+            )
+            console.print(
+                f"Passed: {passed_count}/{complete_count} ({(passed_count/total_count)*100:.2f}%)"
+            )
+            console.print(
+                f"Failed: {failed_count}/{complete_count} ({(failed_count/total_count)*100:.2f}%)"
+            )
+            console.print()
+
+    def format(self, context):
+        # Load the GPT-4o tokenizer
+        if not self:
+            self._tokenizer = tiktoken.get_encoding("cl100k_base")
+
+        if len(context) == 0:
+            print("No results.")
+        else:
+            print("TODO: format()")
             for result in context["results"]:
                 if result["succeeded"]:
                     print(f"Result: {result['stages']['infer']}")
-                    print(f"Output tokens : {len(self._tokenizer.encode(result['stages']['infer']))}")
+                    print(
+                        f"Output tokens : {len(self._tokenizer.encode(result['stages']['infer']))}"
+                    )
                 else:
                     print(f"Error: {result['exception']['message']}")
                     # print(f"Inference: {result['stages']['infer']}")
                     print(f"Traceback: {result['exception']['traceback']}")
                     print(f"Time: {result['exception']['time']}")
-            # uuids = [result["case"]["uuid"] for result in context["results"]]
-            # uuid_prefix_len = max(minimal_unique_prefix(uuids), 3)
-
-            # table = Table(title=f"Summary for {context['uuid']}")
-            # table.add_column("id", justify="right", style="cyan", no_wrap=True)
-            # table.add_column("run", style="magenta")
-            # table.add_column("score", justify="right", style="green")
-            # table.add_column("keywords", justify="left", style="green")
-
-            # total_count = len(context)
-            # complete_count = 0
-            # passed_count = 0
-            # failed_count = 0
-            # error_count = 0
-            # for result in context["results"]:
-            #     id = result["case"]["uuid"][:uuid_prefix_len]
-            #     succeeded = result["succeeded"]
-            #     cost = result["stages"]["assess"]["cost"] if succeeded else None
-
-            #     if succeeded:
-            #         complete_count += 1
-            #         if cost == 0:
-            #             passed_count += 1
-            #         else:
-            #             failed_count += 1
-            #     else:
-            #         error_count += 1
-
-            #     complete = (
-            #         Text("COMPLETE", style="bold green")
-            #         if succeeded
-            #         else Text("ERROR", style="bold red")
-            #     )
-            #     cost_text = "" if cost == None else f"{cost:.2f}"
-            #     score = (
-            #         Text(cost_text, style="bold green")
-            #         if cost == 0
-            #         else Text(cost_text, style="bold red")
-            #     )
-            #     keywords = (
-            #         ", ".join(sorted(result["case"]["keywords"]))
-            #         if "keywords" in result["case"]
-            #         else ""
-            #     )
-            #     table.add_row(id, complete, score, keywords)
-            # console = Console()
-            # console.print(table)
-            # console.print()
-            # console.print(f"Total: {total_count}")
-            # console.print(
-            #     f"Complete: {complete_count}/{total_count} ({(complete_count/total_count)*100:.2f}%)"
-            # )
-            # console.print(
-            #     f"Error: {error_count}/{total_count} ({(error_count/total_count)*100:.2f}%)"
-            # )
-            # console.print(
-            #     f"Passed: {passed_count}/{complete_count} ({(passed_count/total_count)*100:.2f}%)"
-            # )
-            # console.print(
-            #     f"Failed: {failed_count}/{complete_count} ({(failed_count/total_count)*100:.2f}%)"
-            # )
-            # console.print()
 
     def compare(self, a, b):
         console = Console()
@@ -364,7 +432,7 @@ class Flakey(Model):
     async def infer(self, messages, context=None):
         self._counter += 1
         if self._counter % 3 == 0:
-            return f'{messages[-1]["role"]} says "{messages[-1]["content"]}"'
+            return f'{context["case"]["answer"]}'
         elif self._counter % 3 == 1:
             return "hello world"
         else:
@@ -390,11 +458,25 @@ class Parrot(Model):
         return {}
 
 
+class Perfect(Model):
+    """
+    A mock model class that always returns the expected answer
+    from context["case"]["turns"][-1]["expected"]
+    """
+
+    def __init__(self, runner, configuration):
+        runner.register_model("perfect", self)
+
+    async def infer(self, messages, context=None):
+        return f'{context["case"]["answer"]}'
+
+    def metadata(self):
+        return {}
+
+
 def go():
-    main([ApiPipeline])
+    main([SamplePipeline])
 
 
 if __name__ == "__main__":
     go()
-
-

@@ -1,11 +1,9 @@
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from glom import assign, glom
 
 
 from .exceptions import ExceptionContext
-from .shared import flatten_dict, merge_dicts, read_text_file
-from .templating import jinja2_template
+from .shared import apply_patch, flatten_dict, merge_dicts, read_text_file
 
 class Pipeline(ABC):
     """
@@ -45,7 +43,7 @@ class Pipeline(ABC):
     @classmethod
     def name(cls):
         return cls._name
-
+    
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         if cls._name is None:
@@ -53,6 +51,20 @@ class Pipeline(ABC):
         if cls._description is None:
             raise NotImplementedError(f"Class {cls.__name__} must define a static _description attribute")
 
+    def __init__(self, default_config, replacement_config, flat_config_patch):
+        super().__init__()
+        base_config = replacement_config if replacement_config is not None else default_config
+        self._config = apply_patch(base_config, flat_config_patch)
+        # self._config = merge_configs(default_config, config_patch, replace_config)
+        ensure_required_configs(self._name, self._config)
+
+    def config(self):
+        return self._config
+    
+    # @abstractmethod
+    # def on_before_run(self, runner):
+    #     pass
+    
     @abstractmethod
     def stages(self):   
         pass
@@ -97,22 +109,4 @@ def ensure_required_configs(name, config):
                 raise ValueError(
                     f"{name} pipeline: missing '{k}' parameter."
                 )
-
-
-def build_template(config, template_file, template_source_text):
-    # If we don't have the template source text, load it from a file.
-    if not isinstance(
-        glom(config, template_source_text, default=None),
-        str,
-    ):
-        assign(
-            config,
-            template_source_text,
-            read_text_file(glom(config, template_file)),
-        )
-
-    # Compile the template.
-    return jinja2_template(
-        glom(config, "prepare.template_text")
-    )
 

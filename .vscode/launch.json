@@ -5,6 +5,20 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "simple",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "samples/simple/simple.py",
+      "console": "integratedTerminal",
+      "args": [
+        "run",
+        "samples\\simple\\cases.json",
+        "simple",
+        "prepare.template=samples\\simple\\template.txt",
+        "infer.model.name=perfect"
+      ]
+    },
+    {
       "name": "api",
       "type": "debugpy",
       "request": "launch",

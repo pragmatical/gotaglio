@@ -1,9 +1,10 @@
 import argparse
 from copy import deepcopy
-from glom import assign
+from glom import assign, glom
 import json
 import os
 from pathlib import Path
+from .templating import jinja2_template
 
 from .constants import log_folder
 
@@ -253,6 +254,24 @@ def minimal_unique_prefix(uuids):
 
     # return uniform_prefixes
 
+
+
+def build_template(config, template_file, template_source_text):
+    # If we don't have the template source text, load it from a file.
+    if not isinstance(
+        glom(config, template_source_text, default=None),
+        str,
+    ):
+        assign(
+            config,
+            template_source_text,
+            read_text_file(glom(config, template_file)),
+        )
+
+    # Compile the template.
+    return jinja2_template(
+        glom(config, "prepare.template_text")
+    )
 
 # # Example usage
 # uuids = [
