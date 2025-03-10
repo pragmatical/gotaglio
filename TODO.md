@@ -1,23 +1,8 @@
 # TODO
 
 * Top top
-  * simple.py
-    * Rename context parameter in simple.py. Fix comments for Flakey, Perfect, Parrot.
-    * Implement compare()
-    * Update summary() to report errors.
-  * In logs\777d0acd-0ed0-495b-ba3d-98496d9cf2b4.json
-    * "message": "Context: Extracting numerical answer from LLM response. ...
-    * Better wording in case we want to put the first few words in the summary table.
-  * Consider removing tree-diff. Might need for menu sample.
-  * One sample that unifies all pipelines? Maybe revert to gotag.bat?
-  * .gitignore models.json
-  * Merge to main - add a tag?
   * Improve documentation
   * Move/reorder pipeline parameter in run
-  * gotag help format should explain what format does. Other subcommands as well.
-  * Move summarize, format, compare from Registry
-  * Registry.pipeline should actually create the pipeline - needs a config param
-  * Usage should show name of script
   * Summarize should print out run configuration details
     * Really want to call out patches over default_config
     * How to get cases file? Add cases to metadata? Copy cases in rerun?
@@ -27,6 +12,23 @@
     * Interactive user prompt for missing config
     * Better error reporting and usage regarding missing configuration
   * Rerun should call out patch values that are different
+  * Document Model.metadata(). What is it used for?
+  * simple.py
+    * x Rename context parameter in simple.py.
+    * x Fix comments for Flakey, Perfect, Parrot.
+    * x Implement compare()
+    * Update summary() to report errors.
+  * In logs\777d0acd-0ed0-495b-ba3d-98496d9cf2b4.json
+    * "message": "Context: Extracting numerical answer from LLM response. ...
+    * Better wording in case we want to put the first few words in the summary table.
+  * Consider removing tree-diff. Might need for menu sample.
+  * One sample that unifies all pipelines? Maybe revert to gotag.bat?
+  * .gitignore models.json
+  * Merge to main - add a tag?
+  * gotag help format should explain what format does. Other subcommands as well.
+  * Move summarize, format, compare from Registry
+  * Registry.pipeline should actually create the pipeline - needs a config param
+  * Usage should show name of script
   * Better error message
     * when setting infer.model=gpt3.5 instead of infer.model.name=gpt3.5
   * Deprecate or remove merge_configs()?

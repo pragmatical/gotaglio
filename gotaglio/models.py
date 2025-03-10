@@ -10,9 +10,10 @@ import openai
 
 
 class Model(ABC):
-    # context parameter provides entire test case context to
+    # `context` parameter provides entire test case context to
     # assist in implementing mocks that can pull the expected
-    # value ouf of the context.
+    # value ouf of the context. Real models ignore the `context`
+    # parameter.
     @abstractmethod
     def infer(self, message, context=None):
         pass

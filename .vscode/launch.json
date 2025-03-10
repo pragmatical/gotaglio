@@ -62,11 +62,11 @@
       "name": "summarize",
       "type": "debugpy",
       "request": "launch",
-      "program": "samples/menu.py",
+      "program": "samples/simple/simple.py",
       "console": "integratedTerminal",
       "args": [
         "summarize",
-        "2c44",
+        "890",
       ]
     },
     {
@@ -85,12 +85,12 @@
       "name": "compare",
       "type": "debugpy",
       "request": "launch",
-      "program": "samples/menu.py",
+      "program": "samples/simple/simple.py",
       "console": "integratedTerminal",
       "args": [
         "compare",
-        "9176",
-        "2c44",
+        "a9d",
+        "890",
       ]
     }
   ]

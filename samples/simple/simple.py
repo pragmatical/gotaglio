@@ -171,33 +171,35 @@ class SamplePipeline(Pipeline):
             "assess": assess,
         }
 
+
     # This method is used to summarize the results of each a pipeline run.
     # It is invoked by the `run`, `rerun`, and `summarize` sub-commands.
-    def summarize(self, context):
-        if len(context) == 0:
+    def summarize(self, runlog):
+        results = runlog["results"]
+        if len(results) == 0:
             print("No results.")
         else:
             # To make the summary more readable, create a short, unique prefix
             # for each case id.
-            short_id = IdShortener(context["results"], "uuid")
+            short_id = IdShortener([result["case"]["uuid"] for result in results])
 
             # Using Table from the rich text library.
             # https://rich.readthedocs.io/en/stable/introduction.html
-            table = Table(title=f"Summary for {context['uuid']}")
+            table = Table(title=f"Summary for {runlog['uuid']}")
             table.add_column("id", justify="right", style="cyan", no_wrap=True)
             table.add_column("run", style="magenta")
             table.add_column("score", justify="right", style="green")
             table.add_column("keywords", justify="left", style="green")
 
             # Set up some counters for totals to be presented after the table.
-            total_count = len(context)
+            total_count = len(results)
             complete_count = 0
             passed_count = 0
             failed_count = 0
             error_count = 0
 
             # Add one row for each case.
-            for result in context["results"]:
+            for result in results:
                 succeeded = result["succeeded"]
                 cost = result["stages"]["assess"] if succeeded else None
 
@@ -226,7 +228,7 @@ class SamplePipeline(Pipeline):
                     if "keywords" in result["case"]
                     else ""
                 )
-                table.add_row(short_id(result), complete, score, keywords)
+                table.add_row(short_id(result["case"]["uuid"]), complete, score, keywords)
 
             # Display the table and the totals.
             console = Console()
@@ -247,25 +249,27 @@ class SamplePipeline(Pipeline):
             )
             console.print()
 
+
     # If uuid_prefix is specified, format those cases whose uuids start with
     # uuid_prefix. Otherwise, format all cases.
-    def format(self, context, uuid_prefix):
+    def format(self, runlog, uuid_prefix):
         # Lazily load the GPT-4o tokenizer here so that we don't slow down
         # other scenarios that don't need it.
         if not hasattr(self, "_tokenizer"):
             self._tokenizer = tiktoken.get_encoding("cl100k_base")
 
-        if len(context) == 0:
+        results = runlog["results"]
+        if len(results) == 0:
             print("No results.")
         else:
-            # To make the report more readable, create a short, unique prefix
+            # To make the summary more readable, create a short, unique prefix
             # for each case id.
-            short_id = IdShortener(context["results"], "uuid")
+            short_id = IdShortener([result["case"]["uuid"] for result in results])
 
-            for result in context["results"]:
+            for result in results:
                 if uuid_prefix and not result["case"]["uuid"].startswith(uuid_prefix):
                     continue
-                print(f"## Case: {short_id(result)}")
+                print(f"## Case: {short_id(result['case']['uuid'])}")
                 if result["succeeded"]:
                     if result["stages"]["assess"] == 0:
                         print("**PASSED**  ")
@@ -293,88 +297,89 @@ class SamplePipeline(Pipeline):
         console = Console()
         console.print("TODO: compare()")
 
-        # if a["uuid"] == b["uuid"]:
-        #     console.print(f"Run ids are the same.\n")
-        #     self.summarize(a)
-        #     return
+        if a["uuid"] == b["uuid"]:
+            console.print(f"Run ids are the same.\n")
+            self.summarize(a)
+            return
 
-        # if a["metadata"]["pipeline"]["name"] != b["metadata"]["pipeline"]["name"]:
-        #     console.print(
-        #         f"Cannot perform comparison because pipeline names are different: A is '{
-        #             a['metadata']['pipeline']['name']
-        #         }', B is '{
-        #             b['metadata']['pipeline']['name']
-        #         }'"
-        #     )
-        #     return
+        if a["metadata"]["pipeline"]["name"] != b["metadata"]["pipeline"]["name"]:
+            console.print(
+                f"Cannot perform comparison because pipeline names are different: A is '{
+                    a['metadata']['pipeline']['name']
+                }', B is '{
+                    b['metadata']['pipeline']['name']
+                }'"
+            )
+            return
 
-        # a_cases = {result["case"]["uuid"]: result for result in a["results"]}
-        # b_cases = {result["case"]["uuid"]: result for result in b["results"]}
-        # a_uuids = set(a_cases.keys())
-        # b_uuids = set(b_cases.keys())
-        # both = a_uuids.intersection(b_uuids)
-        # just_a = a_uuids - b_uuids
-        # just_b = b_uuids - a_uuids
+        a_cases = {result["case"]["uuid"]: result for result in a["results"]}
+        b_cases = {result["case"]["uuid"]: result for result in b["results"]}
+        a_uuids = set(a_cases.keys())
+        b_uuids = set(b_cases.keys())
+        both = a_uuids.intersection(b_uuids)
+        just_a = a_uuids - b_uuids
+        just_b = b_uuids - a_uuids
 
-        # console.print(f"A: {a["uuid"]}")
-        # console.print(f"B: {b["uuid"]}")
-        # console.print("")
-        # console.print(f"{len(just_a)} case{'s' if len(just_a) != 1 else ''} only in A")
-        # console.print(f"{len(just_b)} case{'s' if len(just_b) != 1 else ''} only in B")
-        # console.print(f"{len(both)} cases in both A and B")
-        # console.print("")
+        console.print(f"A: {a["uuid"]}")
+        console.print(f"B: {b["uuid"]}")
+        console.print("")
+        console.print(f"{len(just_a)} case{'s' if len(just_a) != 1 else ''} only in A")
+        console.print(f"{len(just_b)} case{'s' if len(just_b) != 1 else ''} only in B")
+        console.print(f"{len(both)} cases in both A and B")
+        console.print("")
 
-        # # TODO: handle no results case
-        # if len(both) == 0:
-        #     console.print("There are no cases to compare.")
-        #     console.print()
-        #     # Fall through to print empty table
+        # TODO: handle no results case
+        if len(both) == 0:
+            console.print("There are no cases to compare.")
+            console.print()
+            # Fall through to print empty table
 
-        # uuids = [uuid for uuid in both]
-        # uuid_prefix_len = max(minimal_unique_prefix(uuids), 3)
+        # To make the summary more readable, create a short, unique prefix
+        # for each case id.
+        short_id = IdShortener(both)     
 
-        # table = Table(title=f"Comparison of {"A, B"}", show_footer=True)
-        # table.add_column("id", justify="right", style="cyan", no_wrap=True)
-        # table.add_column("A", justify="right", style="magenta")
-        # table.add_column("B", justify="right", style="green")
-        # table.add_column("keywords", justify="left", style="green")
+        table = Table(title=f"Comparison of {"A, B"}", show_footer=True)
+        table.add_column("id", justify="right", style="cyan", no_wrap=True)
+        table.add_column("A", justify="right", style="magenta")
+        table.add_column("B", justify="right", style="green")
+        table.add_column("keywords", justify="left", style="green")
 
-        # rows = []
-        # pass_count_a = 0
-        # pass_count_b = 0
-        # for uuid in both:
-        #     (text_a, order_a) = format_case(a_cases[uuid])
-        #     (text_b, order_b) = format_case(b_cases[uuid])
-        #     keywords = ", ".join(sorted(a_cases[uuid]["case"].get("keywords", [])))
-        #     if order_a == 0:
-        #         pass_count_a += 1
-        #     if order_b == 0:
-        #         pass_count_b += 1
-        #     rows.append(
-        #         (
-        #             (Text(uuid[:uuid_prefix_len]), text_a, text_b, keywords),
-        #             order_b * 4 + order_a,
-        #         )
-        #     )
-        # rows.sort(key=lambda x: x[1])
-        # for row in rows:
-        #     table.add_row(*row[0])
+        rows = []
+        pass_count_a = 0
+        pass_count_b = 0
+        for uuid in both:
+            (text_a, order_a) = format_case(a_cases[uuid])
+            (text_b, order_b) = format_case(b_cases[uuid])
+            keywords = ", ".join(sorted(a_cases[uuid]["case"].get("keywords", [])))
+            if order_a == 0:
+                pass_count_a += 1
+            if order_b == 0:
+                pass_count_b += 1
+            rows.append(
+                (
+                    (Text(short_id(uuid)), text_a, text_b, keywords),
+                    order_b * 4 + order_a,
+                )
+            )
+        rows.sort(key=lambda x: x[1])
+        for row in rows:
+            table.add_row(*row[0])
 
-        # table.columns[0].footer = "Total"
-        # table.columns[1].footer = Text(
-        #     f"{pass_count_a}/{len(both)} ({(pass_count_a/len(both))*100:.0f}%)"
-        # )
-        # table.columns[2].footer = Text(
-        #     f"{pass_count_b}/{len(both)} ({(pass_count_b/len(both))*100:.0f}%)"
-        # )
+        table.columns[0].footer = "Total"
+        table.columns[1].footer = Text(
+            f"{pass_count_a}/{len(both)} ({(pass_count_a/len(both))*100:.0f}%)"
+        )
+        table.columns[2].footer = Text(
+            f"{pass_count_b}/{len(both)} ({(pass_count_b/len(both))*100:.0f}%)"
+        )
 
-        # console.print(table)
-        # console.print()
+        console.print(table)
+        console.print()
 
 
 def format_case(result):
     if result["succeeded"]:
-        if result["stages"]["assess"]["cost"] == 0:
+        if result["stages"]["assess"] == 0:
             return (Text("passed", style="bold green"), 0)
         else:
             return (Text("failed", style="bold red"), 1)
@@ -394,10 +399,10 @@ class Flakey(Model):
         self._counter = -1
         registry.register_model("flakey", self)
 
-    async def infer(self, messages, context=None):
+    async def infer(self, messages, result=None):
         self._counter += 1
         if self._counter % 3 == 0:
-            return f'{context["case"]["answer"]}'
+            return f'{result["case"]["answer"]}'
         elif self._counter % 3 == 1:
             return "hello world"
         else:
@@ -409,14 +414,14 @@ class Flakey(Model):
 
 class Parrot(Model):
     """
-    A mock model class that always returns the expected answer
-    from context["case"]["turns"][-1]["expected"]
+    A mock model class that always returns a sentence summarizing the last
+    message in the conversation.
     """
 
     def __init__(self, registry, configuration):
         registry.register_model("parrot", self)
 
-    async def infer(self, messages, context=None):
+    async def infer(self, messages, result=None):
         return f'{messages[-1]["role"]} says "{messages[-1]["content"]}"'
 
     def metadata(self):
@@ -426,14 +431,14 @@ class Parrot(Model):
 class Perfect(Model):
     """
     A mock model class that always returns the expected answer
-    from context["case"]["turns"][-1]["expected"]
+    from result["case"]["answer"]
     """
 
     def __init__(self, registry, configuration):
         registry.register_model("perfect", self)
 
-    async def infer(self, messages, context=None):
-        return f'{context["case"]["answer"]}'
+    async def infer(self, messages, result=None):
+        return f'{result["case"]["answer"]}'
 
     def metadata(self):
         return {}
