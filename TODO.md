@@ -1,7 +1,7 @@
 # TODO
 
 * Top top
-  * Rename SamplePipeline to SimplePipeline
+  * x Rename SamplePipeline to SimplePipeline
   * Review all static members
   * Merge mhop/refactor1 into main
   * Git release tag and version
@@ -17,7 +17,7 @@
     * x Helpful error message - display glom path and prompt, list other required patches
     * Interactive user prompt for missing config
     * x Better error reporting and usage regarding missing configuration
-  * Rerun should call out patch values that are different
+  * x Rerun should call out patch values that are different
   * Document Model.metadata(). What is it used for?
   * simple.py
     * x Rename context parameter in simple.py.

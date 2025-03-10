@@ -35,7 +35,7 @@ from gotaglio.pipeline import Internal, Pipeline, Prompt
 from gotaglio.shared import build_template
 
 
-class SamplePipeline(Pipeline):
+class SimplePipeline(Pipeline):
     # The Pipeline abstract base class requires _name and _description.
     # These are used by the Registry to list and instantiate pipelines.
     # The `pipelines` subcommand will print a list of available pipelines,
@@ -452,7 +452,7 @@ class Perfect(Model):
 
 
 def go():
-    main([SamplePipeline])
+    main([SimplePipeline])
 
 
 if __name__ == "__main__":
