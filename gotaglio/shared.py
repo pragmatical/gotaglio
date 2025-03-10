@@ -73,11 +73,11 @@ def get_filenames_with_prefix(folder_path, prefix):
 
 
 def log_file_name_from_prefix(prefix):
-    if prefix.lower() == 'latest':
+    if prefix.lower() == "latest":
         filenames = get_files_sorted_by_creation(log_folder)
         if not filenames:
             raise ValueError(f"No runs found in {log_folder}'.")
-        return os.path.join(log_folder, filenames[-1][0] + '.json')
+        return os.path.join(log_folder, filenames[-1][0] + ".json")
     else:
         filenames = get_filenames_with_prefix(log_folder, prefix)
         if not filenames:
@@ -133,23 +133,22 @@ def apply_patch(target_dict, patches):
     """
     result = deepcopy(target_dict)
     for key, value in patches.items():
-        assign(result, key, value, missing=dict)
-    return result
-
-
-def merge_dicts(base, patch):
-    """
-    Merge the `patch` dictionary into a deep copy of the
-    `base` dictionary hierarchically.
-    """
-    result = deepcopy(base)
-    for key, value in patch.items():
+        # Ensure value is not a dict
         if isinstance(value, dict):
-            # If the value is a dictionary, recursively merge
-            result[key] = merge_dicts(result.get(key, {}), value)
-        else:
-            # Otherwise, directly set the value
-            result[key] = value
+            raise ValueError(f"Invalid patch for '{key}'. Value cannot be a dict.")
+        # Ensure result[key] is not a dict
+        node = glom(result, key, default=None)
+        if isinstance(node, dict):
+            candidates = [k for k in node.keys() if not isinstance(node[k], dict)]
+            tip = (
+                "Did you mean\n" + "\n".join(f"  {key}.{k}" for k in candidates)
+                if len(candidates) > 0
+                else ""
+            )
+            raise ValueError(
+                f"Invalid patch for '{key}={value}'. Patch would overwrite a dict. {tip}"
+            )
+        assign(result, key, value, missing=dict)
     return result
 
 
@@ -163,7 +162,8 @@ def flatten_dict(d, parent_key="", sep="."):
         sep (str): Separator used to join keys.
 
     Returns:
-        dict: A flattened dictionary.
+        dict: A flattened dictionary, where keys are glom-style.
+              See https://glom.readthedocs.io/en/latest/.
     """
     items = {}
     for key, value in d.items():
@@ -215,6 +215,4 @@ def build_template(config, template_file, template_source_text):
         )
 
     # Compile the template.
-    return jinja2_template(
-        glom(config, "prepare.template_text")
-    )
+    return jinja2_template(glom(config, "prepare.template_text"))

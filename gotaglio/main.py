@@ -57,6 +57,9 @@ def main(pipelines):
     help_parser.add_argument(
         "subcommand", nargs="?", help="The subcommand to show help for"
     )
+    help_parser.add_argument(
+        "args", nargs=argparse.REMAINDER, help=argparse.SUPPRESS
+    )
 
     # 'history' subcommand
     history_parser = subparsers.add_parser(
@@ -85,10 +88,10 @@ def main(pipelines):
 
     # 'run' subcommand
     run_parser = subparsers.add_parser("run", help="Run a named pipeline")
-    run_parser.add_argument("cases", type=str, help="The name of a file with cases")
     run_parser.add_argument(
         "pipeline", type=str, help="The name of the pipeline to run"
     )
+    run_parser.add_argument("cases", type=str, help="The name of a file with cases")
     run_parser.add_argument(
         "-c", "--concurrency", type=int, help="Maximum concurrancy for tasks"
     )

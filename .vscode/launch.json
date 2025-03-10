@@ -19,24 +19,10 @@
       ]
     },
     {
-      "name": "api",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "samples/api.py",
-      "console": "integratedTerminal",
-      "args": [
-        "run",
-        "data\\api\\cases.json",
-        "api",
-        "prepare.template=data\\api\\template.txt",
-        "infer.model.name=gpt4o"
-      ]
-    },
-    {
       "name": "run",
       "type": "debugpy",
       "request": "launch",
-      "program": "samples/menu.py",
+      "program": "samples/simple/simple.py",
       "console": "integratedTerminal",
       "args": [
         "run",
@@ -50,12 +36,24 @@
       "name": "rerun",
       "type": "debugpy",
       "request": "launch",
-      "program": "samples/menu.py",
+      "program": "samples/simple/simple.py",
       "console": "integratedTerminal",
       "args": [
         "rerun",
         "latest",
         "infer.model.name=flakey"
+      ]
+    },
+    {
+      "name": "rerun-error",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "samples/simple/simple.py",
+      "console": "integratedTerminal",
+      "args": [
+        "rerun",
+        "890",
+        "infer.model=phi3"
       ]
     },
     {

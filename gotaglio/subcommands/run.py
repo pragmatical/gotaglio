@@ -32,8 +32,9 @@ def run_pipeline(registry_factory, args):
     print(f"  id: {director._id}")
     print(f"  cases: {cases_file}")
     print(f"  pipeline: {pipeline_name}")
-    for k, v in flat_config_patch.items():
-        print(f"    {k}: {v}")
+    diff = director._pipeline.diff_configs()
+    lines = [f"    {k}: {v1} => {v2}" for k, v1, v2 in diff]
+    print("\n".join(lines))
     print(f"  concurrancy: {concurrency}")
     print("")
 
@@ -73,8 +74,9 @@ def rerun_pipeline(registry_factory, args):
     print(f"  id: {director._id}")
     print(f"  cases: {log_file_name}")
     print(f"  pipeline: {pipeline_name}")
-    for k, v in flat_config_patch.items():
-        print(f"    {k}: {v}")
+    diff = director._pipeline.diff_configs()
+    lines = [f"    {k}: {v1} => {v2}" for k, v1, v2 in diff]
+    print("\n".join(lines))
     print(f"  concurrancy: {concurrency}")
     print("")
 

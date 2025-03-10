@@ -31,7 +31,7 @@ from gotaglio.exceptions import ExceptionContext
 from gotaglio.helpers import IdShortener
 from gotaglio.main import main
 from gotaglio.models import Model
-from gotaglio.pipeline import Pipeline, Prompt
+from gotaglio.pipeline import Internal, Pipeline, Prompt
 from gotaglio.shared import build_template
 
 
@@ -68,11 +68,18 @@ class SamplePipeline(Pipeline):
         #   - prepare.template
         #   - infer.model.name
         #
+        # An instance of Internal indicates that the value is provided by the
+        # pipeline runtime. Using a value of Internal will prevent the
+        # corresponding key from being displayed in help messages.
+        #
         # There is no requirement to define a configuration dict for each stage.
         # It is the implementation of the pipeline that determines which stages
         # require configuration dicts.
         default_config = {
-            "prepare": {"template": Prompt("Template file for system message")},
+            "prepare": {
+                "template": Prompt("Template file for system message"),
+                "template_text": Internal()
+                },
             "infer": {
                 "model": {
                     "name": Prompt("Model name to use for inference stage"),

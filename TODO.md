@@ -1,16 +1,22 @@
 # TODO
 
 * Top top
+  * Rename SamplePipeline to SimplePipeline
+  * Review all static members
+  * Merge mhop/refactor1 into main
+  * Git release tag and version
   * Improve documentation
-  * Move/reorder pipeline parameter in run
+  * x Move/reorder pipeline parameter in run
+  * x Help subcommand should ignore extra arguments
   * Summarize should print out run configuration details
-    * Really want to call out patches over default_config
+    * x Really want to call out patches over default_config
     * How to get cases file? Add cases to metadata? Copy cases in rerun?
   * Configuration patching
-    * . Prompt class
-    * Helpful error message - display glom path and prompt, list other required patches
+    * x Prompt class
+    * x Internal class
+    * x Helpful error message - display glom path and prompt, list other required patches
     * Interactive user prompt for missing config
-    * Better error reporting and usage regarding missing configuration
+    * x Better error reporting and usage regarding missing configuration
   * Rerun should call out patch values that are different
   * Document Model.metadata(). What is it used for?
   * simple.py
@@ -31,7 +37,7 @@
   * Usage should show name of script
   * Better error message
     * when setting infer.model=gpt3.5 instead of infer.model.name=gpt3.5
-  * Deprecate or remove merge_configs()?
+  * x Deprecate or remove merge_configs()?
   * Samples
     * Move data to samples
     * upgrade api.py - erase
