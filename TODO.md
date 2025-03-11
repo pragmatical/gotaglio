@@ -1,6 +1,10 @@
 # TODO
 
 * Top top
+  * Utility to test model connection and auth
+  * Consider making Summarize, Format and Compare optional
+  * Merge process_one_case() with run_dag()
+    * Exception handling
   * Refactor for Jupyter notebooks
     * run
     * rerun
