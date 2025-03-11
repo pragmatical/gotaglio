@@ -90,6 +90,18 @@
         "a9d",
         "890",
       ]
+    },
+    {
+      "name": "dag",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "gotaglio/dag.py",
+      "console": "integratedTerminal",
+      "args": [
+        "compare",
+        "a9d",
+        "890",
+      ]
     }
   ]
 }
