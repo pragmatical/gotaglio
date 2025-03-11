@@ -1,3 +1,4 @@
+import asyncio
 import pytest
 
 from gotaglio.dag import build_dag, run_dag
@@ -134,3 +135,71 @@ def test_valid():
 
     # Should not raise an exception
     build_dag(spec)
+
+
+@pytest.mark.asyncio
+async def test_run():
+    counter = 0
+
+    def sequence():
+        nonlocal counter
+        counter += 1
+        return counter
+
+    async def work(name, time):
+        start = sequence()
+        await asyncio.sleep(time)
+        end = sequence()
+        return {
+            "name": name,
+            "start": start,
+            "end": end,
+        }
+
+
+    async def a(context):
+        return await work("A", 0.01)
+
+
+    async def b(context):
+        return await work("B", 0.01)
+
+
+    async def c(context):
+        return await work("C", 0.02)
+
+
+    async def d(context):
+        return await work("B", 0.01)
+
+    spec = [
+        {"name": "A", "function": a, "inputs": []},
+        {"name": "B", "function": b, "inputs": ["A"]},
+        {"name": "C", "function": c, "inputs": ["A"]},
+        {"name": "D", "function": d, "inputs": ["B", "C"]},
+    ]
+
+    # Should not raise an exception
+    dag = build_dag(spec)
+
+    context = {"stages": {}}
+    await run_dag(dag, context)
+
+    a = context["stages"]["A"]
+    b = context["stages"]["B"]
+    c = context["stages"]["C"]
+    d = context["stages"]["D"]
+
+    assert a["end"] - a["start"] == 1
+    assert a["end"] <= b["start"]
+    assert a["end"] <= c["start"]
+
+    # b and c start in some order, b ends
+    assert b["end"] - a["end"] == 3
+    assert b["end"] <= d["start"]
+
+    # b and c start in some order, b ends, c ends
+    assert c["end"] - a["end"] == 4
+    assert c["end"] <= d["start"]
+
+    assert d["end"] - d["start"] == 1
