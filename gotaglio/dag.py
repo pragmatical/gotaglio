@@ -7,7 +7,6 @@ def build_dag(spec):
     if len(spec) == 0:
         raise ValueError("Empty graph specication")
     dag = {}
-    have_a_start = False
     for node in spec:
         if node["name"] in dag:
             raise ValueError(f"Duplicate node name '{node['name']}'")
@@ -19,13 +18,6 @@ def build_dag(spec):
             "visited": False,
             "live": False,
         }
-        if not node["inputs"]:
-            have_a_start = True
-
-    if not have_a_start:
-        raise ValueError(
-            "No nodes ready to run. At least one node must have no inputs."
-        )
 
     # Add output links and waiting_for set.
     for k, dest in dag.items():
@@ -38,10 +30,31 @@ def build_dag(spec):
             src = dag[input]
             src["outputs"].append(k)
 
-    # TODO: check for cycles
-    # TODO: check for unreachable nodes
+    # Check for cycles
+    roots = [k for k, v in dag.items() if not v["inputs"]]
+    if not roots:
+        raise ValueError("No nodes ready to run. At least one node must have no inputs.")
+    for root in roots:
+        check_for_cycles(dag, root, [])
+
+    # Check for unreachable nodes
+    if any(not v["visited"] for v in dag.values()):
+        names = [k for k, v in dag.items() if not v["visited"]]
+        raise ValueError(f"The following nodes are unreachable: {', '.join(names)}")
 
     return dag
+
+
+def check_for_cycles(dag, node, path):
+    if dag[node]["visited"]:
+        if dag[node]["live"]:
+            raise ValueError(f"Cycle detected: {' -> '.join(path)} -> {node}")
+        return
+    dag[node]["visited"] = True
+    dag[node]["live"] = True
+    for output in dag[node]["outputs"]:
+        check_for_cycles(dag, output, path + [node])
+    dag[node]["live"] = False
 
 
 async def run_task(dag, name, context):
@@ -68,8 +81,6 @@ async def run_dag(dag, context):
     while tasks:
         # Wait for any of the tasks to complete
         done, tasks = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-        # done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-        # tasks = list(pending)
 
         # Process the completed tasks
         for task in done:
@@ -93,16 +104,7 @@ async def run_dag(dag, context):
     if waiting:
         raise ValueError("Internal error: some nodes are still waiting to run")
 
-        #     node = ready[tasks.index(task)]
-        #     for output in dag[node]["outputs"]:
-        #         dag[output]["waiting_for"].remove(node)
-        #         if not dag[output]["waiting_for"]:
-        #             ready.append(output)
-        #     ready.remove(node)
-
-        # # Update the ready list
-        # ready = [k for k, v in dag.items() if not v["waiting_for"] and k not in ready]
-
+####################################################################################################
 
 from datetime import datetime, timedelta, timezone
 
