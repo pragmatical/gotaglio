@@ -1,7 +1,13 @@
 import asyncio
 
+def dag_spec_from_linear(stages):
+    spec = [{"name": k, "function": v, "inputs": []} for k,v in stages.items()]
+    for i in range(1, len(spec)):
+        spec[i]["inputs"] = [spec[i-1]["name"]]
+    return spec
 
-def build_dag(spec):
+
+def build_dag_from_spec(spec):
     # Create basic DAG with input links.
     if len(spec) == 0:
         raise ValueError("Empty graph specication")

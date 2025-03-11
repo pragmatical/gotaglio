@@ -1,6 +1,14 @@
 # TODO
 
 * Top top
+  * Refactor for Jupyter notebooks
+    * run
+    * rerun
+    * summarize
+    * compare
+    * load
+    * save
+  * Dag and Linear pipeline diagrams for documentation
   * x Rename SamplePipeline to SimplePipeline
   * Review all static members
   * Merge mhop/refactor1 into main
