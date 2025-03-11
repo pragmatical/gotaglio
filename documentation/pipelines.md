@@ -1,6 +1,8 @@
 # Pipelines
 
+~~~python
 <THIS DOCUMENT IS A WORK IN PROGRESS>
+~~~
 
 Every GoTaglio experiment in centered around a `pipeline`, which is a collection of processing steps, calls `stages` that are executed in a specified order. While pipeline stages can be organized into any [directed acyclic graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph) or DAG, a common scenario is the linear pipeline, where the stages form a sequence.
 Let's look at the steps involved in defining a linear pipeline, and then expand the concept to arbitrary DAGs.
