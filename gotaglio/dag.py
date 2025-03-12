@@ -1,4 +1,9 @@
 import asyncio
+from datetime import datetime, timedelta, timezone
+import traceback
+
+from .exceptions import ExceptionContext
+
 
 def dag_spec_from_linear(stages):
     spec = [{"name": k, "function": v, "inputs": []} for k,v in stages.items()]
@@ -27,6 +32,7 @@ def build_dag_from_spec(spec):
     # Add output links and waiting_for set.
     for k, dest in dag.items():
         for input in dest["inputs"]:
+            # TODO: remove concept of waiting_for, but keep duplicate check
             if input in dest["waiting_for"]:
                 raise ValueError(f"Node {k}: duplicate input '{input}'")
             if input not in dag:
@@ -62,8 +68,20 @@ def check_for_cycles(dag, node, path):
     dag[node]["live"] = False
 
 
+# TODO: use semaphore to limit concurrency. Plump all the way through.
 async def run_task(dag, name, context):
-    x = await dag[name]["function"](context)
+    # TODO: try/catch here. Set context["exception"].
+    # TODO: then reraise exception.
+    try:
+        x = await dag[name]["function"](context)
+    except Exception as e:
+        context["exception"] = {
+            "stage": name,
+            "message": ExceptionContext.format_message(e),
+            "traceback": traceback.format_exc(),
+            "time": str(datetime.now(timezone.utc)),
+        }
+        raise e
     return (name, x)
 
 
@@ -85,6 +103,7 @@ async def run_dag(dag, context):
 
     while tasks:
         # Wait for any of the tasks to complete
+        # TODO: try/catch here. Return from here if exception.
         done, tasks = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
 
         # Process the completed tasks
@@ -101,6 +120,7 @@ async def run_dag(dag, context):
             # Propagate the outputs to subsequent stages.
             node = dag[name]
             for output in node["outputs"]:
+                # TODO: thread-safe replacement for waiting_for.
                 dag[output]["waiting_for"].remove(name)
                 if not dag[output]["waiting_for"]:
                     waiting.remove(output)

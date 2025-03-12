@@ -9,12 +9,22 @@ GoTaglio includes the following key elements:
 * Structured logging to facilitate run analysis, comparing runs and tracking key metrics over time as the pipeline evolves.
 * A python library that can be accessed from [Jupyter notebooks](https://jupyter.org/).
 * A command-line tool to simplify common operations.
-* [COMMING SOON] A web-based tool for oragnizing and labeling cases.
+* [COMING SOON] A web-based tool for oragnizing and labeling cases.
 
 GoTaglio is designed to be very low friction. It is kind of like your thumb drive, loaded with all your tools, that will work in any Python environment.
 * It does not require cloud deployment. All that is needed are model endpoints and credentials to access them.
 * It can be used in cloud environments like [AzureML](https://azure.microsoft.com/en-us/products/machine-learning) or with frameworks like [mlflow](https://mlflow.org/).
 * Pipeline code can be incorporated into production systems.
+
+## Map
+
+* Trying GoTaglio
+  * Codespaces
+  * Build repo
+* Using GoTaglio
+  * Defining a pipeline
+  * CmdLine tool
+  * From Jupyter
 
 ## Using GoTaglio
 

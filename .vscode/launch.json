@@ -14,6 +14,8 @@
         "run",
         "samples\\simple\\cases.json",
         "simple",
+        "--concurrency",
+        "1",
         "prepare.template=samples\\simple\\template.txt",
         "infer.model.name=perfect"
       ]
@@ -26,9 +28,9 @@
       "console": "integratedTerminal",
       "args": [
         "run",
-        "data\\small.json",
         "simple",
-        "prepare.template=data\\template.txt",
+        "samples/simple/cases.json",
+        "prepare.template=samples/simple/template.txt",
         "infer.model.name=perfect"
       ]
     },
