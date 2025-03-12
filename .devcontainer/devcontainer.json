@@ -12,7 +12,7 @@
   // "forwardPorts": [],
 
   // Use 'postCreateCommand' to run commands after the container is created.
-  "postCreateCommand": "chmod +x .devcontainer/setup.sh && . .venv/bin/activate && .devcontainer/setup.sh"
+  "postCreateCommand": "chmod +x .devcontainer/setup.sh && .devcontainer/setup.sh"
 
   // Configure tool-specific properties.
   // "customizations": {},
