@@ -1,17 +1,28 @@
 # TODO
 
 * Top top
-  * Can models subcommand list pipeline-specific models like perfect, parrot, and flakey?
-  * Merge mhop/refactor1 into main
-  * Git release tag and version
-  * Consider making Summarize, Format and Compare optional
   * GitHub CodeSpaces and dev container and documentation
+  * Merge mhop/refactor1 into main
+  * Merge to main - add a tag?
+  * Git release tag and version
+  * x Review all static members
+  * Review statics in Edit, EditType and DiffResult
+  * .gitignore models.json
   * Rename .credentials.json and update .gitignore
+  * Ability to run wihtout models.json - just use built in models.
+  * gotag help format should explain what format does. Other subcommands as well.
+  * Move summarize, format, compare from Registry
+  * Usage should show name of script
+  * Improve documentation
+  * OpenAI and Anthropic APIs
+  * Can models subcommand list pipeline-specific models like perfect, parrot, and flakey?
+  * Consider making Summarize, Format and Compare optional
   * The --concurrancy option is task-level. Do we also want stage-level control?
   * Consider use of TaskGroups in dag.py. Exception handling and cancellation.
   * Utility to test model connection and auth
-  * Merge process_one_case() with run_dag()
-    * Exception handling
+  * Summarize should print out run configuration details
+    * x Really want to call out patches over default_config
+    * How to get cases file? Add cases to metadata? Copy cases in rerun?
   * Refactor for Jupyter notebooks
     * run
     * rerun
@@ -19,16 +30,13 @@
     * compare
     * load
     * save
-  * Review all static members
   * Documentation for a stand-alone BOT application based on gotaglio pipelines
-  * Improve documentation
+  * x Merge process_one_case() with run_dag()
+    * x Exception handling
   * x Dag and Linear pipeline diagrams for documentation
   * x Rename SamplePipeline to SimplePipeline
   * x Move/reorder pipeline parameter in run
   * x Help subcommand should ignore extra arguments
-  * Summarize should print out run configuration details
-    * x Really want to call out patches over default_config
-    * How to get cases file? Add cases to metadata? Copy cases in rerun?
   * Configuration patching
     * x Prompt class
     * x Internal class
@@ -46,13 +54,8 @@
     * "message": "Context: Extracting numerical answer from LLM response. ...
     * Better wording in case we want to put the first few words in the summary table.
   * Consider removing tree-diff. Might need for menu sample.
-  * One sample that unifies all pipelines? Maybe revert to gotag.bat?
-  * .gitignore models.json
-  * Merge to main - add a tag?
-  * gotag help format should explain what format does. Other subcommands as well.
-  * Move summarize, format, compare from Registry
+  * x One sample that unifies all pipelines? Maybe revert to gotag.bat?
   * Registry.pipeline should actually create the pipeline - needs a config param
-  * Usage should show name of script
   * Better error message
     * when setting infer.model=gpt3.5 instead of infer.model.name=gpt3.5
   * x Deprecate or remove merge_configs()?
@@ -67,7 +70,6 @@
       * Enforce pipeline names can be part of filename. No delimiters.
   * rerun detect git mismatch
   * Diagnose startup time
-  * OpenAI and Anthropic APIs
   * DAG pipelines
   * x Model not found error
     * x python apps\simple.py run data\api\cases.json sample prepare.template=data\api\template.txt infer.model.name=parrot
