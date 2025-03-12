@@ -23,7 +23,7 @@ def build_dag_from_spec(spec):
         dag[node["name"]] = {
             "function": node["function"],
             "inputs": node["inputs"],
-            "waiting_for": set(),
+            # "waiting_for": set(),
             "outputs": [],
             "visited": False,
             "live": False,
@@ -31,13 +31,14 @@ def build_dag_from_spec(spec):
 
     # Add output links and waiting_for set.
     for k, dest in dag.items():
+        unique_inputs = set()
         for input in dest["inputs"]:
             # TODO: remove concept of waiting_for, but keep duplicate check
-            if input in dest["waiting_for"]:
+            if input in unique_inputs:
                 raise ValueError(f"Node {k}: duplicate input '{input}'")
             if input not in dag:
                 raise ValueError(f"Node {k}: cannot find input '{input}'")
-            dest["waiting_for"].add(input)
+            unique_inputs.add(input)
             src = dag[input]
             src["outputs"].append(k)
 
@@ -90,8 +91,10 @@ def make_task(dag, name, context):
 
 
 async def run_dag(dag, context):
-    ready = [k for k, v in dag.items() if not v["waiting_for"]]
-    waiting = set([k for k, v in dag.items() if v["waiting_for"]])
+    dependencies = {k: set(v["inputs"]) for k, v in dag.items()}
+    ready = [k for k in dag.keys() if not dependencies[k]]
+    waiting = [k for k in dag.keys() if dependencies[k]]
+     #set([k for k, v in dag.items() if v["waiting_for"]])
 
     if len(ready) == 0:
         raise ValueError(
@@ -121,8 +124,9 @@ async def run_dag(dag, context):
             node = dag[name]
             for output in node["outputs"]:
                 # TODO: thread-safe replacement for waiting_for.
-                dag[output]["waiting_for"].remove(name)
-                if not dag[output]["waiting_for"]:
+                dependencies[output].remove(name)
+                # dag[output]["waiting_for"].remove(name)
+                if not dependencies[output]:
                     waiting.remove(output)
                     tasks.add(make_task(dag, output, context))
 
