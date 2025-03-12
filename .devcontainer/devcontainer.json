@@ -12,14 +12,7 @@
   // "forwardPorts": [],
 
   // Use 'postCreateCommand' to run commands after the container is created.
-  "postCreateCommand": [
-    "pip install poetry",
-		"pip -m venv .venv",
-		"source .venv/bin/activate",
-    "poetry install",
-    "chmod +x gotag.sh",
-    "echo 'export PATH=$PATH:/workspace' >> ~/.bashrc"
-  ]
+  "postCreateCommand": "chmod +x devcontainer/setup.sh && devcontainer/setup.sh"
 
   // Configure tool-specific properties.
   // "customizations": {},
