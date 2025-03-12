@@ -1,25 +1,25 @@
 # TODO
 
 * Top top
+  * .gitignore models.json
+  * Rename .credentials.json and update .gitignore
+  * Can models subcommand list pipeline-specific models like perfect, parrot, and flakey?
+  * Consider making Summarize, Format and Compare optional
+  * Usage should show name of script
+  * Improve documentation
   * GitHub CodeSpaces and dev container and documentation
-    * Make gotag.sh executable
+    * x Make gotag.sh executable
     * Ensure gotag.sh is on path
-    * Set up venv?
+    * x Set up venv?
   * Merge mhop/refactor1 into main
   * Merge to main - add a tag?
   * Git release tag and version
   * x Review all static members
   * Review statics in Edit, EditType and DiffResult
-  * .gitignore models.json
-  * Rename .credentials.json and update .gitignore
-  * Ability *to* run wihtout models.json - just use built in models.
+  * x Ability *to* run wihtout models.json - just use built in models.
   * gotag help format should explain what format does. Other subcommands as well.
   * Move summarize, format, compare from Registry
-  * Usage should show name of script
-  * Improve documentation
   * OpenAI and Anthropic APIs
-  * Can models subcommand list pipeline-specific models like perfect, parrot, and flakey?
-  * Consider making Summarize, Format and Compare optional
   * The --concurrancy option is task-level. Do we also want stage-level control?
   * Consider use of TaskGroups in dag.py. Exception handling and cancellation.
   * Utility to test model connection and auth
