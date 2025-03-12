@@ -72,49 +72,9 @@ class Director:
             #
             semaphore = asyncio.Semaphore(self._concurrancy)
 
-            # TODO: temporarily also support process_one_case2().
-            # TODO: consider controlling behavior with config parameter.
             async def sem_task(case):
                 async with semaphore:
-                    return await process_one_case(case, self._stages, completed)
-
-            tasks = [sem_task(case) for case in self._cases]
-            results = await asyncio.gather(*tasks)
-
-            #
-            # Gather and record post-run metadata
-            #
-            end = datetime.now().timestamp()
-            elapsed = end - self._start
-            self._metadata["end"] = str(datetime.fromtimestamp(end, timezone.utc))
-            self._metadata["elapsed"] = str(timedelta(seconds=elapsed))
-            self._results["results"] = results
-
-        except Exception as e:
-            self._metadata["exception"] = {
-                "message": str(e),
-                "traceback": traceback.format_exc(),
-                "time": str(datetime.now(timezone.utc)),
-            }
-        finally:
-            # TODO: This is a temporary fix to get around the fact that the progress bar doesn't
-            # disappear when the task is completed. It just stops updating.
-            if progress:
-                progress.stop()
-            return self._results
-
-    async def process_all_cases2(self, progress, completed):
-        try:
-            #
-            # Perform the run
-            #
-            semaphore = asyncio.Semaphore(self._concurrancy)
-
-            # TODO: temporarily also support process_one_case2().
-            # TODO: consider switching with config parameter.
-            async def sem_task(case):
-                async with semaphore:
-                    return await process_one_case2(case, self._dag, completed)
+                    return await process_one_case(case, self._dag, completed)
 
             tasks = [sem_task(case) for case in self._cases]
             results = await asyncio.gather(*tasks)
@@ -155,7 +115,7 @@ class Director:
         print(f"Results written to {self._output_file}")
 
 
-async def process_one_case(case, stages, completed):
+async def process_one_case(case, dag, completed):
     ExceptionContext.clear_context()
     start = datetime.now().timestamp()
     result = {
@@ -165,60 +125,7 @@ async def process_one_case(case, stages, completed):
         "stages": {},
     }
     try:
-        for stage, func in stages.items():
-            try:
-                result["stages"][stage] = await func(result)
-            except Exception as e:
-                result["exception"] = {
-                    "stage": stage,
-                    "message": ExceptionContext.format_message(e),
-                    "traceback": traceback.format_exc(),
-                    "time": str(datetime.now(timezone.utc)),
-                }
-                return result
-    except Exception as e:
-        result["exception"] = {
-            "message": ExceptionContext.format_message(e),
-            "traceback": traceback.format_exc(),
-            "time": str(datetime.now(timezone.utc)),
-        }
-        return result
-
-    end = datetime.now().timestamp()
-    if completed:
-        completed()
-    elapsed = end - start
-    result["metadata"]["end"] = str(datetime.fromtimestamp(end, timezone.utc))
-    result["metadata"]["elapsed"] = str(timedelta(seconds=elapsed))
-    result["succeeded"] = True
-    return result
-
-
-async def process_one_case2(case, dag, completed):
-    ExceptionContext.clear_context()
-    start = datetime.now().timestamp()
-    result = {
-        "succeeded": False,
-        "metadata": {"start": str(datetime.fromtimestamp(start, timezone.utc))},
-        "case": case,
-        "stages": {},
-    }
-    try:
-        # TODO: run_dag(self._dag, result)
         await run_dag(dag, result)
-        # TODO: move try/except to run_dag()
-        # for stage, func in stages.items():
-        #     try:
-        #         result["stages"][stage] = await func(result)
-        #     except Exception as e:
-        #         result["exception"] = {
-        #             "stage": stage,
-        #             "message": ExceptionContext.format_message(e),
-        #             "traceback": traceback.format_exc(),
-        #             "time": str(datetime.now(timezone.utc)),
-        #         }
-        #         return result
-        pass
     except Exception as e:
         result["exception"] = {
             "message": ExceptionContext.format_message(e),

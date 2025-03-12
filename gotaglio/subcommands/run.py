@@ -100,5 +100,5 @@ def run_with_progress_bar(
         def completed():
             progress.update(task1, advance=1)
 
-        x = asyncio.run(director.process_all_cases2(progress, completed))
+        asyncio.run(director.process_all_cases(progress, completed))
         progress.update(task1, visible=False)
