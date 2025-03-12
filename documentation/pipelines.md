@@ -23,6 +23,8 @@ Defining this pipeline in GoTaglio involves four steps:
 3. Define pipeline initialization code.
 4. Define optional methods to summarize, format, and compare runs.
 
+We'll explain these steps in the context of the [simple.py](simple.md) sample.
+
 ### Pipeline Configuration
 
 A pipeline configuration is a JSON-serializable dictionary with a key for each pipeline stage. Each key is bound to a dictionary of default configuration values or special `Prompt` and `Internal` marker classes.
@@ -242,7 +244,7 @@ node = {
 
 A pipeline can define a DAG by returning an array of node specifications, instead of a dictionary of stages.
 
-Consider the following DAG.
+Consider the following DAG from the [dag.py](../samples/dag/dag.py) sample:
 
 ![](dag.png)
 
@@ -257,4 +259,27 @@ def stages(self):
     {"name": "E", "function": e, "inputs": []},
     {"name": "F", "function": f, "inputs": ["D", "E"]},
   ]
+~~~
+
+Here is the output from a run, showing a timeline of stage execution. We can see that `A` starts at 1, immediately followed by `B` at 2. After `A` completes, `B` and `C` kick off at 5 and 6, respectively. `E` completes at 4. After `B` and `C` compete at 7 and 8, respectively, `D` starts at 9. After it completes at 10, `F` starts at 11.
+~~~
+             Timeline for case
+    a71b7003-43e7-44e2-8ecc-90c7fd2f22a7    
+┏━━━━━━┳━━━━━┳━━━━━┳━━━━━┳━━━━━┳━━━━━┳━━━━━┓
+┃ step ┃  A  ┃  B  ┃  C  ┃  D  ┃  E  ┃  F  ┃
+┡━━━━━━╇━━━━━╇━━━━━╇━━━━━╇━━━━━╇━━━━━╇━━━━━┩
+│    1 │  x  │     │     │     │     │     │
+│    2 │  x  │     │     │     │  x  │     │
+│    3 │  x  │     │     │     │  x  │     │
+│    4 │     │     │     │     │  x  │     │
+│    5 │     │  x  │     │     │     │     │
+│    6 │     │  x  │  x  │     │     │     │
+│    7 │     │  x  │  x  │     │     │     │
+│    8 │     │     │  x  │     │     │     │
+│    9 │     │     │     │  x  │     │     │
+│   10 │     │     │     │  x  │     │     │
+│   11 │     │     │     │     │     │  x  │
+│   12 │     │     │     │     │     │  x  │
+└──────┴─────┴─────┴─────┴─────┴─────┴─────┘
+
 ~~~

@@ -97,12 +97,12 @@
       "name": "dag",
       "type": "debugpy",
       "request": "launch",
-      "program": "gotaglio/dag.py",
+      "program": "samples/dag/dag.py",
       "console": "integratedTerminal",
       "args": [
-        "compare",
-        "a9d",
-        "890",
+        "run",
+        "dag",
+        "samples/dag/cases.json",
       ]
     }
   ]

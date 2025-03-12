@@ -1,8 +1,15 @@
 # TODO
 
 * Top top
-  * Utility to test model connection and auth
+  * Can models subcommand list pipeline-specific models like perfect, parrot, and flakey?
+  * Merge mhop/refactor1 into main
+  * Git release tag and version
   * Consider making Summarize, Format and Compare optional
+  * GitHub CodeSpaces and dev container and documentation
+  * Rename .credentials.json and update .gitignore
+  * The --concurrancy option is task-level. Do we also want stage-level control?
+  * Consider use of TaskGroups in dag.py. Exception handling and cancellation.
+  * Utility to test model connection and auth
   * Merge process_one_case() with run_dag()
     * Exception handling
   * Refactor for Jupyter notebooks
@@ -12,12 +19,11 @@
     * compare
     * load
     * save
-  * Dag and Linear pipeline diagrams for documentation
-  * x Rename SamplePipeline to SimplePipeline
   * Review all static members
-  * Merge mhop/refactor1 into main
-  * Git release tag and version
+  * Documentation for a stand-alone BOT application based on gotaglio pipelines
   * Improve documentation
+  * x Dag and Linear pipeline diagrams for documentation
+  * x Rename SamplePipeline to SimplePipeline
   * x Move/reorder pipeline parameter in run
   * x Help subcommand should ignore extra arguments
   * Summarize should print out run configuration details
@@ -30,7 +36,7 @@
     * Interactive user prompt for missing config
     * x Better error reporting and usage regarding missing configuration
   * x Rerun should call out patch values that are different
-  * Document Model.metadata(). What is it used for?
+  * Documentation for Model.metadata(). What is it used for?
   * simple.py
     * x Rename context parameter in simple.py.
     * x Fix comments for Flakey, Perfect, Parrot.

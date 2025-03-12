@@ -41,7 +41,7 @@ class SimplePipeline(Pipeline):
     # The `pipelines` subcommand will print a list of available pipelines,
     # with their names and descriptions.
     _name = "simple"
-    _description = "An example pipeline for converting natural language to api calls."
+    _description = "An example pipeline for an LLM-based calculator."
 
     def __init__(self, registry, replacement_config, flat_config_patch):
         """
@@ -105,10 +105,6 @@ class SimplePipeline(Pipeline):
 
     # The structure of the pipeline is defined by the stages() method.
     # This example demonstrates a simple, linear pipeline with four stages.
-    #
-    # COMING SOON: it is also possible to define pipelines that are directed
-    # acyclic graphs (DAGs), where the output of one stage can be used as input
-    # to multiple other stages.
     def stages(self):
         #
         # Perform some setup here so that any initialization errors encountered
