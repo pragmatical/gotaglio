@@ -4,8 +4,9 @@ from glom import assign, glom
 import json
 import os
 from pathlib import Path
-from .templating import jinja2_template
+import platform
 
+from .templating import jinja2_template
 from .constants import log_folder
 
 
@@ -47,12 +48,21 @@ def get_files_sorted_by_creation(folder_path):
     folder = Path(folder_path)
 
     # Get a list of files in the folder (excluding directories)
-    files = [(f.stem, f.stat().st_birthtime) for f in folder.iterdir() if f.is_file()]
+    files = [(f.stem, get_creation_time(f)) for f in folder.iterdir() if f.is_file()]
 
     # Sort files by creation time
     sorted_files = sorted(files, key=lambda f: f[1])
 
     return sorted_files
+
+
+def get_creation_time(path):
+    if platform.system() == 'Windows':
+        return os.path.getctime(path)
+    elif platform.system() == 'Darwin':  # macOS
+        return os.stat(path).st_birthtime
+    else:  # Linux and other Unix-like systems
+        return os.stat(path).st_ctime
 
 
 def get_filenames_with_prefix(folder_path, prefix):

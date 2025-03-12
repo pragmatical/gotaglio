@@ -18,4 +18,4 @@ poetry install
 chmod +x gotag
 
 # Add the workspace directory to the PATH
-echo 'export PATH=$PATH:/workspace' >> ~/.bashrc
+echo 'export PATH=$PATH:/workspace/gotaglio' >> ~/.bashrc
