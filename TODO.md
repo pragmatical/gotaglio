@@ -2,6 +2,9 @@
 
 * Top top
   * GitHub CodeSpaces and dev container and documentation
+    * Make gotag.sh executable
+    * Ensure gotag.sh is on path
+    * Set up venv?
   * Merge mhop/refactor1 into main
   * Merge to main - add a tag?
   * Git release tag and version
@@ -9,7 +12,7 @@
   * Review statics in Edit, EditType and DiffResult
   * .gitignore models.json
   * Rename .credentials.json and update .gitignore
-  * Ability to run wihtout models.json - just use built in models.
+  * Ability *to* run wihtout models.json - just use built in models.
   * gotag help format should explain what format does. Other subcommands as well.
   * Move summarize, format, compare from Registry
   * Usage should show name of script
