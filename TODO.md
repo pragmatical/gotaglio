@@ -3,8 +3,8 @@
 * Top top
   * x Implement menu sample
   * Improve documentation
-  * Merge mhop/refactor1 into main
-  * Merge to main - add a tag?
+  * x Merge mhop/refactor1 into main
+  * x Merge to main - add a tag?
   * Git release tag and version
   * Test import from other project
   * .gitignore models.json
