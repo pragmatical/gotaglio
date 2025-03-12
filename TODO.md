@@ -1,19 +1,21 @@
 # TODO
 
 * Top top
+  * x Implement menu sample
+  * Improve documentation
+  * Merge mhop/refactor1 into main
+  * Merge to main - add a tag?
+  * Git release tag and version
+  * Test import from other project
   * .gitignore models.json
   * Rename .credentials.json and update .gitignore
   * Can models subcommand list pipeline-specific models like perfect, parrot, and flakey?
   * Consider making Summarize, Format and Compare optional
   * Usage should show name of script
-  * Improve documentation
   * GitHub CodeSpaces and dev container and documentation
     * x Make gotag.sh executable
     * Ensure gotag.sh is on path
     * x Set up venv?
-  * Merge mhop/refactor1 into main
-  * Merge to main - add a tag?
-  * Git release tag and version
   * x Review all static members
   * Review statics in Edit, EditType and DiffResult
   * x Ability *to* run wihtout models.json - just use built in models.
