@@ -1,13 +1,12 @@
-from .constants import model_config_file, model_credentials_file
-from .exceptions import ExceptionContext
-from .shared import read_json_file
-
 from abc import ABC, abstractmethod
 from azure.ai.inference import ChatCompletionsClient
 from azure.core.credentials import AzureKeyCredential
-import json
 import openai
+import os
 
+from .constants import model_config_file, model_credentials_file
+from .exceptions import ExceptionContext
+from .shared import read_json_file
 
 class Model(ABC):
     # `context` parameter provides entire test case context to
@@ -83,21 +82,24 @@ class AzureOpenAI(Model):
 def register_models(
     registry, config_file=model_config_file, credentials_file=model_credentials_file
 ):
-    config = read_json_file(config_file, False)
+    if not os.path.exists(config_file):
+        pass
+    else:
+        config = read_json_file(config_file, False)
 
-    # Merge in keys from credentials file
-    credentials = read_json_file(credentials_file, True)
-    for model in config:
-        if model["name"] in credentials:
-            model["key"] = credentials[model["name"]]
+        # Merge in keys from credentials file
+        credentials = read_json_file(credentials_file, True)
+        for model in config:
+            if model["name"] in credentials:
+                model["key"] = credentials[model["name"]]
 
-    for model in config:
-        with ExceptionContext(f"While registering model '{model['name']}':"):
-            if model["type"] == "AZURE_AI":
-                AzureAI(registry, model)
-            elif model["type"] == "AZURE_OPEN_AI":
-                AzureOpenAI(registry, model)
-            else:
-                raise ValueError(
-                    f"Model {model['name']} has unsupported model type: {model['type']}"
-                )
+        for model in config:
+            with ExceptionContext(f"While registering model '{model['name']}':"):
+                if model["type"] == "AZURE_AI":
+                    AzureAI(registry, model)
+                elif model["type"] == "AZURE_OPEN_AI":
+                    AzureOpenAI(registry, model)
+                else:
+                    raise ValueError(
+                        f"Model {model['name']} has unsupported model type: {model['type']}"
+                    )

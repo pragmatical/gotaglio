@@ -3,9 +3,13 @@
 # Install Poetry
 pip install poetry
 
-# Create and activate a virtual environment
-python -m venv .venv
-source .venv/bin/activate
+# Create a virtual environment if it doesn't exist
+if [ ! -d ".venv" ]; then
+    python -m venv .venv
+fi
+
+# Activate the virtual environment
+. .venv/bin/activate
 
 # Install project dependencies
 poetry install
