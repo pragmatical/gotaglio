@@ -12,8 +12,8 @@ The easiest way to try out the samples is in a [GitHub Codespace](https://github
 You can also clone the repo on your local workstation, install some PyPi packages and then run the samples locally.
 
 Here are instructions for both approaches:
-* GitHub Codespace
-* Local repo
+* [GitHub Codespace](codespaces.md)
+* [Local repo](clone.md)
 
 ## Using Zero-Config Model Mocks
 

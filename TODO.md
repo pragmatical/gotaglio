@@ -1,24 +1,27 @@
 # TODO
 
 * Top top
-  * x Implement menu sample
-  * Improve documentation
-  * x Merge mhop/refactor1 into main
-  * x Merge to main - add a tag?
-  * Git release tag and version
   * Test import from other project
+  * Tool should print help message if models.json not found
+  * Tool should print help message if .creadentials.json not found
+  * Git release tag and version
+  * version subcommand - semver and git sha
+  * Improve documentation
   * .gitignore models.json
   * Rename .credentials.json and update .gitignore
+  * x Implement menu sample
+  * x Merge mhop/refactor1 into main
+  * x Merge to main - add a tag?
   * Can models subcommand list pipeline-specific models like perfect, parrot, and flakey?
   * Consider making Summarize, Format and Compare optional
   * Usage should show name of script
-  * GitHub CodeSpaces and dev container and documentation
+  * x GitHub CodeSpaces and dev container and documentation
     * x Make gotag.sh executable
-    * Ensure gotag.sh is on path
+    * x Ensure gotag.sh is on path
     * x Set up venv?
   * x Review all static members
   * Review statics in Edit, EditType and DiffResult
-  * x Ability *to* run wihtout models.json - just use built in models.
+  * x Ability *to* run without models.json - just use built in models.
   * gotag help format should explain what format does. Other subcommands as well.
   * Move summarize, format, compare from Registry
   * OpenAI and Anthropic APIs
