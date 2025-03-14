@@ -1,7 +1,13 @@
 # TODO
 
 * Top top
+  * Recommended vscode extensions
   * x Should not crash if git is not available or repo not found.
+  * Jupyter
+    * IPython.display for markdown and newlines. May need to make library calls log or return strings.
+    * Remove print statements from library calls? What about real-time messages?
+    * See if progress bar can be used in Notebook.
+    * Accept objects of id prefixes
   * Refactor for Jupyter notebooks
     * run
     * rerun
