@@ -1,4 +1,12 @@
-from git import Repo
+# Uncomment the following code for testing the case where git is not available.
+# import os
+# original_path = os.environ['PATH']
+# os.environ['PATH'] = os.pathsep.join([p for p in original_path.split(os.pathsep) if 'Git\\cmd' not in p])
+
+try:
+    from git import Repo
+except ImportError:
+    print("WARNING: The git command cannot be found. Runlog will not record the git sha and diffs.")
 
 def get_git_sha(repo_path="."):
     try:

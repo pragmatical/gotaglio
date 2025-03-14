@@ -1,6 +1,7 @@
 # TODO
 
 * Top top
+  * x Should not crash if git is not available or repo not found.
   * Refactor for Jupyter notebooks
     * run
     * rerun
@@ -8,6 +9,7 @@
     * compare
     * load
     * save
+  * Unified error reporting - catch orginal and raise helpful version.
   * Parse key=value parameter values? float, boolean, string?
   * Review statics in Edit, EditType and DiffResult
   * Tool should print help message if models.json not found
