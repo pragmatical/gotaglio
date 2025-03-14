@@ -1,36 +1,6 @@
 # TODO
 
 * Top top
-  * Test import from other project
-  * Tool should print help message if models.json not found
-  * Tool should print help message if .creadentials.json not found
-  * Git release tag and version
-  * version subcommand - semver and git sha
-  * Improve documentation
-  * .gitignore models.json
-  * Rename .credentials.json and update .gitignore
-  * x Implement menu sample
-  * x Merge mhop/refactor1 into main
-  * x Merge to main - add a tag?
-  * Can models subcommand list pipeline-specific models like perfect, parrot, and flakey?
-  * Consider making Summarize, Format and Compare optional
-  * Usage should show name of script
-  * x GitHub CodeSpaces and dev container and documentation
-    * x Make gotag.sh executable
-    * x Ensure gotag.sh is on path
-    * x Set up venv?
-  * x Review all static members
-  * Review statics in Edit, EditType and DiffResult
-  * x Ability *to* run without models.json - just use built in models.
-  * gotag help format should explain what format does. Other subcommands as well.
-  * Move summarize, format, compare from Registry
-  * OpenAI and Anthropic APIs
-  * The --concurrancy option is task-level. Do we also want stage-level control?
-  * Consider use of TaskGroups in dag.py. Exception handling and cancellation.
-  * Utility to test model connection and auth
-  * Summarize should print out run configuration details
-    * x Really want to call out patches over default_config
-    * How to get cases file? Add cases to metadata? Copy cases in rerun?
   * Refactor for Jupyter notebooks
     * run
     * rerun
@@ -38,7 +8,40 @@
     * compare
     * load
     * save
+  * Parse key=value parameter values? float, boolean, string?
+  * Review statics in Edit, EditType and DiffResult
+  * Tool should print help message if models.json not found
+  * Tool should print help message if .creadentials.json not found
+  * Git release tag and version
+  * version subcommand - semver and git sha
+  * Improve documentation
+  * Documentation for Model.metadata(). What is it used for?
+  * Document tree diff algorithm
+  * .gitignore models.json
+  * Rename .credentials.json and update .gitignore
+  * Can models subcommand list pipeline-specific models like perfect, parrot, and flakey?
+  * Consider making Summarize, Format and Compare optional
+  * Usage should show name of script
+  * Utility to test model connection and auth
+  * gotag help format should explain what format does. Other subcommands as well.
+  * Move summarize, format, compare from Registry
+  * OpenAI and Anthropic APIs
+  * The --concurrancy option is task-level. Do we also want stage-level control?
+  * Consider use of TaskGroups in dag.py. Exception handling and cancellation.
+  * Summarize should print out run configuration details
+    * x Really want to call out patches over default_config
+    * How to get cases file? Add cases to metadata? Copy cases in rerun?
   * Documentation for a stand-alone BOT application based on gotaglio pipelines
+  * x Implement menu sample
+  * x Merge mhop/refactor1 into main
+  * x Merge to main - add a tag?
+  * x Test import from other project
+  * x GitHub CodeSpaces and dev container and documentation
+    * x Make gotag.sh executable
+    * x Ensure gotag.sh is on path
+    * x Set up venv?
+  * x Review all static members
+  * x Ability *to* run without models.json - just use built in models.
   * x Merge process_one_case() with run_dag()
     * x Exception handling
   * x Dag and Linear pipeline diagrams for documentation
@@ -52,7 +55,6 @@
     * Interactive user prompt for missing config
     * x Better error reporting and usage regarding missing configuration
   * x Rerun should call out patch values that are different
-  * Documentation for Model.metadata(). What is it used for?
   * simple.py
     * x Rename context parameter in simple.py.
     * x Fix comments for Flakey, Perfect, Parrot.

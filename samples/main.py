@@ -10,11 +10,12 @@ from gotaglio.main import main
 from gotaglio.pipeline import Pipeline
 
 from dag.dag import DAGPipeline
+from menu.menu import MenuPipeline
 from simple.simple import SimplePipeline
 
 
 def go():
-    main([DAGPipeline, SimplePipeline])
+    main([DAGPipeline, MenuPipeline, SimplePipeline])
 
 
 if __name__ == "__main__":
