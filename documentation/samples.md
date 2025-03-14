@@ -5,17 +5,19 @@ GoTaglio includes a number of samples:
 * [dag.py](../samples/dag/dag.py) - demonstration of a [directed acyclic graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph) (DAG) pipeline.
 * [menu.py](../samples/menu/menu.py) - a restaurant ordering bot
 
-## How to Access the Samples
+You need a properly configured development to run the samples.
 
-The easiest way to try out the samples is in a [GitHub Codespace](https://github.com/features/codespaces). This approach spins up a fully configured dev container connected to an instance of [Visual Studio Code](https://code.visualstudio.com/), running in your browser.
+## Development Environments
 
-You can also clone the repo on your local workstation, install some PyPi packages and then run the samples locally.
+The easiest way to try out the samples is in a [GitHub Codespace](./codespaces.md). This approach spins up a fully configured dev container connected to an instance of [Visual Studio Code](https://code.visualstudio.com/), running in your browser.
+
+You can also clone the repo on your local workstation, install some tools and PyPi packages and then run the samples locally.
 
 Here are instructions for both approaches:
 * [GitHub Codespace](codespaces.md)
-* [Local repo](clone.md)
+* [Cloning to Local Repo](clone.md)
 
-## Using Zero-Config Model Mocks
+## Using Built-in LLM Mocks
 
 Once you are able to access the samples, you can run them without further configuration, using built-in LLM mocks.
 
@@ -52,13 +54,8 @@ We can use the `pipelines` subcommand to see the list of built-in sample pipelin
 % gotag pipelines
 Available pipelines:
   dag: An example of a directed acyclic graph (DAG) pipeline.
+  menu: An example pipeline for an LLM-based food ordering bot.
   simple: An example pipeline for an LLM-based calculator.
-
-% gotag models
-Available models:
-  phi3: Phi-3 medium 128k
-  gpt3.5: GPT-3.5-turbo 16k
-  gpt4o: gpt-4o-2024-11-20
 ~~~
 
 We can use the `run` sub-command to run a pipeline. Let's look at the help message for `run`:
