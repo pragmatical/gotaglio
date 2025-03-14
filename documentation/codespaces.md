@@ -8,7 +8,15 @@ Locate the green `Code` menu and choose the `Codespaces` tab. Press the `+` butt
 
 A browser tab will open with a remote web instance of Visual Studio Code, connected to a virtual machine in the cloud. It may take a few minutes for the environment to start.
 
-Once it starts, you are ready to go with the built in model mocks.
+You can click on the `Building codespace...` link in the lower right corner to see the devcontainer initialization process:
+![](./building-codespace.png)
+
+It pulls a bunch of container layers and then installs [PyPi](https://pypi.org/) dependencies.
+![](./building-codespace2.png)
+
+Here's the codespace, ready to go. You are ready to go with the built in model mocks.
+
+![](./building-codespace3.png)
 
 ## Virtual Environment
 
