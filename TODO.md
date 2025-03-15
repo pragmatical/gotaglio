@@ -9,6 +9,21 @@
     * See if progress bar can be used in Notebook.
     * Accept objects of id prefixes
   * Refactor for Jupyter notebooks
+    * Idea
+      * Sort out entry points
+        * Director.summarize()
+        * Gotag.summarize()
+        * Registry.summarize()
+      * Runtime passes console_factory to pipeline methods or to pipeline constructor
+      * console = console_factory("text/markdown")
+      * console = make_console("text/markdown")
+      * callable instance __call__
+    * move display(), print_to_string() to shared
+      * decide whether shared should be exposed?
+      * would it make sense to have one namespace of end-user functions (vs internal functions)
+    * logpath setting
+    * renderer parameter
+    * rendering rich, markdown, html, etc in notebooks
     * run
     * rerun
     * summarize

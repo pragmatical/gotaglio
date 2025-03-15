@@ -45,7 +45,8 @@ class Gotaglio:
     def format(self, runlog, case_uuid_prefix=None):
         # TODO: allow either a runlog object or a string id prefix
         registry = self._registry_factory()
-        registry.format(runlog, case_uuid_prefix)
+        x = registry.format(runlog, case_uuid_prefix)
+        return x
 
     def load(self, uuid_prefix):
         pass
@@ -101,3 +102,30 @@ class ProgressMock:
 
 def completed_mock():
     pass
+
+
+def is_running_in_notebook():
+    try:
+        from IPython import get_ipython
+        if 'IPKernelApp' in get_ipython().config:
+            return True
+    except ImportError:
+        return False
+    return False
+
+
+def display(text, type="text/plain"):
+    try:
+        from IPython import get_ipython
+        from IPython.display import display as display2, HTML, Markdown
+        if 'IPKernelApp' in get_ipython().config:
+            if type == "text/html":
+                display2(HTML(text))
+            elif type == "text/markdown":
+                display2(Markdown(text))
+            else:
+                display2(HTML("<pre>" + text + "</pre>"))
+            return
+    except Exception:
+        pass
+    print(text)

@@ -28,11 +28,12 @@ import tiktoken
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from gotaglio.exceptions import ExceptionContext
+from gotaglio.gotag import display
 from gotaglio.helpers import IdShortener
 from gotaglio.main import main
 from gotaglio.models import Model
 from gotaglio.pipeline import Internal, Pipeline, Prompt
-from gotaglio.shared import build_template
+from gotaglio.shared import build_template, PrintToString
 
 
 class SimplePipeline(Pipeline):
@@ -256,6 +257,8 @@ class SimplePipeline(Pipeline):
     # If uuid_prefix is specified, format those cases whose uuids start with
     # uuid_prefix. Otherwise, format all cases.
     def format(self, runlog, uuid_prefix):
+        lines = PrintToString()
+
         # Lazily load the GPT-4o tokenizer here so that we don't slow down
         # other scenarios that don't need it.
         if not hasattr(self, "_tokenizer"):
@@ -263,7 +266,7 @@ class SimplePipeline(Pipeline):
 
         results = runlog["results"]
         if len(results) == 0:
-            print("No results.")
+            lines.print("No results.")
         else:
             # To make the summary more readable, create a short, unique prefix
             # for each case id.
@@ -272,28 +275,32 @@ class SimplePipeline(Pipeline):
             for result in results:
                 if uuid_prefix and not result["case"]["uuid"].startswith(uuid_prefix):
                     continue
-                print(f"## Case: {short_id(result['case']['uuid'])}")
+                lines.print(f"## Case: {short_id(result['case']['uuid'])}")
                 if result["succeeded"]:
                     if result["stages"]["assess"] == 0:
-                        print("**PASSED**  ")
+                        lines.print("**PASSED**  ")
                     else:
-                        print(f"**FAILED**: expected {result['case']['answer']}, got {result['stages']['extract']}  ")
+                        lines.print(f"**FAILED**: expected {result['case']['answer']}, got {result['stages']['extract']}  ")
                     input_tokens = sum(
                         len(self._tokenizer.encode(message["content"]))
                         for message in result["stages"]["prepare"]
                     )
-                    print(
+                    lines.print(
                         f"Input tokens: {input_tokens}, output tokens: {len(self._tokenizer.encode(result['stages']['infer']))}"
                     )
-                    print()
+                    lines.print()
                     for message in result["stages"]["prepare"]:
-                        print(f"**{message['role']}**: {message['content']}\n")
-                    print(f"**assistant**: {result['stages']['extract']}")
+                        lines.print(f"**{message['role']}**: {message['content']}\n")
+                    lines.print(f"**assistant**: {result['stages']['extract']}")
                 else:
-                    print(f"Error: {result['exception']['message']}")
-                    # print(f"Inference: {result['stages']['infer']}")
-                    print(f"Traceback: {result['exception']['traceback']}")
-                    print(f"Time: {result['exception']['time']}")
+                    lines.print(f"Error: {result['exception']['message']}")
+                    # lines.print(f"Inference: {result['stages']['infer']}")
+                    lines.print(f"Traceback: {result['exception']['traceback']}")
+                    lines.print(f"Time: {result['exception']['time']}")
+
+        display(lines.text(), "text/markdown")
+        # return 123
+            # return display(lines.text(), "text/markdown")
 
 
     def compare(self, a, b):

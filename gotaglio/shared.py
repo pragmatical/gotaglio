@@ -21,6 +21,21 @@ def format_list(values):
         return f"{', '.join(values[:-1])}, and {values[-1]}"
 
 
+class PrintToString:
+    """
+    A class that captures printed output to a string.
+    """
+
+    def __init__(self):
+        self._lines = []
+
+    def print(self, message=""):
+        self._lines.append(message)
+
+    def text(self):
+        return "\n".join(self._lines)
+
+
 def parse_key_value_args(args):
     """Parse key=value arguments into a dictionary."""
     config = {}
