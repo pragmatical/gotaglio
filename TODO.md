@@ -1,5 +1,35 @@
 # TODO
 
+~~~
+python gotaglio\test2.py
+WARNING: The git command cannot be found. Runlog will not record the git sha and diffs.
+WARNING: The git command cannot be found. Runlog will not record the git sha and diffs.
+=================
+# This is a Heading
+## This is a Subheading
+- Item 1
+- Item 2
+- **Bold Text** and *Italic Text*
+
+Exception has occurred: ImportError
+cannot import name 'Repo' from partially initialized module 'git' (most likely due to a circular import) (root\gotaglio\gotaglio\git.py)
+  File "root\gotaglio\gotaglio\git.py", line 7, in <module>
+    from git import Repo
+  File "root\gotaglio\gotaglio\git.py", line 7, in <module>
+    from git import Repo
+  File "root\gotaglio\gotaglio\director.py", line 13, in <module>
+    from .git import get_current_edits, get_git_sha
+  File "root\gotaglio\gotaglio\subcommands\run.py", line 6, in <module>
+    from ..director import Director
+  File "root\gotaglio\gotaglio\main.py", line 12, in <module>
+    from .subcommands.run import rerun_pipeline, run_pipeline
+  File "root\gotaglio\gotaglio\__init__.py", line 1, in <module>
+    from .main import main
+  File "root\gotaglio\gotaglio\test2.py", line 8, in <module>
+    from gotaglio.make_console import MakeConsole
+ImportError: cannot import name 'Repo' from partially initialized module 'git' (most likely due to a circular import) (root\gotaglio\gotaglio\git.py)
+~~~
+
 * Top top
   * Recommended vscode extensions
   * x Should not crash if git is not available or repo not found.

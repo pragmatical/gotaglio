@@ -1,3 +1,4 @@
+from .make_console import MakeConsole
 from .shared import format_list
 
 
@@ -40,8 +41,12 @@ class Registry:
         pipeline.summarize(results)
 
     def format(self, results, case_uuid_prefix):
+        # print("ENTRY to Registry.format()")
         pipeline = self.create_pipeline(results)
-        pipeline.format(results, case_uuid_prefix)
+        console = MakeConsole()
+        pipeline.format2(console, results, case_uuid_prefix)
+        # print("AFTER pipeline.format2. Before console.render()")
+        console.render()
 
     def compare(self, results_a, results_b):
         pipeline = self.create_pipeline(results_a)

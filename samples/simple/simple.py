@@ -303,6 +303,55 @@ class SimplePipeline(Pipeline):
             # return display(lines.text(), "text/markdown")
 
 
+    def format2(self, make_console, runlog, uuid_prefix):
+        console = make_console("text/markdown")
+        # print(123456)
+
+        # Lazily load the GPT-4o tokenizer here so that we don't slow down
+        # other scenarios that don't need it.
+        if not hasattr(self, "_tokenizer"):
+            self._tokenizer = tiktoken.get_encoding("cl100k_base")
+
+        results = runlog["results"]
+        if len(results) == 0:
+            console.print("No results.")
+        else:
+            # To make the summary more readable, create a short, unique prefix
+            # for each case id.
+            short_id = IdShortener([result["case"]["uuid"] for result in results])
+
+            console.print(f"# Title")
+            for result in results:
+                if uuid_prefix and not result["case"]["uuid"].startswith(uuid_prefix):
+                    continue
+                console.print(f"## Case: {short_id(result['case']['uuid'])}")
+                if result["succeeded"]:
+                    if result["stages"]["assess"] == 0:
+                        console.print("**PASSED**  ")
+                    else:
+                        console.print(f"**FAILED**: expected {result['case']['answer']}, got {result['stages']['extract']}  ")
+                    input_tokens = sum(
+                        len(self._tokenizer.encode(message["content"]))
+                        for message in result["stages"]["prepare"]
+                    )
+                    console.print(
+                        f"Input tokens: {input_tokens}, output tokens: {len(self._tokenizer.encode(result['stages']['infer']))}"
+                    )
+                    console.print()
+                    for message in result["stages"]["prepare"]:
+                        console.print(f"**{message['role']}**: {message['content']}\n")
+                    console.print(f"**assistant**: {result['stages']['extract']}")
+                else:
+                    console.print(f"\n~~~bash")
+                    console.print(f"Error: {result['exception']['message']}")
+                    # console.print(f"Inference: {result['stages']['infer']}")
+                    console.print(f"Traceback: {result['exception']['traceback']}")
+                    console.print(f"Time: {result['exception']['time']}")
+                    console.print("~~~\n")
+
+        # display(console.text(), "text/markdown")
+
+
     def compare(self, a, b):
         console = Console()
         console.print("TODO: compare()")
