@@ -10,7 +10,7 @@ import uuid
 from .constants import log_folder
 from .dag import build_dag_from_spec, dag_spec_from_linear, run_dag
 from .exceptions import ExceptionContext
-from .git import get_current_edits, get_git_sha
+from .git_ops import get_current_edits, get_git_sha
 
 
 class Director:

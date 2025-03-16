@@ -74,7 +74,8 @@ class MakeConsole:
             from IPython import get_ipython
             from IPython.display import display, HTML, Markdown
 
-            if "IPKernelApp" in get_ipython().config:
+            ipython = get_ipython()
+            if ipython and "IPKernelApp" in ipython.config:
                 if self._content_type == "text/html":
                     display(HTML(text))
                 elif self._content_type == "text/markdown":
