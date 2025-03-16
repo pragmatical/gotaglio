@@ -28,12 +28,11 @@ import tiktoken
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from gotaglio.exceptions import ExceptionContext
-from gotaglio.gotag import display
 from gotaglio.helpers import IdShortener
 from gotaglio.main import main
 from gotaglio.models import Model
 from gotaglio.pipeline import Internal, Pipeline, Prompt
-from gotaglio.shared import build_template, PrintToString
+from gotaglio.shared import build_template
 
 
 class SimplePipeline(Pipeline):
@@ -178,7 +177,8 @@ class SimplePipeline(Pipeline):
 
     # This method is used to summarize the results of each a pipeline run.
     # It is invoked by the `run`, `rerun`, and `summarize` sub-commands.
-    def summarize(self, runlog):
+    def summarize(self, make_console, runlog):
+        console = make_console("text/plain")
         results = runlog["results"]
         if len(results) == 0:
             print("No results.")
@@ -235,7 +235,6 @@ class SimplePipeline(Pipeline):
                 table.add_row(short_id(result["case"]["uuid"]), complete, score, keywords)
 
             # Display the table and the totals.
-            console = Console()
             console.print(table)
             console.print()
             console.print(f"Total: {total_count}")
@@ -256,56 +255,8 @@ class SimplePipeline(Pipeline):
 
     # If uuid_prefix is specified, format those cases whose uuids start with
     # uuid_prefix. Otherwise, format all cases.
-    def format(self, runlog, uuid_prefix):
-        lines = PrintToString()
-
-        # Lazily load the GPT-4o tokenizer here so that we don't slow down
-        # other scenarios that don't need it.
-        if not hasattr(self, "_tokenizer"):
-            self._tokenizer = tiktoken.get_encoding("cl100k_base")
-
-        results = runlog["results"]
-        if len(results) == 0:
-            lines.print("No results.")
-        else:
-            # To make the summary more readable, create a short, unique prefix
-            # for each case id.
-            short_id = IdShortener([result["case"]["uuid"] for result in results])
-
-            for result in results:
-                if uuid_prefix and not result["case"]["uuid"].startswith(uuid_prefix):
-                    continue
-                lines.print(f"## Case: {short_id(result['case']['uuid'])}")
-                if result["succeeded"]:
-                    if result["stages"]["assess"] == 0:
-                        lines.print("**PASSED**  ")
-                    else:
-                        lines.print(f"**FAILED**: expected {result['case']['answer']}, got {result['stages']['extract']}  ")
-                    input_tokens = sum(
-                        len(self._tokenizer.encode(message["content"]))
-                        for message in result["stages"]["prepare"]
-                    )
-                    lines.print(
-                        f"Input tokens: {input_tokens}, output tokens: {len(self._tokenizer.encode(result['stages']['infer']))}"
-                    )
-                    lines.print()
-                    for message in result["stages"]["prepare"]:
-                        lines.print(f"**{message['role']}**: {message['content']}\n")
-                    lines.print(f"**assistant**: {result['stages']['extract']}")
-                else:
-                    lines.print(f"Error: {result['exception']['message']}")
-                    # lines.print(f"Inference: {result['stages']['infer']}")
-                    lines.print(f"Traceback: {result['exception']['traceback']}")
-                    lines.print(f"Time: {result['exception']['time']}")
-
-        display(lines.text(), "text/markdown")
-        # return 123
-            # return display(lines.text(), "text/markdown")
-
-
-    def format2(self, make_console, runlog, uuid_prefix):
+    def format(self, make_console, runlog, uuid_prefix):
         console = make_console("text/markdown")
-        # print(123456)
 
         # Lazily load the GPT-4o tokenizer here so that we don't slow down
         # other scenarios that don't need it.
@@ -320,16 +271,18 @@ class SimplePipeline(Pipeline):
             # for each case id.
             short_id = IdShortener([result["case"]["uuid"] for result in results])
 
-            console.print(f"# Title")
+            console.print(f"# Run {runlog['uuid']}")
             for result in results:
                 if uuid_prefix and not result["case"]["uuid"].startswith(uuid_prefix):
                     continue
                 console.print(f"## Case: {short_id(result['case']['uuid'])}")
+
                 if result["succeeded"]:
                     if result["stages"]["assess"] == 0:
                         console.print("**PASSED**  ")
                     else:
                         console.print(f"**FAILED**: expected {result['case']['answer']}, got {result['stages']['extract']}  ")
+
                     input_tokens = sum(
                         len(self._tokenizer.encode(message["content"]))
                         for message in result["stages"]["prepare"]
@@ -337,6 +290,7 @@ class SimplePipeline(Pipeline):
                     console.print(
                         f"Input tokens: {input_tokens}, output tokens: {len(self._tokenizer.encode(result['stages']['infer']))}"
                     )
+
                     console.print()
                     for message in result["stages"]["prepare"]:
                         console.print(f"**{message['role']}**: {message['content']}\n")
@@ -349,17 +303,14 @@ class SimplePipeline(Pipeline):
                     console.print(f"Time: {result['exception']['time']}")
                     console.print("~~~\n")
 
-        # display(console.text(), "text/markdown")
 
-
-    def compare(self, a, b):
-        console = Console()
-        console.print("TODO: compare()")
-
+    def compare(self, make_console, a, b):
         if a["uuid"] == b["uuid"]:
-            console.print(f"Run ids are the same.\n")
-            self.summarize(a)
+            print(f"Run ids are the same.\n")
+            self.summarize(make_console, a)
             return
+
+        console = make_console("text/plain")
 
         if a["metadata"]["pipeline"]["name"] != b["metadata"]["pipeline"]["name"]:
             console.print(

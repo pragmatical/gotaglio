@@ -38,19 +38,21 @@ class Registry:
     # TODO: move these functions out of registry.
     def summarize(self, results):
         pipeline = self.create_pipeline(results)
-        pipeline.summarize(results)
+        console = MakeConsole()
+        pipeline.summarize(console, results)
+        console.render()
 
     def format(self, results, case_uuid_prefix):
-        # print("ENTRY to Registry.format()")
         pipeline = self.create_pipeline(results)
         console = MakeConsole()
-        pipeline.format2(console, results, case_uuid_prefix)
-        # print("AFTER pipeline.format2. Before console.render()")
+        pipeline.format(console, results, case_uuid_prefix)
         console.render()
 
     def compare(self, results_a, results_b):
         pipeline = self.create_pipeline(results_a)
-        pipeline.compare(results_a, results_b)
+        console = MakeConsole()
+        pipeline.compare(console, results_a, results_b)
+        console.render()
 
     def create_pipeline(self, results):
         pipeline_name = results["metadata"]["pipeline"]["name"]

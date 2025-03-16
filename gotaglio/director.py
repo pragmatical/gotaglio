@@ -11,6 +11,7 @@ from .constants import log_folder
 from .dag import build_dag_from_spec, dag_spec_from_linear, run_dag
 from .exceptions import ExceptionContext
 from .git_ops import get_current_edits, get_git_sha
+from .make_console import MakeConsole
 
 
 class Director:
@@ -37,7 +38,6 @@ class Director:
         spec = dag_spec_from_linear(stages) if isinstance(stages, dict) else stages
         self._dag = build_dag_from_spec(spec)
 
-        # self._stages = self._pipeline.stages()
         self._config = self._pipeline.config()
 
         self._id = uuid.uuid4()
@@ -108,11 +108,16 @@ class Director:
         with open(self._output_file, "w") as f:
             json.dump(self._results, f, indent=2)
 
+        print(f"Results written to {self._output_file}")
         return {"log": self._output_file, "results": self._results}
 
     def summarize_results(self):
-        self._pipeline.summarize(self._results)
-        print(f"Results written to {self._output_file}")
+        # TODO: this is an example of code that doesn't use Registry.summaraize().
+        # This is because the pipeline was already created in __init()__
+        console = MakeConsole()
+        self._pipeline.summarize(console, self._results)
+        console.render()
+        # print(f"Results written to {self._output_file}")
 
 
 async def process_one_case(case, dag, completed):

@@ -111,15 +111,15 @@ class Pipeline(ABC, metaclass=EnsureSuperInitMeta):
         pass
 
     @abstractmethod
-    def compare(self, a, b):
+    def compare(self, make_console, a, b):
         pass
 
     @abstractmethod
-    def format(self, results, case_uuid_prefix):
+    def format(self, make_console, results, case_uuid_prefix):
         pass
 
     @abstractmethod
-    def summarize(self, results):
+    def summarize(self, make_console, results):
         pass
 
 

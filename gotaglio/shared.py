@@ -21,21 +21,6 @@ def format_list(values):
         return f"{', '.join(values[:-1])}, and {values[-1]}"
 
 
-class PrintToString:
-    """
-    A class that captures printed output to a string.
-    """
-
-    def __init__(self):
-        self._lines = []
-
-    def print(self, message=""):
-        self._lines.append(message)
-
-    def text(self):
-        return "\n".join(self._lines)
-
-
 def parse_key_value_args(args):
     """Parse key=value arguments into a dictionary."""
     config = {}
@@ -72,9 +57,9 @@ def get_files_sorted_by_creation(folder_path):
 
 
 def get_creation_time(path):
-    if platform.system() == 'Windows':
+    if platform.system() == "Windows":
         return os.path.getctime(path)
-    elif platform.system() == 'Darwin':  # macOS
+    elif platform.system() == "Darwin":  # macOS
         return os.stat(path).st_birthtime
     else:  # Linux and other Unix-like systems
         return os.stat(path).st_ctime
@@ -95,6 +80,10 @@ def get_filenames_with_prefix(folder_path, prefix):
         and filename.startswith(prefix)
     ]
     return filenames
+
+
+def read_log_file_from_prefix(prefix):
+    return read_json_file(log_file_name_from_prefix(prefix))
 
 
 def log_file_name_from_prefix(prefix):

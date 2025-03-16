@@ -1,35 +1,5 @@
 # TODO
 
-~~~
-python gotaglio\test2.py
-WARNING: The git command cannot be found. Runlog will not record the git sha and diffs.
-WARNING: The git command cannot be found. Runlog will not record the git sha and diffs.
-=================
-# This is a Heading
-## This is a Subheading
-- Item 1
-- Item 2
-- **Bold Text** and *Italic Text*
-
-Exception has occurred: ImportError
-cannot import name 'Repo' from partially initialized module 'git' (most likely due to a circular import) (root\gotaglio\gotaglio\git.py)
-  File "root\gotaglio\gotaglio\git.py", line 7, in <module>
-    from git import Repo
-  File "root\gotaglio\gotaglio\git.py", line 7, in <module>
-    from git import Repo
-  File "root\gotaglio\gotaglio\director.py", line 13, in <module>
-    from .git import get_current_edits, get_git_sha
-  File "root\gotaglio\gotaglio\subcommands\run.py", line 6, in <module>
-    from ..director import Director
-  File "root\gotaglio\gotaglio\main.py", line 12, in <module>
-    from .subcommands.run import rerun_pipeline, run_pipeline
-  File "root\gotaglio\gotaglio\__init__.py", line 1, in <module>
-    from .main import main
-  File "root\gotaglio\gotaglio\test2.py", line 8, in <module>
-    from gotaglio.make_console import MakeConsole
-ImportError: cannot import name 'Repo' from partially initialized module 'git' (most likely due to a circular import) (root\gotaglio\gotaglio\git.py)
-~~~
-
 * Top top
   * Recommended vscode extensions
   * x Should not crash if git is not available or repo not found.
@@ -39,9 +9,19 @@ ImportError: cannot import name 'Repo' from partially initialized module 'git' (
     * See if progress bar can be used in Notebook.
     * Accept objects of id prefixes
   * Refactor for Jupyter notebooks
+    * Likely need a configuration object that provides access to log_path
+      * It is too easy to import with from and get a copy.
+    * Save runlog - need to unify code for creating log folder, etc.
+    * Ability to set log folder in notebooks
+      * Maybe defaulting to the notebook folder is good?
+    * format second id can be number or prefix. Number specifies ordinal position.
+    * Error handling in get_files_sorted_by_creation() when log folder not found
+    * Deal with nested call from compare() to summarize() in simple.py
+    * Convert DAG and menu samples to new architecture
+    * Move summarize, format, compare from Registry
     * Idea
       * Sort out entry points
-        * Director.summarize()
+        * Director.summarize_results()
         * Gotag.summarize()
         * Registry.summarize()
       * Runtime passes console_factory to pipeline methods or to pipeline constructor
@@ -77,7 +57,6 @@ ImportError: cannot import name 'Repo' from partially initialized module 'git' (
   * Usage should show name of script
   * Utility to test model connection and auth
   * gotag help format should explain what format does. Other subcommands as well.
-  * Move summarize, format, compare from Registry
   * OpenAI and Anthropic APIs
   * The --concurrancy option is task-level. Do we also want stage-level control?
   * Consider use of TaskGroups in dag.py. Exception handling and cancellation.
