@@ -4,41 +4,44 @@
   * Recommended vscode extensions
   * x Should not crash if git is not available or repo not found.
   * Jupyter
-    * IPython.display for markdown and newlines. May need to make library calls log or return strings.
-    * Remove print statements from library calls? What about real-time messages?
     * See if progress bar can be used in Notebook.
-    * Accept objects of id prefixes
+    * x IPython.display for markdown and newlines. May need to make library calls log or return strings.
+    * x Remove print statements from library calls? What about real-time messages?
+    * x Accept objects of id prefixes
+  * Rename gotag package to gotaglio or vice versa
   * Refactor for Jupyter notebooks
-    * Likely need a configuration object that provides access to log_path
-      * It is too easy to import with from and get a copy.
-    * Save runlog - need to unify code for creating log folder, etc.
-    * Ability to set log folder in notebooks
-      * Maybe defaulting to the notebook folder is good?
-    * format second id can be number or prefix. Number specifies ordinal position.
-    * Error handling in get_files_sorted_by_creation() when log folder not found
-    * Deal with nested call from compare() to summarize() in simple.py
-    * Convert DAG and menu samples to new architecture
+    * Redo/simplify notebook
+    * Add Jupyter comments to sample
+    * log folder
+      * Likely need a configuration object that provides access to log_path
+        * It is too easy to import with from and get a copy.
+      * Save runlog - need to unify code for creating log folder, etc.
+      * Ability to set log folder in notebooks
+        * Maybe defaulting to the notebook folder is good?
+      * format second id can be number or prefix. Number specifies ordinal position.
+      * Error handling in get_files_sorted_by_creation() when log folder not found
+      * logpath setting
     * Move summarize, format, compare from Registry
+    * Convert DAG and menu samples to new architecture
     * Idea
       * Sort out entry points
         * Director.summarize_results()
         * Gotag.summarize()
         * Registry.summarize()
-      * Runtime passes console_factory to pipeline methods or to pipeline constructor
-      * console = console_factory("text/markdown")
-      * console = make_console("text/markdown")
-      * callable instance __call__
-    * move display(), print_to_string() to shared
-      * decide whether shared should be exposed?
+      * x Runtime passes console_factory to pipeline methods or to pipeline constructor
+      * x console = console_factory("text/markdown")
+      * x console = make_console("text/markdown")
+      * x callable instance __call__
+    * decide whether shared should be exposed?
       * would it make sense to have one namespace of end-user functions (vs internal functions)
-    * logpath setting
-    * renderer parameter
-    * rendering rich, markdown, html, etc in notebooks
-    * run
-    * rerun
-    * summarize
-    * compare
-    * load
+    * x renderer parameter
+    * x rendering rich, markdown, html, etc in notebooks
+    * x move display(), print_to_string() to shared
+    * x run
+    * x rerun
+    * x summarize
+    * x compare
+    * x load
     * save
   * Unified error reporting - catch orginal and raise helpful version.
   * Parse key=value parameter values? float, boolean, string?
@@ -64,6 +67,7 @@
     * x Really want to call out patches over default_config
     * How to get cases file? Add cases to metadata? Copy cases in rerun?
   * Documentation for a stand-alone BOT application based on gotaglio pipelines
+  * x Deal with nested call from compare() to summarize() in simple.py (workaround: removed the call)
   * x Implement menu sample
   * x Merge mhop/refactor1 into main
   * x Merge to main - add a tag?
