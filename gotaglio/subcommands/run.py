@@ -1,8 +1,7 @@
 import asyncio
 from rich.progress import Progress, SpinnerColumn, TimeElapsedColumn
 
-from ..constants import default_concurrancy, log_folder
-
+from ..constants import app_configuration
 from ..director import Director
 from ..shared import (
     log_file_name_from_prefix,
@@ -15,7 +14,7 @@ def run_pipeline(registry_factory, args):
     cases_file = args.cases
     pipeline_name = args.pipeline
     flat_config_patch = parse_key_value_args(args.key_values)
-    concurrency = args.concurrency or default_concurrancy
+    concurrency = args.concurrency or app_configuration["default_concurrancy"]
 
     cases = read_json_file(cases_file, False)
 
@@ -50,7 +49,7 @@ def rerun_pipeline(registry_factory, args):
     log = read_json_file(log_file_name, False)
     metadata = log["metadata"]
 
-    concurrency = args.concurrency or default_concurrancy
+    concurrency = args.concurrency or app_configuration["default_concurrancy"]
 
     cases = [record["case"] for record in log["results"]]
     if "pipeline" not in metadata:

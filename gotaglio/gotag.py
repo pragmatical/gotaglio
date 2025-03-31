@@ -1,15 +1,11 @@
 import asyncio
 import uuid
 
-# WARNING: don't use the `from gotaglio.constants import log_foler`
-# as if will import a copy of log_folder. We need a reference because
-# it can be overwritten and all users must see the same value.
-import gotaglio.constants
-
+from .constants import app_configuration
 from .director import Director
 from .models import register_models
 from .registry import Registry
-from .shared import read_json_file, read_log_file_from_prefix
+from .shared import apply_patch_in_place, read_json_file, read_log_file_from_prefix
 
 
 class Gotaglio:
@@ -17,9 +13,9 @@ class Gotaglio:
     Gotaglio is a class that provides methods to manage and manipulate tags.
     """
 
-    def __init__(self, log_folder_param, pipelines):
-        # Set the global log folder that is defined in constants.py.
-        gotaglio.constants.log_folder = log_folder_param
+    # TODO: FIX THIS. Add merging.
+    def __init__(self, pipelines, config_patch={}):
+        apply_patch_in_place(app_configuration, config_patch)
 
         def create_registry():
             registry = Registry()
@@ -29,12 +25,6 @@ class Gotaglio:
             return registry
 
         self._registry_factory = create_registry
-
-    # def register_model(self, model):
-    #     pass
-
-    # def register_pipeline(self, pipeline):
-    #     pass
 
     def add_ids(self, cases, force=False):
         # TODO: allow either a runlog object or a string id prefix

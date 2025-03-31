@@ -4,9 +4,10 @@ from azure.core.credentials import AzureKeyCredential
 import openai
 import os
 
-from .constants import model_config_file, model_credentials_file
+from .constants import app_configuration
 from .exceptions import ExceptionContext
 from .shared import read_json_file
+
 
 class Model(ABC):
     # `context` parameter provides entire test case context to
@@ -80,7 +81,9 @@ class AzureOpenAI(Model):
 
 
 def register_models(
-    registry, config_file=model_config_file, credentials_file=model_credentials_file
+    registry,
+    config_file=app_configuration["model_config_file"],
+    credentials_file=app_configuration["model_credentials_file"],
 ):
     if not os.path.exists(config_file):
         pass

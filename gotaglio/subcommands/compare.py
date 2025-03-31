@@ -1,10 +1,11 @@
 import os
 
-from ..constants import log_folder
+from ..constants import app_configuration
 from ..shared import read_json_file, log_file_name_from_prefix
 
 
 def compare(registry_factory, args):
+    log_folder = app_configuration["log_folder"]
     if not os.path.exists(log_folder):
         print(f"No log folder '{log_folder}'.")
         return

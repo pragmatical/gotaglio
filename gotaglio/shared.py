@@ -7,7 +7,7 @@ from pathlib import Path
 import platform
 
 from .templating import jinja2_template
-from .constants import log_folder
+from .constants import app_configuration
 
 
 def format_list(values):
@@ -87,6 +87,7 @@ def read_log_file_from_prefix(prefix):
 
 
 def log_file_name_from_prefix(prefix):
+    log_folder  = app_configuration["log_folder"]
     if prefix.lower() == "latest":
         filenames = get_files_sorted_by_creation(log_folder)
         if not filenames:
@@ -146,12 +147,23 @@ def apply_patch(target_dict, patches):
     :param patches: A dictionary with dot-separated keys and their corresponding values.
     """
     result = deepcopy(target_dict)
+    apply_patch_in_place(result, patches)
+    return result
+
+    """
+    Modify an existing dictionary by applying a series of dot-separated
+    key-value pairs as a patch to a a deep copy of an existing dictionary.
+
+    :param target_dict: The dictionary to be patched.
+    :param patches: A dictionary with dot-separated keys and their corresponding values.
+    """
+def apply_patch_in_place(target_dict, patches):
     for key, value in patches.items():
         # Ensure value is not a dict
         if isinstance(value, dict):
             raise ValueError(f"Invalid patch for '{key}'. Value cannot be a dict.")
         # Ensure result[key] is not a dict
-        node = glom(result, key, default=None)
+        node = glom(target_dict, key, default=None)
         if isinstance(node, dict):
             candidates = [k for k in node.keys() if not isinstance(node[k], dict)]
             tip = (
@@ -162,8 +174,7 @@ def apply_patch(target_dict, patches):
             raise ValueError(
                 f"Invalid patch for '{key}={value}'. Patch would overwrite a dict. {tip}"
             )
-        assign(result, key, value, missing=dict)
-    return result
+        assign(target_dict, key, value, missing=dict)
 
 
 def flatten_dict(d, parent_key="", sep="."):

@@ -1,4 +1,6 @@
-from .constants import program_name
+import argparse
+
+from .constants import app_configuration
 from .exceptions import ExceptionContext
 from .models import register_models
 from .registry import Registry
@@ -12,7 +14,6 @@ from .subcommands.list_pipelines import list_pipelines
 from .subcommands.run import rerun_pipeline, run_pipeline
 from .subcommands.summarize import summarize
 
-import argparse
 
 def main(pipelines):
     # Use create_registry() to delay Registry configuration until we
@@ -29,7 +30,8 @@ def main(pipelines):
     # Configure command line parsing.
     #
     parser = argparse.ArgumentParser(
-        prog=program_name, description="A tool for managing and running ML pipelines."
+        prog=app_configuration["program_name"],
+        description="A tool for managing and running ML pipelines.",
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Subcommands")
@@ -38,7 +40,10 @@ def main(pipelines):
     add_ids_parser = subparsers.add_parser("add-ids", help="Add uuids to a suite")
     add_ids_parser.add_argument("suite", type=str, help="The name of a file with cases")
     add_ids_parser.add_argument(
-        "-f", "--force", action="store_true", help="Force adding UUIDs, even if they already exist"
+        "-f",
+        "--force",
+        action="store_true",
+        help="Force adding UUIDs, even if they already exist",
     )
 
     # 'compare' subcommand
@@ -57,9 +62,7 @@ def main(pipelines):
     help_parser.add_argument(
         "subcommand", nargs="?", help="The subcommand to show help for"
     )
-    help_parser.add_argument(
-        "args", nargs=argparse.REMAINDER, help=argparse.SUPPRESS
-    )
+    help_parser.add_argument("args", nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
 
     # 'history' subcommand
     history_parser = subparsers.add_parser(
@@ -106,7 +109,10 @@ def main(pipelines):
         "prefix", type=str, help="Filename prefix for run log (or 'latest')"
     )
     format_parser.add_argument(
-        "case_id_prefix", type=str, nargs='?', help="Optional case id prefix to show a single case"
+        "case_id_prefix",
+        type=str,
+        nargs="?",
+        help="Optional case id prefix to show a single case",
     )
 
     # 'summarize' subcommand
@@ -114,7 +120,6 @@ def main(pipelines):
     summarize_parser.add_argument(
         "prefix", type=str, help="Filename prefix for run log (or 'latest')"
     )
-
 
     # Parse arguments
     args = parser.parse_args()

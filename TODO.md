@@ -1,6 +1,9 @@
 # TODO
 
 * Top top
+  * Gotag.add_ids - option to use filename rather than object
+  * Remove test.py, test2.py
+  * x app_configuration
   * Recommended vscode extensions
   * x Should not crash if git is not available or repo not found.
   * Jupyter
@@ -13,8 +16,8 @@
     * Redo/simplify notebook
     * Add Jupyter comments to sample
     * log folder
-      * Likely need a configuration object that provides access to log_path
-        * It is too easy to import with from and get a copy.
+      * x Likely need a configuration object that provides access to log_path
+        * x It is too easy to import with from and get a copy.
       * Save runlog - need to unify code for creating log folder, etc.
       * Ability to set log folder in notebooks
         * Maybe defaulting to the notebook folder is good?

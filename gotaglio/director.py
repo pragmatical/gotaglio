@@ -7,7 +7,7 @@ import sys
 import traceback
 import uuid
 
-from .constants import log_folder
+from .constants import app_configuration
 from .dag import build_dag_from_spec, dag_spec_from_linear, run_dag
 from .exceptions import ExceptionContext
 from .git_ops import get_current_edits, get_git_sha
@@ -41,7 +41,9 @@ class Director:
         self._config = self._pipeline.config()
 
         self._id = uuid.uuid4()
-        self._output_file = os.path.join(log_folder, f"{self._id}.json")
+        self._output_file = os.path.join(
+            app_configuration["log_folder"], f"{self._id}.json"
+        )
 
         self._metadata = {
             "command": " ".join(sys.argv),
@@ -103,6 +105,7 @@ class Director:
 
     def write_results(self):
         # Write log
+        log_folder = app_configuration["log_folder"]
         if not os.path.exists(log_folder):
             os.makedirs(log_folder)
         with open(self._output_file, "w") as f:
