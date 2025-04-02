@@ -1,6 +1,10 @@
 # TODO
 
 * Top top
+  * try subcommand - run a pipeline on example specified on command line
+  * better/easier standard pipeline reuse
+  * option to get config from environment?
+    * For lightweight `gotag try 'a large coke'` iteration
   * Gotag.add_ids - option to use filename rather than object
   * Remove test.py, test2.py
   * x app_configuration
