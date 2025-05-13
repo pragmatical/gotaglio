@@ -7,12 +7,13 @@ def IdShortener(uuids):
         #
         # Ensure every case has a uuid field that contains a valid uuid.
         #
-        guid_pattern = re.compile(
-            r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+        # TODO: REVIEW: Why do we need to check for a uuid here?
+        uuid_pattern = re.compile(
+            r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}.*$"
         )
 
         using_uuids = all(
-            guid_pattern.match(uuid)
+            uuid_pattern.match(uuid)
             for uuid in uuids
         )
 
