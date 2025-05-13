@@ -82,9 +82,12 @@ class AzureOpenAI(Model):
 
 def register_models(
     registry,
-    config_file=app_configuration["model_config_file"],
-    credentials_file=app_configuration["model_credentials_file"],
+    config_file=None,
+    credentials_file=None,
 ):
+    config_file = config_file or app_configuration["model_config_file"]
+    credentials_file = credentials_file or app_configuration["model_credentials_file"]
+
     if not os.path.exists(config_file):
         pass
     else:

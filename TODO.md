@@ -1,6 +1,8 @@
 # TODO
 
 * Top top
+  * [Poetry vs uv](https://teams.microsoft.com/l/message/19:f470c3664251434a981ea790c11c7b61@thread.tacv2/1741214705520?tenantId=72f988bf-86f1-41af-91ab-2d7cd011db47&groupId=11dded2c-9d9a-470c-a312-e8eeceb5a1ab&parentMessageId=1741214705520&teamName=IS%20Engineering&channelName=GUILD%20-%20Software%20Engineering&createdTime=1741214705520)
+  * Consider jsonl for cases
   * try subcommand - run a pipeline on example specified on command line
   * better/easier standard pipeline reuse
   * option to get config from environment?
