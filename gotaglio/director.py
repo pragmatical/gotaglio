@@ -11,6 +11,7 @@ from .constants import app_configuration
 from .dag import build_dag_from_spec, dag_spec_from_linear, run_dag
 from .exceptions import ExceptionContext
 from .git_ops import get_current_edits, get_git_sha
+from .helpers import IdShortener
 from .make_console import MakeConsole
 
 
@@ -156,21 +157,11 @@ def validate_cases(cases):
     if not isinstance(cases, list):
         raise ValueError("Cases must be a list.")
 
-    # TODO: REVIEW: Why do we need to check for a uuid here?
-    uuid_pattern = re.compile(
-        r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}.*$"
-    )
-
     for index, case in enumerate(cases):
         if not isinstance(case, dict):
             raise ValueError(f"Case {index} not a dictionary.")
         if "uuid" not in case:
             raise ValueError(f"Case {index} missing uuid.")
-        if not uuid_pattern.match(case["uuid"]):
-            raise ValueError(f"Encountered invalid uuid: {case['uuid']}")
 
-    uuids = set()
-    for case in cases:
-        if case["uuid"] in uuids:
-            raise ValueError(f"Encountered duplicate uuid: {case['uuid']}")
-        uuids.add(case["uuid"])
+    # Instantiate the IdShortener to validate uuid text and check for duplicates.
+    IdShortener([case["uuid"] for case in cases])
