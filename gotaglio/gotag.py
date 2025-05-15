@@ -1,4 +1,5 @@
 import asyncio
+import nest_asyncio
 import uuid
 
 from .constants import app_configuration_values
@@ -7,7 +8,6 @@ from .models import register_models
 from .registry import Registry
 from .shared import apply_patch_in_place, read_json_file, read_log_file_from_prefix
 
-
 class Gotaglio:
     """
     Gotaglio is a class that provides methods to manage and manipulate tags.
@@ -15,6 +15,9 @@ class Gotaglio:
 
     # TODO: FIX THIS. Add merging.
     def __init__(self, pipelines, config_patch={}):
+        # For running asyncio in Jupyter
+        nest_asyncio.apply()
+
         apply_patch_in_place(app_configuration_values, config_patch)
 
         def create_registry():
