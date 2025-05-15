@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 app_configuration_values = {
     "base_folder": "",
@@ -16,7 +16,7 @@ class AppConfiguration:
 
     def __getitem__(self, key):
         if key in self.base_relative:
-            return os.path.join(self._config["base_folder"], self._config[key])
+            return str(Path(self._config["base_folder"]).joinpath(self._config[key]).as_posix())
         return self._config[key]
 
     def __setitem__(self, key, value):

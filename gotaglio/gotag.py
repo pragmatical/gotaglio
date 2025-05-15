@@ -1,7 +1,7 @@
 import asyncio
 import uuid
 
-from .constants import app_configuration
+from .constants import app_configuration_values
 from .director import Director
 from .models import register_models
 from .registry import Registry
@@ -15,7 +15,7 @@ class Gotaglio:
 
     # TODO: FIX THIS. Add merging.
     def __init__(self, pipelines, config_patch={}):
-        apply_patch_in_place(app_configuration, config_patch)
+        apply_patch_in_place(app_configuration_values, config_patch)
 
         def create_registry():
             registry = Registry()
