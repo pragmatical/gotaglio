@@ -128,7 +128,7 @@ class Repair:
     def _formatStep(self, item, message):
         uuid = item[self._idAttr] if self._idAttr in item else "???"
         name = item[self._nameAttr] if self._nameAttr in item else "???"
-        return f"{uuid}:{name}: {message}"
+        return f"{uuid}: {name}: {message}"
 
     def _delete(self, item: dict) -> Edit:
         """
