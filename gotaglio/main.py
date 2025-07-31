@@ -2,7 +2,6 @@ import argparse
 
 from .constants import app_configuration
 from .exceptions import ExceptionContext
-from .models import register_models
 from .registry import Registry
 from .subcommands.add_ids import add_ids
 from .subcommands.compare import compare
@@ -20,6 +19,8 @@ def main(pipelines):
     # actually need to instantiate a Registry. This avoids Registry
     # instantiation exceptions before argument parsing exceptions.
     def create_registry():
+        from .models import register_models
+        
         registry = Registry()
         for pipeline in pipelines:
             registry.register_pipeline(pipeline)

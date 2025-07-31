@@ -1,12 +1,10 @@
 from abc import ABC, abstractmethod
-from azure.ai.inference import ChatCompletionsClient
-from azure.core.credentials import AzureKeyCredential
-import openai
 import os
 
 from .constants import app_configuration
 from .exceptions import ExceptionContext
 from .shared import read_json_file
+from . import lazy_imports
 
 
 class Model(ABC):
@@ -33,8 +31,8 @@ class AzureAI(Model):
         if not self._client:
             endpoint = self._config["endpoint"]
             key = self._config["key"]
-            self._client = ChatCompletionsClient(
-                endpoint=endpoint, credential=AzureKeyCredential(key)
+            self._client = lazy_imports.azure_ai_inference.ChatCompletionsClient(
+                endpoint=endpoint, credential=lazy_imports.azure_core_credentials.AzureKeyCredential(key)
             )
 
         response = self._client.complete(messages=messages)
@@ -56,7 +54,7 @@ class AzureOpenAI(Model):
             endpoint = self._config["endpoint"]
             key = self._config["key"]
             api = self._config["api"]
-            self._client = openai.AzureOpenAI(
+            self._client = lazy_imports.openai.AzureOpenAI(
                 api_key=key,
                 api_version=api,
                 azure_endpoint=endpoint,

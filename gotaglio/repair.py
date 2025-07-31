@@ -1,7 +1,6 @@
 from copy import deepcopy
-import numpy as np
-from scipy.optimize import linear_sum_assignment
 from typing import TypedDict
+from . import lazy_imports
 
 
 class EditType:
@@ -259,10 +258,10 @@ class Repair:
             ops.append(row)
 
         # Project to 2D array of costs
-        costs = np.array([[edit["cost"] for edit in row] for row in ops])
+        costs = lazy_imports.numpy.array([[edit["cost"] for edit in row] for row in ops])
 
         # Perform Munkres assignment
-        ri, ci = linear_sum_assignment(costs)
+        ri, ci = lazy_imports.scipy_optimize.linear_sum_assignment(costs)
         assignments = zip(ri, ci)
 
         #  Map assignments back to list of operations.
