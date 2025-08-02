@@ -13,6 +13,7 @@ from .exceptions import ExceptionContext
 from .git_ops import get_current_edits, get_git_sha
 from .helpers import IdShortener
 from .make_console import MakeConsole
+from .shared import write_json_file
 
 
 class Director:
@@ -109,8 +110,9 @@ class Director:
         log_folder = app_configuration["log_folder"]
         if not os.path.exists(log_folder):
             os.makedirs(log_folder)
-        with open(self._output_file, "w") as f:
-            json.dump(self._results, f, indent=2, ensure_ascii=False)
+        write_json_file(self._output_file, self._results)
+        # with open(self._output_file, "w", encoding="utf-8") as f:
+        #     json.dump(self._results, f, indent=2, ensure_ascii=False)
 
         print(f"Results written to {self._output_file}")
         return {"log": self._output_file, "results": self._results}
