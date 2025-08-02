@@ -110,7 +110,7 @@ class Director:
         if not os.path.exists(log_folder):
             os.makedirs(log_folder)
         with open(self._output_file, "w") as f:
-            json.dump(self._results, f, indent=2)
+            json.dump(self._results, f, indent=2, ensure_ascii=False)
 
         print(f"Results written to {self._output_file}")
         return {"log": self._output_file, "results": self._results}

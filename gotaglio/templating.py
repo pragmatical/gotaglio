@@ -5,7 +5,7 @@ import os
 def jinja2_template(source):
     def json_helper(items):
         result = ['\n~~~JSON\n']
-        result.append(json.dumps(items, indent=2))
+        result.append(json.dumps(items, indent=2, ensure_ascii=False))
         result.append('\n~~~\n')
         return ''.join(result)
 

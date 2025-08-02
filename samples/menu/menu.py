@@ -82,8 +82,8 @@ class MenuPipeline(Pipeline):
         default_config = {
             "prepare": {
                 "template": Prompt("Template file for system message"),
-                "template_text": Internal()
-                },
+                "template_text": Internal(),
+            },
             "infer": {
                 "model": {
                     "name": Prompt("Model name to use for inference stage"),
@@ -147,7 +147,10 @@ class MenuPipeline(Pipeline):
         async def prepare(context):
             messages = [
                 {"role": "system", "content": await template(context)},
-                {"role": "assistant", "content": json.dumps({"items": []}, indent=2)},
+                {
+                    "role": "assistant",
+                    "content": json.dumps({"items": []}, indent=2, ensure_ascii=False),
+                },
             ]
             case = context["case"]
             for c in case["turns"][:-1]:
@@ -155,7 +158,9 @@ class MenuPipeline(Pipeline):
                 messages.append(
                     {
                         "role": "assistant",
-                        "content": json.dumps(c["expected"], indent=2),
+                        "content": json.dumps(
+                            c["expected"], indent=2, ensure_ascii=False
+                        ),
                     }
                 )
             messages.append({"role": "user", "content": case["turns"][-1]["query"]})
@@ -197,7 +202,6 @@ class MenuPipeline(Pipeline):
             "extract": extract,
             "assess": assess,
         }
-
 
     # This method is used to summarize the results of each a pipeline run.
     # It is invoked by the `run`, `rerun`, and `summarize` sub-commands.
@@ -255,7 +259,9 @@ class MenuPipeline(Pipeline):
                     if "keywords" in result["case"]
                     else ""
                 )
-                table.add_row(short_id(result["case"]["uuid"]), complete, score, keywords)
+                table.add_row(
+                    short_id(result["case"]["uuid"]), complete, score, keywords
+                )
 
             # Display the table and the totals.
             console = Console()
@@ -275,7 +281,6 @@ class MenuPipeline(Pipeline):
                 f"Failed: {failed_count}/{total_count} ({(failed_count/total_count)*100:.2f}%)"
             )
             console.print()
-
 
     # If uuid_prefix is specified, format those cases whose uuids start with
     # uuid_prefix. Otherwise, format all cases.
@@ -301,7 +306,9 @@ class MenuPipeline(Pipeline):
                     if result["stages"]["assess"]["cost"] == 0:
                         print("**PASSED**  ")
                     else:
-                        print(f"**FAILED**: expected\n~~~json\n{json.dumps(result['case']["turns"][-1]['expected'], indent=2)}\n~~~\n\n")
+                        print(
+                            f"**FAILED**: expected\n~~~json\n{json.dumps(result['case']["turns"][-1]['expected'], indent=2, ensure_ascii=False)}\n~~~\n\n"
+                        )
                     # print(result["case"]["comment"])
                     print()
 
@@ -315,17 +322,17 @@ class MenuPipeline(Pipeline):
                     print()
 
                     for x in result["stages"]["prepare"]:
-                      if x["role"] == "assistant":
-                          print(f"**{x['role']}:**")
-                          print("```json")
-                          print(x["content"])
-                          print("```")
-                      elif x["role"] == "user":
-                          print(f"**{x['role']}:** _{x['content']}_")
-                      print()
+                        if x["role"] == "assistant":
+                            print(f"**{x['role']}:**")
+                            print("```json")
+                            print(x["content"])
+                            print("```")
+                        elif x["role"] == "user":
+                            print(f"**{x['role']}:** _{x['content']}_")
+                        print()
                     print(f"**assistant:**")
                     print("```json")
-                    print(json.dumps(result["stages"]["extract"], indent=2))
+                    print(json.dumps(result["stages"]["extract"], indent=2, ensure_ascii=False))
                     print("```")
                     print()
 
@@ -336,7 +343,6 @@ class MenuPipeline(Pipeline):
                     print(f"Traceback: {result['exception']['traceback']}")
                     print(f"Time: {result['exception']['time']}")
                     print("~~~")
-
 
     def compare(self, a, b):
         console = Console()
@@ -381,7 +387,7 @@ class MenuPipeline(Pipeline):
 
         # To make the summary more readable, create a short, unique prefix
         # for each case id.
-        short_id = IdShortener(both)     
+        short_id = IdShortener(both)
 
         table = Table(title=f"Comparison of {"A, B"}", show_footer=True)
         table.add_column("id", justify="right", style="cyan", no_wrap=True)
@@ -447,7 +453,7 @@ class Flakey(Model):
     async def infer(self, messages, result=None):
         self._counter += 1
         if self._counter % 3 == 0:
-            return json.dumps(result["case"]["turns"][-1]["expected"])
+            return json.dumps(result["case"]["turns"][-1]["expected"], ensure_ascii=False)
         elif self._counter % 3 == 1:
             return "hello world"
         else:
@@ -467,7 +473,7 @@ class Perfect(Model):
         registry.register_model("perfect", self)
 
     async def infer(self, messages, result=None):
-        return json.dumps(result["case"]["turns"][-1]["expected"])
+        return json.dumps(result["case"]["turns"][-1]["expected"], ensure_ascii=False)
 
     def metadata(self):
         return {}
