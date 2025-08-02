@@ -106,7 +106,7 @@ def log_file_name_from_prefix(prefix):
 
 
 def read_text_file(filename):
-    with open(filename, "r") as file:
+    with open(filename, "r", encoding="utf-8") as file:
         result = file.read()
     return result
 
@@ -114,14 +114,14 @@ def read_text_file(filename):
 def read_json_file(filename, optional=False):
     if optional and not os.path.isfile(filename):
         return {}
-    with open(filename, "r") as file:
+    with open(filename, "r", encoding="utf-8") as file:
         result = json.load(file)
     return result
 
 
 def write_json_file(filename, data):
-    with open(filename, "w") as file:
-        json.dump(data, file, indent=2)
+    with open(filename, "w", encoding="utf-8") as file:
+        json.dump(data, file, indent=2, ensure_ascii=False)
 
 
 def parse_patches(path_bindings):
