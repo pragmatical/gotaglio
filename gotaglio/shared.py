@@ -123,6 +123,14 @@ def write_json_file(filename, data):
     with open(filename, "w", encoding="utf-8") as file:
         json.dump(data, file, indent=2, ensure_ascii=False)
 
+def to_json_string(data):
+    """
+    Convert a Python object to a JSON string with UTF-8 encoding.
+    
+    :param data: The Python object to convert.
+    :return: A JSON string representation of the object.
+    """
+    return json.dumps(data, indent=2, ensure_ascii=False)
 
 def parse_patches(path_bindings):
     """Parse key=value arguments into a dictionary."""
