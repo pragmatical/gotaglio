@@ -17,7 +17,7 @@
       "name": "format",
       "type": "debugpy",
       "request": "launch",
-      "program": "samples/calc/calc.py",
+      "program": "samples/menu/menu.py",
       "console": "integratedTerminal",
       "args": [
         "format",

@@ -50,18 +50,29 @@ class Pipeline:
         return self._dag
 
     def diff_configs(self):
-        default_config = flatten_dict(self._spec.configuration)
-        config = flatten_dict(self._config)
-        diff = []
-        for k, v in config.items():
-            if k not in default_config:
-                diff.append((k, None, config[k]))
-            elif default_config[k] != v and not isinstance(default_config[k], Internal):
-                diff.append((k, format_config(default_config[k]), v))
-        for k, v in default_config.items():
-            if k not in config and not isinstance(v, Internal):
-                diff.append((k, format_config(default_config[k]), None))
-        return diff
+        return diff_configs(self._spec.configuration, self._config)
+
+
+def diff_configs(default_config: dict[str, Any], config: dict[str, Any]):
+    default_config = flatten_dict(default_config)
+    config = flatten_dict(config)
+    diff = []
+    for k, v in config.items():
+        if k not in default_config:
+            diff.append((k, None, config[k]))
+        elif default_config[k] != v and not isinstance(default_config[k], Internal):
+            diff.append((k, format_config(default_config[k]), v))
+    for k, v in default_config.items():
+        if k not in config and not isinstance(v, Internal):
+            diff.append((k, format_config(default_config[k]), None))
+    return diff
+
+
+def format_config(x):
+    if isinstance(x, Prompt):
+        return "PROMPT"
+    else:
+        return x
 
 
 # Value in Pipeline configuration, indicating the value should be supplied by
@@ -77,14 +88,6 @@ class Prompt:
 class Internal:
     def __init__(self):
         pass
-
-
-# TODO: where is this used? Compare?
-def format_config(x):
-    if isinstance(x, Prompt):
-        return "PROMPT"
-    else:
-        return x
 
 
 def ensure_required_configs(name, default_config, config):

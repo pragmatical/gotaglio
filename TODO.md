@@ -1,8 +1,10 @@
 # TODO
 
-* isolated_turn
+* isolated_turn - for preview
+* validate turn
 * whole case statistics for multi-step - e.g. all turns pass, case pass rate
-* print config information at top
+* should summarize also display configuration information?
+* x print config information at top of format
 * x menu sample - historical_users, historical_carts, linked_turns
 * x Test publish
 * x Test with downstream packages
@@ -58,7 +60,7 @@ python samples\menu\menu.py run menu samples\menu\data\cases.yaml prepare.templa
 734 - failing
 618 - passing
 
-python samples2\menu\menu.py summarize latest
+python samples\menu\menu.py summarize latest
 
 
 python samples\calc\calc.py run calc samples\calc\data\cases.yaml prepare.template=samples\calc\data\template.txt infer.model.name=perfect

@@ -2,6 +2,7 @@ from glom import glom
 
 from .helpers import IdShortener
 from .make_console import MakeConsole
+from .pipeline import diff_configs
 from .pipeline_spec import PipelineSpec, uses_turns
 
 
@@ -29,6 +30,12 @@ def format(
         # complete_tokens = len(self._tokenizer.encode(complete))
 
         console.print(f"## Run: {runlog['uuid']}")
+
+        diffs = diff_configs(spec.configuration, runlog["metadata"]["pipeline"]["config"])
+        lines = [f"* {k}: {v1} => {v2}" for k, v1, v2 in diffs]
+        console.print("**Configuration deltas:**\n")
+        console.print("\n".join(lines))
+
 
         results = runlog["results"]
         if len(results) == 0:
