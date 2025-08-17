@@ -2,7 +2,7 @@ import asyncio
 from rich.progress import Progress, SpinnerColumn, TimeElapsedColumn
 
 from ..constants import app_configuration
-from ..director2 import Director
+from ..director import Director
 from ..pipeline_spec import PipelineSpecs
 from ..shared import (
     log_file_name_from_prefix,

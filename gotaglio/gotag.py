@@ -5,7 +5,7 @@ import uuid
 
 from .compare import compare
 from .constants import app_configuration_values
-from .director2 import Director
+from .director import Director
 from .format import format
 from .pipeline_spec import PipelineSpec, PipelineSpecs, PipelineSpecs
 from .shared import apply_patch_in_place, read_json_file, read_log_file_from_prefix

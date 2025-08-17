@@ -23,7 +23,7 @@ from gotaglio.pipeline_spec import (
     PipelineSpec,
     SummarizerSpec,
 )
-from gotaglio.pipeline2 import Internal, Prompt
+from gotaglio.pipeline import Internal, Prompt
 from gotaglio.repair import Repair
 from gotaglio.shared import build_template, to_json_string
 from gotaglio.summarize import keywords_column

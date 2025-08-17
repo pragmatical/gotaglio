@@ -7,12 +7,10 @@ from typing import Any, List
 import uuid
 
 from .constants import app_configuration
-from .dag import run_dag
-from .exceptions import ExceptionContext
 from .git_ops import get_current_edits, get_git_sha
 from .helpers import IdShortener
 from .models import register_models
-from .pipeline2 import Pipeline, process_one_case
+from .pipeline import Pipeline, process_one_case
 from .pipeline_spec import PipelineSpec
 from .registry import Registry
 from .shared import write_json_file

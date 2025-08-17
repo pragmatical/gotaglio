@@ -16,7 +16,7 @@ from gotaglio.pipeline_spec import (
     PipelineSpec,
     SummarizerSpec,
 )
-from gotaglio.pipeline2 import Internal, Prompt
+from gotaglio.pipeline import Internal, Prompt
 from gotaglio.shared import build_template
 from gotaglio.summarize import keywords_column
 
