@@ -12,13 +12,13 @@ from .exceptions import ExceptionContext
 from .git_ops import get_current_edits, get_git_sha
 from .helpers import IdShortener
 from .models import register_models
-from .pipeline2 import Pipeline2, process_one_case
+from .pipeline2 import Pipeline, process_one_case
 from .pipeline_spec import PipelineSpec
 from .registry import Registry
 from .shared import write_json_file
 
 
-class Director2:
+class Director:
     def __init__(
         self,
         pipeline_spec: PipelineSpec,
@@ -34,7 +34,7 @@ class Director2:
         registry = Registry()
         register_models(registry)
 
-        self._pipeline = Pipeline2(
+        self._pipeline = Pipeline(
             pipeline_spec, replacement_config, flat_config_patch, registry
         )
         self._dag = self._pipeline.get_dag()

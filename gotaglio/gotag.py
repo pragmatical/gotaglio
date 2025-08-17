@@ -5,7 +5,7 @@ import uuid
 
 from .compare import compare
 from .constants import app_configuration_values
-from .director2 import Director2
+from .director2 import Director
 from .format import format
 from .pipeline_spec import PipelineSpec, PipelineSpecs, PipelineSpecs
 from .shared import apply_patch_in_place, read_json_file, read_log_file_from_prefix
@@ -62,7 +62,7 @@ class Gotaglio:
         pipeline_spec = self._pipeline_specs.get(pipeline_name)
         replacement_config = metadata["pipeline"]["config"]
 
-        director = Director2(
+        director = Director(
             pipeline_spec,
             cases,
             replacement_config,
@@ -88,7 +88,7 @@ class Gotaglio:
     ):
         pipeline_spec = self._pipeline_specs.get(pipeline_name)
         cases = cases_from_cases_or_filename(cases_or_filename)
-        director = Director2(
+        director = Director(
             pipeline_spec,
             cases,
             None,

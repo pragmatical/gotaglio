@@ -2,7 +2,7 @@ import asyncio
 from rich.progress import Progress, SpinnerColumn, TimeElapsedColumn
 
 from ..constants import app_configuration
-from ..director2 import Director2
+from ..director2 import Director
 from ..pipeline_spec import PipelineSpecs
 from ..shared import (
     log_file_name_from_prefix,
@@ -22,7 +22,7 @@ def run_command(pipeline_specs: PipelineSpecs, args):
 
     cases = read_data_file(cases_file, False, False)
 
-    director = Director2(pipeline_spec, cases, None, flat_config_patch, concurrency)
+    director = Director(pipeline_spec, cases, None, flat_config_patch, concurrency)
     print(f"Run configuration")
     print(f"  id: {director._id}")
     print(f"  cases: {cases_file}")
@@ -57,7 +57,7 @@ def rerun_command(pipeline_specs: PipelineSpecs, args):
     replacement_config = metadata["pipeline"]["config"]
     flat_config_patch = parse_key_value_args(args.key_values)
 
-    director = Director2(
+    director = Director(
         pipeline_spec,
         cases,
         replacement_config,

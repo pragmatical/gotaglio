@@ -11,7 +11,7 @@ from .shared import apply_patch, flatten_dict
 from .pipeline_spec import PipelineSpec
 
 
-class Pipeline2:
+class Pipeline:
     def __init__(
         self,
         spec: PipelineSpec,
