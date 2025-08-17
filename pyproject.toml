@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "gotaglio"
-version = "0.2.0"
+version = "0.2.1"
 description = "Framework for creating and running experiment pipelines"
 authors = ["Mike Hopcroft <mhopcroft@gmail.com>"]
 license = "MIT"
