@@ -5,6 +5,7 @@ import pytest
 from gotaglio.dag import Dag
 from gotaglio.gotag import Gotaglio
 from gotaglio.pipeline_spec import (
+    get_result,
     PipelineSpec,
 )
 
@@ -14,10 +15,12 @@ def create_dag(name, config, registry):
         return {"result1": 1 + glom(config, "stage1.initial")}
 
     async def stage2(context):
-        return {"result2": 10 + glom(context, "stages.stage1.result1")}
+        result = get_result(context)
+        return {"result2": 10 + glom(result, "stages.stage1.result1")}
 
     async def stage3(context):
-        return {"result3": 100 + glom(context, "stages.stage2.result2")}
+        result = get_result(context)
+        return {"result3": 100 + glom(result, "stages.stage2.result2")}
 
     stages = {
         "stage1": stage1,
@@ -76,7 +79,7 @@ def test_multi_turn_pipeline():
 
     def passed_predicate(context):
         # TODO: is this API right? It is for the case, not for the turn.
-        return glom(context, "stages.turns.0.stages.stage3.result3") == glom(
+        return glom(context, "turns.0.stages.stage3.result3") == glom(
             context, "case.turns.0.answer"
         )
 
@@ -116,7 +119,7 @@ def test_multi_turn_pipeline():
     runlog = gt.run("multi_turn", cases, flat_config_patch)
     print("Pipeline processing complete.")
 
-    assert glom(runlog, "results.0.stages.turns.0.stages.stage3.result3") == glom(
+    assert glom(runlog, "results.0.turns.0.stages.stage3.result3") == glom(
         cases, "0.turns.0.answer"
     )
     assert passed_predicate(glom(runlog, "results.0")) == True

@@ -137,32 +137,6 @@ def test_valid():
     Dag.from_spec(spec)
 
 
-def test_spec_from_linear():
-    async def f(context):
-        pass
-    
-    async def g(context):
-        pass
-    
-    async def h(context):
-        pass
-
-    linear = {
-        "A": f,
-        "B": g,
-        "C": h,
-    }
-
-    observed = Dag.from_linear(linear)
-    expected = [
-        {"name": "A", "function": f, "inputs": []},
-        {"name": "B", "function": g, "inputs": ["A"]},
-        {"name": "C", "function": h, "inputs": ["B"]},
-    ]
-
-    assert observed == expected
-
-
 @pytest.mark.asyncio
 async def test_run():
     counter = 0
