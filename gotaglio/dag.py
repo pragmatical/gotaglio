@@ -105,8 +105,6 @@ async def run_dag(dag_object, context):
     else:
         context["turns"] = []
         for index in range(len(turns)):
-            # TODO: DRY: can use len(turns) instead of turn_index
-            context["turn_index"] = index
             start = datetime.now().timestamp()
             metadata = {"start": str(datetime.fromtimestamp(start, timezone.utc))}
             stages = {}

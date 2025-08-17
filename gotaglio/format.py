@@ -50,10 +50,11 @@ def format(
                 )
                 passed = (
                     # When using turns, check if all turns passed
-                    all(
+                    len(result["turns"]) == len(result["case"]["turns"])
+                    and all(
                         [
-                            spec.passed_predicate(turn_result)
-                            for turn_result in glom(result, "stages.turns", default=[])
+                            spec.passed_predicate(result, turn_index)
+                            for turn_index in range(len(result["turns"]))
                         ]
                     )
                     if using_turns

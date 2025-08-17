@@ -133,17 +133,29 @@ def stages(name, config, registry):
 
     # Stage 1:Create the system and user messages
     async def prepare(context):
-        case = context["case"]
         i = len(context["turns"]) - 1
-        cart = case["cart"] if i == 0 else context["turns"][i - 1]["stages"]["extract"]
-        turn = case["turns"][-1]
-        messages = [
-            {"role": "system", "content": await template(context)},
-            {"role": "assistant", "content": to_json_string(cart)},
-            {"role": "user", "content": turn["user"]},
-        ]
 
-        return messages
+        # Get all of the previous user queries.
+        # When i == 0 add place holder for missing system message.
+        previous = (
+            [None]
+            if i == 0
+            else context["turns"][i - 1]["stages"]["prepare"]
+        )
+
+        # Prepare the system message for this turn.
+        system = {"role": "system", "content": await template(context)}
+
+        # Prepare the assistant message that states the cart contents
+        # at the beginning of this turn.
+        cart = context["case"]["cart"] if i == 0 else context["turns"][i - 1]["stages"]["extract"]
+        assistant = {"role": "assistant", "content": to_json_string(cart)}
+
+        # Prepare the user message for this turn.
+        user = {"role": "user", "content": context["case"]["turns"][i]["user"]}
+        
+        return [system] + previous[1:] + [assistant, user]
+
 
     # Stage 2: Invoke the model to generate a response
     async def infer(context):
@@ -240,7 +252,7 @@ def user_cell(result, turn_index):
 #
 ###############################################################################
 def format_turn(console: Console, turn_index, result: dict[str, Any]):
-    stages = get_result(result)
+    stages = get_result(result, turn_index)
     passed = passed_predicate(result)
     if passed:
         console.print(f"### Turn {turn_index + 1}: **PASSED**  ")
@@ -268,9 +280,12 @@ def format_turn(console: Console, turn_index, result: dict[str, Any]):
         console.print("**No repairs**")
     else:
         console.print("**expected:**")
+        console.print("<details><summary>Click to expand</summary>  \n")
         console.print("```json")
         console.print(to_json_string(result["case"]["turns"][turn_index]["expected"]))
         console.print("```")
+        console.print("\n</details>  \n  \n")
+        console.print("")
         console.print("**Repairs:**")
         for step in stages["stages"]["assess"]["steps"]:
             console.print(f"* {step}")
@@ -281,14 +296,14 @@ def format_turn(console: Console, turn_index, result: dict[str, Any]):
 # Pipeline extensions
 #
 ###############################################################################
-def expected(result):
+def expected(result, turn_index=None):
     """
     Returns the expected value from a turn. Used by mock models.
     """
-    return get_turn(result)["expected"]
+    return get_turn(result, turn_index)["expected"]
 
 
-def passed_predicate(result):
+def passed_predicate(result, turn_index = None):
     """
     Predicate function to determine if the result is considered passing.
     This checks if the assessment stage's result is zero, indicating
@@ -296,7 +311,7 @@ def passed_predicate(result):
 
     Used by the `format` and `summarize` sub-commands.
     """
-    return get_stages(result)["assess"]["cost"] == 0
+    return get_stages(result, turn_index)["assess"]["cost"] == 0
 
 
 ###############################################################################

@@ -4,8 +4,9 @@
 * Test with downstream packages
 * Update downstream packages
 * isolated_turn
-* rename 2-versions: pipeline2, director2
-* remove turn_index from context
+* whose case statistics for multi-step - e.g. all turns pass, case pass rate
+* x rename 2-versions: pipeline2, director2
+* x remove turn_index from context
 * Menu shoud include entire prior conversation
   * filter query based on priors
   * is passed_predicate right? What about turns? is it for the case or the turn?
@@ -50,7 +51,7 @@
   * x All cases say failed
 
 ~~~
-python samples2\menu\menu.py run menu samples2\menu\data\cases.yaml prepare.template=samples2\menu\data\template.txt infer.model.name=perfect
+python samples\menu\menu.py run menu samples\menu\data\cases.yaml prepare.template=samples\menu\data\template.txt infer.model.name=perfect
 
 734 - failing
 618 - passing
@@ -58,12 +59,12 @@ python samples2\menu\menu.py run menu samples2\menu\data\cases.yaml prepare.temp
 python samples2\menu\menu.py summarize latest
 
 
-python samples2\calc\calc.py run calc samples2\calc\data\cases.yaml prepare.template=samples2\calc\data\template.txt infer.model.name=perfect
+python samples\calc\calc.py run calc samples\calc\data\cases.yaml prepare.template=samples\calc\data\template.txt infer.model.name=perfect
 
 45f b90
-python samples2\calc\calc.py compare 45f b90
+python samples\calc\calc.py compare 45f b90
 
-python samples2\dag\dag.py run dag samples2\dag\data\cases.yaml
+python samples\dag\dag.py run dag samples\dag\data\cases.yaml
 
 ~~~
 
