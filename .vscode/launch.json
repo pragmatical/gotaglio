@@ -17,7 +17,7 @@
       "name": "format",
       "type": "debugpy",
       "request": "launch",
-      "program": "samples2/calc/calc.py",
+      "program": "samples/calc/calc.py",
       "console": "integratedTerminal",
       "args": [
         "format",
@@ -28,7 +28,7 @@
       "name": "models",
       "type": "debugpy",
       "request": "launch",
-      "program": "samples2/calc/calc.py",
+      "program": "samples/calc/calc.py",
       "console": "integratedTerminal",
       "args": [
         "models"
@@ -38,7 +38,7 @@
       "name": "summarize",
       "type": "debugpy",
       "request": "launch",
-      "program": "samples2/simple/simple.py",
+      "program": "samples/simple/simple.py",
       "console": "integratedTerminal",
       "args": [
         "summarize",
@@ -49,15 +49,15 @@
       "name": "calculator",
       "type": "debugpy",
       "request": "launch",
-      "program": "samples2/calc/calc.py",
+      "program": "samples/calc/calc.py",
       "console": "integratedTerminal",
       "args": [
         "run",
         "calc",
-        "samples2/calc/data/cases.yaml",
+        "samples/calc/data/cases.yaml",
         "--concurrency",
         "1",
-        "prepare.template=samples2/calc/data/template.txt",
+        "prepare.template=samples/calc/data/template.txt",
         "infer.model.name=perfect"
       ]
     },
@@ -65,15 +65,15 @@
       "name": "menu",
       "type": "debugpy",
       "request": "launch",
-      "program": "samples2/menu/menu.py",
+      "program": "samples/menu/menu.py",
       "console": "integratedTerminal",
       "args": [
         "run",
         "menu",
-        "samples2/menu/data/cases.yaml",
+        "samples/menu/data/cases.yaml",
         "--concurrency",
         "1",
-        "prepare.template=samples2/menu/data/template.txt",
+        "prepare.template=samples/menu/data/template.txt",
         "infer.model.name=perfect"
       ]
     },
@@ -81,12 +81,12 @@
       "name": "dag",
       "type": "debugpy",
       "request": "launch",
-      "program": "samples2/dag/dag.py",
+      "program": "samples/dag/dag.py",
       "console": "integratedTerminal",
       "args": [
         "run",
         "dag",
-        "samples2/dag/data/cases.yaml"
+        "samples/dag/data/cases.yaml"
       ],
     },
     {
@@ -107,7 +107,7 @@
       "name": "rerun",
       "type": "debugpy",
       "request": "launch",
-      "program": "samples2/calc/calc.py",
+      "program": "samples/calc/calc.py",
       "console": "integratedTerminal",
       "args": [
         "rerun",
