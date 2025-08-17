@@ -55,7 +55,19 @@ from gotaglio.tokenizer import tokenizer
 # require configuration dicts.
 configuration = {
     "prepare": {
+        # Specifies whether prompt should include assistant messages
+        # in the conversational history.
+        "assistant_history": True,
+        # Specifies whether prompt should include user messages
+        # in the conversational history.
+        "user_history": True,
+        # Specifies whether the cart on turn entry should be the
+        # `extracted` cart from the previous turn (True) or the
+        # `expected` cart (False).
+        "linked_turns": True,
         "template": Prompt("Template file for system message"),
+        # Internal cache of the template text read from `prepare.template`.
+        # This field is set by the stage() function.
         "template_text": Internal(),
     },
     "infer": {
@@ -117,6 +129,11 @@ def stages(name, config, registry):
     # are run.
     model = registry.model(glom(config, "infer.model.name"))
 
+    # Cache a few configuration values for the prepare stage.
+    assistant_history = glom(config, "prepare.assistant_history")
+    user_history = glom(config, "prepare.user_history")
+    linked_turns = glom(config, "prepare.linked_turns") 
+
     # Define the pipeline stage functions. Each stage function is a coroutine
     # that takes a context dictionary as an argument.
     #
@@ -135,26 +152,51 @@ def stages(name, config, registry):
     async def prepare(context):
         i = len(context["turns"]) - 1
 
-        # Get all of the previous user queries.
-        # When i == 0 add place holder for missing system message.
-        previous = (
-            [None]
-            if i == 0
-            else context["turns"][i - 1]["stages"]["prepare"]
-        )
+        # Get previous assistant and user messages.
+        previous = [x for x in (
+            context["turns"][i - 1]["stages"]["prepare"]
+            if i != 0
+            else []
+        ) if x["role"] != "system"]
+
+        if not assistant_history:
+            # Want to keep the initial cart.
+            # Keep only the initial assistant message, filter out the rest
+            assistant_found = False
+            filtered = []
+            for x in previous:
+                if x["role"] == "assistant":
+                    # If we're suppressing user history, the also remove
+                    # the first cart.
+                    if not assistant_found and user_history:
+                        filtered.append(x)
+                        assistant_found = True
+                else:
+                    filtered.append(x)
+            previous = filtered
+
+        if not user_history:
+            previous = [x for x in previous if x["role"] != "user"]
 
         # Prepare the system message for this turn.
         system = {"role": "system", "content": await template(context)}
 
         # Prepare the assistant message that states the cart contents
         # at the beginning of this turn.
-        cart = context["case"]["cart"] if i == 0 else context["turns"][i - 1]["stages"]["extract"]
+        cart = (
+            context["case"]["cart"]
+            if i == 0
+            else context["turns"][i - 1]["stages"]["extract"]
+            if linked_turns
+            else context["case"]["turns"][i - 1]["expected"]
+        )
+
         assistant = {"role": "assistant", "content": to_json_string(cart)}
 
         # Prepare the user message for this turn.
         user = {"role": "user", "content": context["case"]["turns"][i]["user"]}
         
-        return [system] + previous[1:] + [assistant, user]
+        return [system] + previous + [assistant, user]
 
 
     # Stage 2: Invoke the model to generate a response

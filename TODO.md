@@ -1,10 +1,12 @@
 # TODO
 
-* Test publish
-* Test with downstream packages
-* Update downstream packages
 * isolated_turn
-* whose case statistics for multi-step - e.g. all turns pass, case pass rate
+* whole case statistics for multi-step - e.g. all turns pass, case pass rate
+* print config information at top
+* x menu sample - historical_users, historical_carts, linked_turns
+* x Test publish
+* x Test with downstream packages
+* x Update downstream packages
 * x rename 2-versions: pipeline2, director2
 * x remove turn_index from context
 * Menu shoud include entire prior conversation

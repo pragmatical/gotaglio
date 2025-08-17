@@ -117,36 +117,6 @@ class Director:
         return self._pipeline.diff_configs()
 
 
-# async def process_one_case(case, dag, completed):
-#     ExceptionContext.clear_context()
-#     start = datetime.now().timestamp()
-#     result = {
-#         "succeeded": False,
-#         "metadata": {"start": str(datetime.fromtimestamp(start, timezone.utc))},
-#         "case": case,
-#         "stages": {},
-#     }
-
-#     try:
-#         await run_dag(dag, result)
-#     except Exception as e:
-#         result["exception"] = {
-#             "message": ExceptionContext.format_message(e),
-#             "traceback": traceback.format_exc(),
-#             "time": str(datetime.now(timezone.utc)),
-#         }
-#         return result
-
-#     end = datetime.now().timestamp()
-#     if completed:
-#         completed()
-#     elapsed = end - start
-#     result["metadata"]["end"] = str(datetime.fromtimestamp(end, timezone.utc))
-#     result["metadata"]["elapsed"] = str(timedelta(seconds=elapsed))
-#     result["succeeded"] = True
-#     return result
-
-
 def validate_cases(cases):
     if not isinstance(cases, list):
         raise ValueError("Cases must be a list.")
