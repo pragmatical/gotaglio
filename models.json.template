@@ -1,27 +1,20 @@
 [
   {
-    "name": "phi3",
-    "description": "Phi-3 medium 128k",
-    "type": "AZURE_AI",
-    "endpoint": <ENDPOINT>,
-    "key": "From .credentials.json"
-  },
-  {
-    "name": "gpt3.5",
-    "description": "GPT-3.5-turbo 16k",
-    "type": "AZURE_OPEN_AI",
-    "endpoint": <ENDPOINT>,
-    "deployment": "gpt-35-turbo-16k-0613",
-    "key": "From .credentials.json",
-    "api": "2024-07-01-preview"
-  },
-  {
     "name": "gpt4o",
     "description": "gpt-4o-2024-11-20",
     "type": "AZURE_OPEN_AI",
-    "endpoint": <ENDPOINT>,
-    "deployment": "gpt-4o-2024-11-20",
+    "endpoint": "https://rt-demo-oai.openai.azure.com/",
+    "deployment": "gpt-4o",
     "key": "From .credentials.json",
-    "api": "2024-08-01-preview"
+    "api": "2025-01-01-preview"
+  },
+  {
+    "name": "gpt4.1",
+    "description": "gpt-4.1",
+    "type": "AZURE_OPEN_AI",
+    "endpoint": "https://rt-demo-oai.openai.azure.com/",
+    "deployment": "gpt-4.1",
+    "key": "From .credentials.json",
+    "api": "2025-01-01-preview"
   }
 ]
