@@ -1,12 +1,10 @@
 import asyncio
 import pytest
-from datetime import datetime
 
 from gotaglio.dag import Dag, run_dag
-from gotaglio.director import process_one_case
 
 
-def test_valid():
+def test_valid_build():
     async def f(context):
         pass
 
@@ -18,7 +16,7 @@ def test_valid():
     ]
 
     # Should not raise an exception
-    build_dag_from_spec(spec)
+    Dag.from_spec(spec)
 
 
 def test_duplicate_name():
@@ -139,32 +137,6 @@ def test_valid():
     Dag.from_spec(spec)
 
 
-def test_spec_from_linear():
-    async def f(context):
-        pass
-    
-    async def g(context):
-        pass
-    
-    async def h(context):
-        pass
-
-    linear = {
-        "A": f,
-        "B": g,
-        "C": h,
-    }
-
-    observed = dag_spec_from_linear(linear)
-    expected = [
-        {"name": "A", "function": f, "inputs": []},
-        {"name": "B", "function": g, "inputs": ["A"]},
-        {"name": "C", "function": h, "inputs": ["B"]},
-    ]
-
-    assert observed == expected
-
-
 @pytest.mark.asyncio
 async def test_run():
     counter = 0
@@ -231,3 +203,78 @@ async def test_run():
     assert c["end"] <= d["start"]
 
     assert d["end"] - d["start"] == 1
+
+
+@pytest.mark.asyncio
+async def test_stage_timing_detailed_and_positive():
+    async def a(context):
+        await asyncio.sleep(0.01)
+        return "A-ok"
+
+    async def b(context):
+        await asyncio.sleep(0.02)
+        return {"n": 1}
+
+    spec = [
+        {"name": "A", "function": a, "inputs": []},
+        {"name": "B", "function": b, "inputs": ["A"]},
+    ]
+    dag = Dag.from_spec(spec)
+    context = {"stages": {}}
+    await run_dag(dag, context)
+
+    A = context["stages_detailed"]["A"]
+    B = context["stages_detailed"]["B"]
+
+    # Detailed results contain timing metadata
+    assert set(A.keys()) >= {"value", "start", "end", "elapsed", "succeeded"}
+    assert set(B.keys()) >= {"value", "start", "end", "elapsed", "succeeded"}
+
+    def parse_elapsed(s):
+        h, m, rest = s.split(":")
+        sec = float(rest)
+        return (int(h) * 3600) + (int(m) * 60) + sec
+
+    assert parse_elapsed(A["elapsed"]) > 0
+    assert parse_elapsed(B["elapsed"]) > 0
+
+    # Values preserved
+    assert A["value"] == "A-ok"
+    assert B["value"]["n"] == 1
+
+
+@pytest.mark.asyncio
+async def test_multi_turn_timing_is_per_turn_only():
+    async def a(context):
+        await asyncio.sleep(0.001)
+        return "A"
+
+    async def b(context):
+        await asyncio.sleep(0.001)
+        return "B"
+
+    spec = [
+        {"name": "A", "function": a, "inputs": []},
+        {"name": "B", "function": b, "inputs": ["A"]},
+    ]
+    dag = Dag.from_spec(spec)
+    context = {
+        "case": {
+            "turns": [{"user": "t1"}, {"user": "t2"}],
+        }
+    }
+    await run_dag(dag, context)
+
+    # No top-level stages_detailed for multi-turn runs
+    assert "stages_detailed" not in context
+
+    assert len(context["turns"]) == 2
+    for turn in context["turns"]:
+        stages = turn.get("stages")
+        assert stages is not None
+        assert set(stages.keys()) == {"A", "B"}
+        for name in ("A", "B"):
+            entry = stages[name]
+            assert set(entry.keys()) >= {"value", "metadata"}
+            md = entry["metadata"]
+            assert set(md.keys()) >= {"start", "end", "elapsed", "succeeded"}

@@ -1,7 +1,5 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
-from time import perf_counter
-import json
 import os
 import sys
 import traceback
@@ -27,10 +25,7 @@ class Director:
         flat_config_patch: dict[str, Any],
         max_concurrency: int,
     ):
-        # Wall-clock start for human-readable timestamps
-        self._start_wall = datetime.now(timezone.utc)
-        # Monotonic start for accurate elapsed timing
-        self._start_perf = perf_counter()
+        self._start = datetime.now().timestamp()
         self._spec = pipeline_spec
         self._concurrency = max_concurrency
 
@@ -49,8 +44,7 @@ class Director:
 
         self._metadata = {
             "command": " ".join(sys.argv),
-            # Record wall-clock timestamps (UTC) for readability
-            "start": str(self._start_wall),
+            "start": str(datetime.fromtimestamp(self._start, timezone.utc)),
             "concurrency": self._concurrency,
             "pipeline": {
                 "name": pipeline_spec.name,
@@ -90,9 +84,9 @@ class Director:
             #
             # Gather and record post-run metadata
             #
-            end_wall = datetime.now(timezone.utc)
-            elapsed = perf_counter() - self._start_perf
-            self._metadata["end"] = str(end_wall)
+            end = datetime.now().timestamp()
+            elapsed = end - self._start
+            self._metadata["end"] = str(datetime.fromtimestamp(end, timezone.utc))
             self._metadata["elapsed"] = str(timedelta(seconds=elapsed))
             self._results["results"] = results
 
@@ -119,73 +113,6 @@ class Director:
         print(f"Results written to {self._output_file}")
         return {"log": self._output_file, "results": self._results}
 
-    def summarize_results(self):
-        # TODO: this is an example of code that doesn't use Registry.summaraize().
-        # This is because the pipeline was already created in __init()__
-        console = MakeConsole()
-        self._pipeline.summarize(console, self._results)
-        console.render()
-        # print(f"Results written to {self._output_file}")
-
-
-async def process_one_case(case, dag, completed):
-    ExceptionContext.clear_context()
-    start_wall = datetime.now(timezone.utc)
-    start_perf = perf_counter()
-    result = {
-        "succeeded": False,
-        # Wall-clock timestamps for readability
-        "metadata": {"start": str(start_wall)},
-        "case": case,
-    # Stage return values go here (unchanged contract)
-    "stages": {},
-    # Internal per-stage timing store, used by dag.run_task();
-    # will be merged into stages_detailed and removed before returning.
-    "stage_metadata": {},
-    # New: alongside each stage's value, include timing details.
-    # stages_detailed[stage_name] = { "value": <stage result>, "start": ..., "end": ..., "elapsed": ..., "succeeded": ... }
-    "stages_detailed": {},
-    }
-    try:
-        await run_dag(dag, result)
-    except Exception as e:
-        result["exception"] = {
-            "message": ExceptionContext.format_message(e),
-            "traceback": traceback.format_exc(),
-            "time": str(datetime.now(timezone.utc)),
-        }
-        return result
-
-    end_wall = datetime.now(timezone.utc)
-    if completed:
-        completed()
-    elapsed = perf_counter() - start_perf
-    result["metadata"]["end"] = str(end_wall)
-    result["metadata"]["elapsed"] = str(timedelta(seconds=elapsed))
-
-    # Embed per-stage timing into each stage entry as an object with
-    # fields: value, start, end, elapsed, succeeded. Preserve raw value shape
-    # during execution; only transform after run_dag completes.
-    try:
-        stage_meta = result.get("stage_metadata", {})
-        wrapped = {}
-        for name, value in result.get("stages", {}).items():
-            meta = stage_meta.get(name, {})
-            entry = {"value": value}
-            for k in ("start", "end", "elapsed", "succeeded"):
-                if k in meta:
-                    entry[k] = meta[k]
-            wrapped[name] = entry
-        result["stages"] = wrapped
-    finally:
-        # Remove internal timing store before returning
-        if "stage_metadata" in result:
-            try:
-                del result["stage_metadata"]
-            except Exception:
-                pass
-    result["succeeded"] = True
-    return result
     def diff_configs(self):
         return self._pipeline.diff_configs()
 

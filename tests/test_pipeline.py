@@ -119,7 +119,7 @@ def test_multi_turn_pipeline():
     runlog = gt.run("multi_turn", cases, flat_config_patch)
     print("Pipeline processing complete.")
 
-    assert glom(runlog, "results.0.turns.0.stages.stage3.result3") == glom(
+    assert glom(runlog, "results.0.turns.0.stages.stage3.value.result3") == glom(
         cases, "0.turns.0.answer"
     )
     assert passed_predicate(glom(runlog, "results.0")) == True

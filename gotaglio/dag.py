@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
+import time
 from glom import glom
 import traceback
 from typing import Any, List
@@ -83,8 +84,11 @@ async def run_task(dag, name, context):
     if "stage_metadata" not in context:
         context["stage_metadata"] = {}
 
+    # Wall-clock start
     start_ts = datetime.now().timestamp()
     start_iso = str(datetime.fromtimestamp(start_ts, timezone.utc))
+    # Monotonic start for elapsed computation
+    start_perf = time.perf_counter()
     # Pre-populate stage metadata entry
     context["stage_metadata"].setdefault(name, {})
     context["stage_metadata"][name]["start"] = start_iso
@@ -103,9 +107,12 @@ async def run_task(dag, name, context):
         succeeded = False
         raise e
     finally:
+        # Wall-clock end
         end_ts = datetime.now().timestamp()
         end_iso = str(datetime.fromtimestamp(end_ts, timezone.utc))
-        elapsed = str(timedelta(seconds=(end_ts - start_ts)))
+        # Monotonic elapsed
+        end_perf = time.perf_counter()
+        elapsed = str(timedelta(seconds=(end_perf - start_perf)))
         meta = context["stage_metadata"][name]
         meta["end"] = end_iso
         meta["elapsed"] = elapsed
@@ -121,6 +128,9 @@ async def run_dag(dag_object, context):
     if turns is None:
         stages = {}
         context["stages"] = stages
+        # Ensure timing containers exist for this run
+        context.setdefault("stage_metadata", {})
+        context["stages_detailed"] = {}
         await run_dag_helper(dag_object, context, stages)
     else:
         context["turns"] = []
@@ -134,6 +144,8 @@ async def run_dag(dag_object, context):
                 "stages": stages,
             }
             context["turns"].append(turn)
+            # Reset per-turn timing container
+            context["stage_metadata"] = {}
             try:
                 await run_dag_helper(dag_object, context, stages)
             except Exception as e:
@@ -142,14 +154,29 @@ async def run_dag(dag_object, context):
                     "traceback": traceback.format_exc(),
                     "time": str(datetime.now(timezone.utc)),
                 }
-                # Stop processing turns after an error.                
+                # Stop processing turns after an error.
                 return
+            finally:
+                # Remove the temporary top-level stages_detailed to avoid
+                # exposing only the last turn's timings at the top level.
+                if "stages_detailed" in context:
+                    del context["stages_detailed"]
 
             # Record the successful completion of this turn.
             end = datetime.now().timestamp()
             elapsed = end - start
             metadata["end"] = str(datetime.fromtimestamp(end, timezone.utc))
             metadata["elapsed"] = str(timedelta(seconds=elapsed))
+            
+            # Embed per-stage timing metadata directly into each stage result for this turn
+            stage_meta = context.get("stage_metadata", {})
+            for _name, _value in list(stages.items()):
+                meta = stage_meta.get(_name, {})
+                wrapped = {"value": _value, "metadata": meta}
+                # Back-compat: hoist value keys to top-level so code can still access stages.<name>.<field>
+                if isinstance(_value, dict):
+                    wrapped.update(_value)
+                stages[_name] = wrapped
             turn["succeeded"] = True
 
 
@@ -183,12 +210,22 @@ async def run_dag_helper(dag_object, context, stages):
         for task in done:
             (name, result) = task.result()
 
-            # Record the result of this stage in the context.
+            # Record the result of this stage in the context (raw), and in stages_detailed with timing metadata.
             if name in stages:
                 raise ValueError(
                     f"Internal error: node `stages.{name}` already in context"
                 )
             stages[name] = result
+            meta = context.get("stage_metadata", {}).get(name, {})
+            # Determine where to store detailed timing info (single-turn only)
+            stages_detailed = context.setdefault("stages_detailed", {})
+            stages_detailed[name] = {
+                "value": result,
+                "start": meta.get("start"),
+                "end": meta.get("end"),
+                "elapsed": meta.get("elapsed"),
+                "succeeded": meta.get("succeeded"),
+            }
 
             # Propagate the outputs to subsequent stages.
             node = dag[name]
