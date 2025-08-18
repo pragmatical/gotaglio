@@ -183,6 +183,12 @@ class SimplePipeline(Pipeline):
         if len(results) == 0:
             print("No results.")
         else:
+            # Helper to read stage value, supporting wrapped timing objects
+            def stage_value(stages, name):
+                v = stages.get(name)
+                if isinstance(v, dict) and "value" in v and len(v.keys()) >= 1:
+                    return v["value"]
+                return v
             # To make the summary more readable, create a short, unique prefix
             # for each case id.
             short_id = IdShortener([result["case"]["uuid"] for result in results])
@@ -205,7 +211,7 @@ class SimplePipeline(Pipeline):
             # Add one row for each case.
             for result in results:
                 succeeded = result["succeeded"]
-                cost = result["stages"]["assess"] if succeeded else None
+                cost = stage_value(result["stages"], "assess") if succeeded else None
 
                 if succeeded:
                     complete_count += 1
@@ -278,23 +284,31 @@ class SimplePipeline(Pipeline):
                 console.print(f"## Case: {short_id(result['case']['uuid'])}")
 
                 if result["succeeded"]:
-                    if result["stages"]["assess"] == 0:
+                    # Helper to read stage value, supporting wrapped timing objects
+                    def stage_value(stages, name):
+                        v = stages.get(name)
+                        if isinstance(v, dict) and "value" in v and len(v.keys()) >= 1:
+                            return v["value"]
+                        return v
+
+                    if stage_value(result["stages"], "assess") == 0:
                         console.print("**PASSED**  ")
                     else:
-                        console.print(f"**FAILED**: expected {result['case']['answer']}, got {result['stages']['extract']}  ")
+                        console.print(f"**FAILED**: expected {result['case']['answer']}, got {stage_value(result['stages'], 'extract')}  ")
 
+                    prepare_msgs = stage_value(result["stages"], "prepare")
                     input_tokens = sum(
                         len(self._tokenizer.encode(message["content"]))
-                        for message in result["stages"]["prepare"]
+                        for message in prepare_msgs
                     )
                     console.print(
-                        f"Input tokens: {input_tokens}, output tokens: {len(self._tokenizer.encode(result['stages']['infer']))}"
+                        f"Input tokens: {input_tokens}, output tokens: {len(self._tokenizer.encode(stage_value(result['stages'], 'infer')))}"
                     )
 
                     console.print()
-                    for message in result["stages"]["prepare"]:
+                    for message in prepare_msgs:
                         console.print(f"**{message['role']}**: {message['content']}\n")
-                    console.print(f"**assistant**: {result['stages']['extract']}")
+                    console.print(f"**assistant**: {stage_value(result['stages'], 'extract')}")
                 else:
                     console.print(f"\n~~~bash")
                     console.print(f"Error: {result['exception']['message']}")
@@ -388,8 +402,15 @@ class SimplePipeline(Pipeline):
 
 
 def format_case(result):
+    # Helper to read stage value, supporting wrapped timing objects
+    def stage_value(stages, name):
+        v = stages.get(name)
+        if isinstance(v, dict) and "value" in v and len(v.keys()) >= 1:
+            return v["value"]
+        return v
+
     if result["succeeded"]:
-        if result["stages"]["assess"] == 0:
+        if stage_value(result["stages"], "assess") == 0:
             return (Text("passed", style="bold green"), 0)
         else:
             return (Text("failed", style="bold red"), 1)

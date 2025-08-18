@@ -210,6 +210,12 @@ class MenuPipeline(Pipeline):
         if len(results) == 0:
             print("No results.")
         else:
+            # Helper to read stage value, supporting wrapped timing objects
+            def stage_value(stages, name):
+                v = stages.get(name)
+                if isinstance(v, dict) and "value" in v and len(v.keys()) >= 1:
+                    return v["value"]
+                return v
             # To make the summary more readable, create a short, unique prefix
             # for each case id.
             short_id = IdShortener([result["case"]["uuid"] for result in results])
@@ -232,7 +238,8 @@ class MenuPipeline(Pipeline):
             # Add one row for each case.
             for result in results:
                 succeeded = result["succeeded"]
-                cost = result["stages"]["assess"]["cost"] if succeeded else None
+                assess = stage_value(result["stages"], "assess") if succeeded else None
+                cost = assess["cost"] if assess is not None else None
 
                 if succeeded:
                     complete_count += 1
@@ -312,16 +319,24 @@ class MenuPipeline(Pipeline):
                     # print(result["case"]["comment"])
                     print()
 
+                    # Helper to read stage value, supporting wrapped timing objects
+                    def stage_value(stages, name):
+                        v = stages.get(name)
+                        if isinstance(v, dict) and "value" in v and len(v.keys()) >= 1:
+                            return v["value"]
+                        return v
+
+                    prepare_msgs = stage_value(result["stages"], "prepare")
                     input_tokens = sum(
                         len(self._tokenizer.encode(message["content"]))
-                        for message in result["stages"]["prepare"]
+                        for message in prepare_msgs
                     )
                     print(
                         f"Input tokens: {input_tokens}, output tokens: {len(self._tokenizer.encode(result['stages']['infer']))}"
                     )
                     print()
 
-                    for x in result["stages"]["prepare"]:
+                    for x in prepare_msgs:
                         if x["role"] == "assistant":
                             print(f"**{x['role']}:**")
                             print("```json")
@@ -332,7 +347,8 @@ class MenuPipeline(Pipeline):
                         print()
                     print(f"**assistant:**")
                     print("```json")
-                    print(json.dumps(result["stages"]["extract"], indent=2, ensure_ascii=False))
+                    extract_val = stage_value(result["stages"], "extract")
+                    print(json.dumps(extract_val, indent=2, ensure_ascii=False))
                     print("```")
                     print()
 

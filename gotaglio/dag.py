@@ -141,6 +141,17 @@ async def run_dag(dag, context):
                 )
             context["stages"][name] = result
 
+            # Also build a detailed entry with timing included
+            stage_meta = context.get("stage_metadata", {}).get(name, {})
+            detailed = {
+                "value": result,
+                **({"start": stage_meta.get("start")} if "start" in stage_meta else {}),
+                **({"end": stage_meta.get("end")} if "end" in stage_meta else {}),
+                **({"elapsed": stage_meta.get("elapsed")} if "elapsed" in stage_meta else {}),
+                **({"succeeded": stage_meta.get("succeeded")} if "succeeded" in stage_meta else {}),
+            }
+            context.setdefault("stages_detailed", {})[name] = detailed
+
             # Propagate the outputs to subsequent stages.
             node = dag[name]
             for output in node["outputs"]:

@@ -142,15 +142,12 @@ async def process_one_case(case, dag, completed):
         "case": case,
     # Stage return values go here (unchanged contract)
     "stages": {},
-    # New: per-stage timing metadata populated by dag.run_task()
-    # Format per stage:
-    #   stage_metadata[stage_name] = {
-    #       "start": iso_utc,
-    #       "end": iso_utc,
-    #       "elapsed": "HH:MM:SS.ffffff",
-    #       "succeeded": bool
-    #   }
+    # Internal per-stage timing store, used by dag.run_task();
+    # will be merged into stages_detailed and removed before returning.
     "stage_metadata": {},
+    # New: alongside each stage's value, include timing details.
+    # stages_detailed[stage_name] = { "value": <stage result>, "start": ..., "end": ..., "elapsed": ..., "succeeded": ... }
+    "stages_detailed": {},
     }
     try:
         await run_dag(dag, result)
@@ -168,6 +165,28 @@ async def process_one_case(case, dag, completed):
     elapsed = perf_counter() - start_perf
     result["metadata"]["end"] = str(end_wall)
     result["metadata"]["elapsed"] = str(timedelta(seconds=elapsed))
+
+    # Embed per-stage timing into each stage entry as an object with
+    # fields: value, start, end, elapsed, succeeded. Preserve raw value shape
+    # during execution; only transform after run_dag completes.
+    try:
+        stage_meta = result.get("stage_metadata", {})
+        wrapped = {}
+        for name, value in result.get("stages", {}).items():
+            meta = stage_meta.get(name, {})
+            entry = {"value": value}
+            for k in ("start", "end", "elapsed", "succeeded"):
+                if k in meta:
+                    entry[k] = meta[k]
+            wrapped[name] = entry
+        result["stages"] = wrapped
+    finally:
+        # Remove internal timing store before returning
+        if "stage_metadata" in result:
+            try:
+                del result["stage_metadata"]
+            except Exception:
+                pass
     result["succeeded"] = True
     return result
 
