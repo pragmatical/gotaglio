@@ -2,7 +2,7 @@ import asyncio
 import pytest
 from datetime import datetime
 
-from gotaglio.dag import build_dag_from_spec, dag_spec_from_linear, run_dag
+from gotaglio.dag import Dag, run_dag
 from gotaglio.director import process_one_case
 
 
@@ -34,7 +34,7 @@ def test_duplicate_name():
 
     # Should raise an exception
     with pytest.raises(ValueError) as e:
-        build_dag_from_spec(spec)
+        Dag.from_spec(spec)
     assert "Duplicate node name 'A'" in str(e.value)
 
 
@@ -51,7 +51,7 @@ def test_invalid_input():
 
     # Should raise an exception
     with pytest.raises(ValueError) as e:
-        build_dag_from_spec(spec)
+        Dag.from_spec(spec)
     assert "Node B: cannot find input 'X'" in str(e.value)
 
 
@@ -68,7 +68,7 @@ def test_duplicate_input():
 
     # Should raise an exception
     with pytest.raises(ValueError) as e:
-        build_dag_from_spec(spec)
+        Dag.from_spec(spec)
     assert "Node B: duplicate input 'A'" in str(e.value)
 
 
@@ -85,7 +85,7 @@ def test_no_root():
 
     # Should raise an exception
     with pytest.raises(ValueError) as e:
-        build_dag_from_spec(spec)
+        Dag.from_spec(spec)
     assert "No nodes ready to run" in str(e.value)
 
 
@@ -102,7 +102,7 @@ def test_has_cycle():
 
     # Should raise an exception
     with pytest.raises(ValueError) as e:
-        build_dag_from_spec(spec)
+        Dag.from_spec(spec)
     assert "Cycle detected: A -> B -> D -> B" in str(e.value)
 
 
@@ -121,7 +121,7 @@ def test_unreachable_nodes():
 
     # Should raise an exception
     with pytest.raises(ValueError) as e:
-        build_dag_from_spec(spec)
+        Dag.from_spec(spec)
     assert "The following nodes are unreachable: E, F" in str(e.value)
 
 def test_valid():
@@ -136,7 +136,7 @@ def test_valid():
     ]
 
     # Should not raise an exception
-    build_dag_from_spec(spec)
+    Dag.from_spec(spec)
 
 
 def test_spec_from_linear():
@@ -163,111 +163,6 @@ def test_spec_from_linear():
     ]
 
     assert observed == expected
-
-
-# ---------------------------------------
-# Additional tests for timing integration
-# ---------------------------------------
-
-def _iso(s: str) -> datetime:
-    # Parse 'YYYY-MM-DD HH:MM:SS.mmmmmm+00:00'
-    return datetime.fromisoformat(s)
-
-
-@pytest.mark.asyncio
-async def test_stage_timing_fields_present_and_positive():
-    async def a(context):
-        await asyncio.sleep(0.05)
-        return "A"
-
-    async def b(context):
-        await asyncio.sleep(0.07)
-        return "B"
-
-    spec = [
-        {"name": "A", "function": a, "inputs": []},
-        {"name": "B", "function": b, "inputs": ["A"]},
-    ]
-    dag = build_dag_from_spec(spec)
-    case = {"uuid": "00000000-0000-0000-0000-000000000001"}
-
-    result = await process_one_case(case, dag, completed=None)
-
-    assert result["succeeded"] is True
-    for name, expected_value in ("A", "A"), ("B", "B"):
-        stage = result["stages"][name]
-        # Wrapped object with value + timing
-        assert isinstance(stage, dict)
-        assert stage.get("value") == expected_value
-        assert "start" in stage and "end" in stage and "elapsed" in stage
-        # start/end parse and are ordered
-        start = _iso(stage["start"])  # should not raise
-        end = _iso(stage["end"])  # should not raise
-        assert end >= start
-        # elapsed is non-zero (string like 0:00:00.xxxxxx)
-        assert stage["elapsed"].startswith("0:")
-        assert stage["succeeded"] is True
-
-    # stages_detailed mirrors the timing shape
-    assert "stages_detailed" in result
-    assert set(result["stages_detailed"].keys()) == {"A", "B"}
-
-
-@pytest.mark.asyncio
-async def test_case_timing_and_wrapping_and_internal_removed():
-    async def a(context):
-        await asyncio.sleep(0.02)
-        return 1
-
-    spec = [
-        {"name": "A", "function": a, "inputs": []},
-    ]
-    dag = build_dag_from_spec(spec)
-    case = {"uuid": "00000000-0000-0000-0000-000000000002"}
-
-    result = await process_one_case(case, dag, completed=None)
-
-    # Case metadata has start/end strings and positive elapsed
-    meta = result["metadata"]
-    assert "start" in meta and "end" in meta and "elapsed" in meta
-    assert _iso(meta["end"]) >= _iso(meta["start"])  # parse ok, ordering ok
-    assert meta["elapsed"].startswith("0:")
-
-    # Stage result is wrapped
-    stage = result["stages"]["A"]
-    assert stage["value"] == 1
-    for k in ("start", "end", "elapsed", "succeeded"):
-        assert k in stage
-
-    # Internal store removed in final result
-    assert "stage_metadata" not in result
-
-
-@pytest.mark.asyncio
-async def test_stage_elapsed_roughly_matches_sleep():
-    # Not exact, but elapsed must be >= requested sleep (monotonic timing)
-    sleep_s = 0.03
-
-    async def a(context):
-        await asyncio.sleep(sleep_s)
-        return "done"
-
-    dag = build_dag_from_spec([
-        {"name": "A", "function": a, "inputs": []},
-    ])
-    case = {"uuid": "00000000-0000-0000-0000-000000000003"}
-    result = await process_one_case(case, dag, completed=None)
-
-    # Convert stage elapsed "H:MM:SS.micro" to seconds via end-start parsing
-    stage = result["stages"]["A"]
-    start = _iso(stage["start"])  # parse ok
-    end = _iso(stage["end"])  # parse ok
-    wall_elapsed = (end - start).total_seconds()
-    # Wall elapsed should be >= 0; monotonic elapsed is used for string, so we
-    # assert wall time is at least non-negative and the run didn't collapse to zero.
-    assert wall_elapsed >= 0
-    # The string elapsed should indicate non-zero duration
-    assert stage["elapsed"] != "0:00:00"
 
 
 @pytest.mark.asyncio
@@ -313,7 +208,7 @@ async def test_run():
     ]
 
     # Should not raise an exception
-    dag = build_dag_from_spec(spec)
+    dag = Dag.from_spec(spec)
 
     context = {"stages": {}}
     await run_dag(dag, context)

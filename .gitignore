@@ -168,3 +168,9 @@ private
 logs
 .credentials.json
 models.json
+.credentials.yaml
+.credentials.yml
+models.json
+models.yaml
+models.yml
+out.md
