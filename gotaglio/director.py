@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
+from time import perf_counter
 import json
 import os
 import re
@@ -26,7 +27,10 @@ class Director:
         flat_config_patch,
         max_concurrancy,
     ):
-        self._start = datetime.now().timestamp()
+        # Wall-clock start for human-readable timestamps
+        self._start_wall = datetime.now(timezone.utc)
+        # Monotonic start for accurate elapsed timing
+        self._start_perf = perf_counter()
         self._concurrancy = max_concurrancy
         self._pipeline_name = pipeline_name
 
@@ -49,7 +53,8 @@ class Director:
 
         self._metadata = {
             "command": " ".join(sys.argv),
-            "start": str(datetime.fromtimestamp(self._start, timezone.utc)),
+            # Record wall-clock timestamps (UTC) for readability
+            "start": str(self._start_wall),
             "concurrency": self._concurrancy,
             "pipeline": {"name": pipeline_name, "config": self._pipeline._config},
         }
@@ -86,9 +91,9 @@ class Director:
             #
             # Gather and record post-run metadata
             #
-            end = datetime.now().timestamp()
-            elapsed = end - self._start
-            self._metadata["end"] = str(datetime.fromtimestamp(end, timezone.utc))
+            end_wall = datetime.now(timezone.utc)
+            elapsed = perf_counter() - self._start_perf
+            self._metadata["end"] = str(end_wall)
             self._metadata["elapsed"] = str(timedelta(seconds=elapsed))
             self._results["results"] = results
 
@@ -128,12 +133,24 @@ class Director:
 
 async def process_one_case(case, dag, completed):
     ExceptionContext.clear_context()
-    start = datetime.now().timestamp()
+    start_wall = datetime.now(timezone.utc)
+    start_perf = perf_counter()
     result = {
         "succeeded": False,
-        "metadata": {"start": str(datetime.fromtimestamp(start, timezone.utc))},
+        # Wall-clock timestamps for readability
+        "metadata": {"start": str(start_wall)},
         "case": case,
-        "stages": {},
+    # Stage return values go here (unchanged contract)
+    "stages": {},
+    # New: per-stage timing metadata populated by dag.run_task()
+    # Format per stage:
+    #   stage_metadata[stage_name] = {
+    #       "start": iso_utc,
+    #       "end": iso_utc,
+    #       "elapsed": "HH:MM:SS.ffffff",
+    #       "succeeded": bool
+    #   }
+    "stage_metadata": {},
     }
     try:
         await run_dag(dag, result)
@@ -145,11 +162,11 @@ async def process_one_case(case, dag, completed):
         }
         return result
 
-    end = datetime.now().timestamp()
+    end_wall = datetime.now(timezone.utc)
     if completed:
         completed()
-    elapsed = end - start
-    result["metadata"]["end"] = str(datetime.fromtimestamp(end, timezone.utc))
+    elapsed = perf_counter() - start_perf
+    result["metadata"]["end"] = str(end_wall)
     result["metadata"]["elapsed"] = str(timedelta(seconds=elapsed))
     result["succeeded"] = True
     return result

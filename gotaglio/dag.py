@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import traceback
 
 from .exceptions import ExceptionContext
@@ -69,17 +69,37 @@ def check_for_cycles(dag, node, path):
 
 # TODO: use semaphore to limit concurrency at the task level. Plumb all the way through.
 async def run_task(dag, name, context):
+    # Initialize timing container if not present
+    if "stage_metadata" not in context:
+        context["stage_metadata"] = {}
+
+    start_ts = datetime.now().timestamp()
+    start_iso = str(datetime.fromtimestamp(start_ts, timezone.utc))
+    # Pre-populate stage metadata entry
+    context["stage_metadata"].setdefault(name, {})
+    context["stage_metadata"][name]["start"] = start_iso
     try:
         result = await dag[name]["function"](context)
+        succeeded = True
+        return (name, result)
     except Exception as e:
+        # Record exception on context and re-raise so upstream can handle
         context["exception"] = {
             "stage": name,
             "message": ExceptionContext.format_message(e),
             "traceback": traceback.format_exc(),
             "time": str(datetime.now(timezone.utc)),
         }
+        succeeded = False
         raise e
-    return (name, result)
+    finally:
+        end_ts = datetime.now().timestamp()
+        end_iso = str(datetime.fromtimestamp(end_ts, timezone.utc))
+        elapsed = str(timedelta(seconds=(end_ts - start_ts)))
+        meta = context["stage_metadata"][name]
+        meta["end"] = end_iso
+        meta["elapsed"] = elapsed
+        meta["succeeded"] = succeeded
 
 
 def make_task(dag, name, context):
