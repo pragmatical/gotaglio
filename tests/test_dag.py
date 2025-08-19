@@ -223,12 +223,12 @@ async def test_stage_timing_detailed_and_positive():
     context = {"stages": {}}
     await run_dag(dag, context)
 
-    A = context["stages_detailed"]["A"]
-    B = context["stages_detailed"]["B"]
+    A = context["metadata"]["stages"]["A"]
+    B = context["metadata"]["stages"]["B"]
 
-    # Detailed results contain timing metadata
-    assert set(A.keys()) >= {"value", "start", "end", "elapsed", "succeeded"}
-    assert set(B.keys()) >= {"value", "start", "end", "elapsed", "succeeded"}
+    # Timing metadata stored under top-level metadata.stages
+    assert set(A.keys()) >= {"start", "end", "elapsed", "succeeded"}
+    assert set(B.keys()) >= {"start", "end", "elapsed", "succeeded"}
 
     def parse_elapsed(s):
         h, m, rest = s.split(":")
@@ -238,9 +238,9 @@ async def test_stage_timing_detailed_and_positive():
     assert parse_elapsed(A["elapsed"]) > 0
     assert parse_elapsed(B["elapsed"]) > 0
 
-    # Values preserved
-    assert A["value"] == "A-ok"
-    assert B["value"]["n"] == 1
+    # Values preserved in raw stages
+    assert context["stages"]["A"] == "A-ok"
+    assert context["stages"]["B"]["n"] == 1
 
 
 @pytest.mark.asyncio
