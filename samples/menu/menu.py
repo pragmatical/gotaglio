@@ -145,8 +145,8 @@ def stages(name, config, registry):
     # that context["stages"][name] will only be defined if after the stage
     # has successfully run to conclusion without raising an exception.
     #
-    # Note that a stage function will only be invoked if the previous stage
-    # has completed with a return value.
+    # Note that a stage function will only be invoked if all of its previous or
+    # input stages have completed with a return value.
 
     # Stage 1:Create the system and user messages
     async def prepare(context):
