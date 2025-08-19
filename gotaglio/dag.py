@@ -168,15 +168,11 @@ async def run_dag(dag_object, context):
             metadata["end"] = str(datetime.fromtimestamp(end, timezone.utc))
             metadata["elapsed"] = str(timedelta(seconds=elapsed))
             
-            # Embed per-stage timing metadata directly into each stage result for this turn
+            # Move per-stage timing metadata into the turn's metadata under a 'stages' key
             stage_meta = context.get("stage_metadata", {})
-            for _name, _value in list(stages.items()):
-                meta = stage_meta.get(_name, {})
-                wrapped = {"value": _value, "metadata": meta}
-                # Back-compat: hoist value keys to top-level so code can still access stages.<name>.<field>
-                if isinstance(_value, dict):
-                    wrapped.update(_value)
-                stages[_name] = wrapped
+            metadata.setdefault("stages", {})
+            for _name in list(stages.keys()):
+                metadata["stages"][_name] = stage_meta.get(_name, {})
             turn["succeeded"] = True
 
 

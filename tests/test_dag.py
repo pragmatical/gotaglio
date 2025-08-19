@@ -270,11 +270,14 @@ async def test_multi_turn_timing_is_per_turn_only():
 
     assert len(context["turns"]) == 2
     for turn in context["turns"]:
+        # Stage values remain raw
         stages = turn.get("stages")
         assert stages is not None
         assert set(stages.keys()) == {"A", "B"}
+        # Timing metadata is stored under turn.metadata.stages
+        md_stages = turn["metadata"].get("stages")
+        assert md_stages is not None
+        assert set(md_stages.keys()) == {"A", "B"}
         for name in ("A", "B"):
-            entry = stages[name]
-            assert set(entry.keys()) >= {"value", "metadata"}
-            md = entry["metadata"]
+            md = md_stages[name]
             assert set(md.keys()) >= {"start", "end", "elapsed", "succeeded"}
