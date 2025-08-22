@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-import os
+from typing import Any, cast
 
 from .constants import app_configuration
 from .exceptions import ExceptionContext
@@ -13,11 +13,12 @@ class Model(ABC):
     # value ouf of the context. Real models ignore the `context`
     # parameter.
     @abstractmethod
-    def infer(self, message, context=None):
+    @abstractmethod
+    async def infer(self, messages, context=None) -> str:
         pass
 
     @abstractmethod
-    def metadata(self):
+    def metadata(self) -> dict[str, Any]:
         pass
 
 
@@ -38,7 +39,7 @@ class AzureAI(Model):
 
         response = self._client.complete(messages=messages)
 
-        return response.choices[0].message.content
+        return cast(str, response.choices[0].message.content)
 
     def metadata(self):
         return {k: v for k, v in self._config.items() if k != "key"}

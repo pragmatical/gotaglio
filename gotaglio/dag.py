@@ -96,15 +96,22 @@ def make_task(dag, name, context):
     return asyncio.create_task(run_task(dag, name, context))
 
 
-async def run_dag(dag_object, context):
+async def run_dag(dag_object, context: dict[str, Any], turn_index: int | None = None):
     turns = glom(context, "case.turns", default=None)
     if turns is None:
         stages = {}
         context["stages"] = stages
         await run_dag_helper(dag_object, context, stages)
     else:
+        turn_count = len(turns)
         context["turns"] = []
-        for index in range(len(turns)):
+        if turn_index is not None:
+            if turn_index >= len(turns) or turn_index < 0:
+                raise IndexError(f"Turn index {turn_index} is out of range for available turns.")
+            turn_count = turn_index + 1
+            context["isolated_turn"] = True
+
+        for index in range(turn_count):
             start = datetime.now().timestamp()
             metadata = {"start": str(datetime.fromtimestamp(start, timezone.utc))}
             stages = {}
@@ -114,23 +121,26 @@ async def run_dag(dag_object, context):
                 "stages": stages,
             }
             context["turns"].append(turn)
-            try:
-                await run_dag_helper(dag_object, context, stages)
-            except Exception as e:
-                turn["exception"] = {
-                    "message": ExceptionContext.format_message(e),
-                    "traceback": traceback.format_exc(),
-                    "time": str(datetime.now(timezone.utc)),
-                }
-                # Stop processing turns after an error.                
-                return
+
+            if turn_index is None or turn_index == index:
+                try:
+                    await run_dag_helper(dag_object, context, stages)
+                except Exception as e:
+                    turn["exception"] = {
+                        "message": ExceptionContext.format_message(e),
+                        "traceback": traceback.format_exc(),
+                        "time": str(datetime.now(timezone.utc)),
+                    }
+                    # Stop processing turns after an error.
+                    return
 
             # Record the successful completion of this turn.
+            turn["succeeded"] = True
+            # TODO: should the following lines be in a finally block?
             end = datetime.now().timestamp()
             elapsed = end - start
             metadata["end"] = str(datetime.fromtimestamp(end, timezone.utc))
             metadata["elapsed"] = str(timedelta(seconds=elapsed))
-            turn["succeeded"] = True
 
 
 async def run_dag_helper(dag_object, context, stages):

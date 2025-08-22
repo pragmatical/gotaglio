@@ -22,6 +22,7 @@ from gotaglio.pipeline_spec import (
     get_turn,
     PipelineSpec,
     SummarizerSpec,
+    column_spec,
 )
 from gotaglio.pipeline import Internal, Prompt
 from gotaglio.repair import Repair
@@ -132,7 +133,7 @@ def stages(name, config, registry):
     # Cache a few configuration values for the prepare stage.
     assistant_history = glom(config, "prepare.assistant_history")
     user_history = glom(config, "prepare.user_history")
-    linked_turns = glom(config, "prepare.linked_turns") 
+    linked_turns = glom(config, "prepare.linked_turns")
 
     # Define the pipeline stage functions. Each stage function is a coroutine
     # that takes a context dictionary as an argument.
@@ -153,11 +154,11 @@ def stages(name, config, registry):
         i = len(context["turns"]) - 1
 
         # Get previous assistant and user messages.
-        previous = [x for x in (
-            context["turns"][i - 1]["stages"]["prepare"]
-            if i != 0
-            else []
-        ) if x["role"] != "system"]
+        previous = [
+            x
+            for x in (context["turns"][i - 1]["stages"]["prepare"] if i != 0 else [])
+            if x["role"] != "system"
+        ]
 
         if not assistant_history:
             # Want to keep the initial cart.
@@ -186,18 +187,19 @@ def stages(name, config, registry):
         cart = (
             context["case"]["cart"]
             if i == 0
-            else context["turns"][i - 1]["stages"]["extract"]
-            if linked_turns
-            else context["case"]["turns"][i - 1]["expected"]
+            else (
+                context["turns"][i - 1]["stages"]["extract"]
+                if linked_turns and not context["isolated_turns"]
+                else context["case"]["turns"][i - 1]["expected"]
+            )
         )
 
         assistant = {"role": "assistant", "content": to_json_string(cart)}
 
         # Prepare the user message for this turn.
         user = {"role": "user", "content": context["case"]["turns"][i]["user"]}
-        
-        return [system] + previous + [assistant, user]
 
+        return [system] + previous + [assistant, user]
 
     # Stage 2: Invoke the model to generate a response
     async def infer(context):
@@ -252,25 +254,13 @@ def stages(name, config, registry):
 # Summarizer extensions
 #
 ###############################################################################
-def passed_predicate(result):
-    """
-    Predicate function to determine if the result is considered passing.
-    This checks if the assessment stage's result is zero, indicating
-    that the LLM response matches the expected answer.
-
-    Used by the `format` and `summarize` sub-commands.
-    """
-    # TODO: is this right?
-    return glom(result, "stages.assess.cost", default=None) == 0
-
-
-def cost_cell(result, turn_index):
+def cost_cell(result: dict[str, Any], turn_index: int):
     """
     For user-defined `cost` column in the summary report table.
     Provides contents and formatting for the cost cell for the summary table.
     The cost is the difference between the model's response and the expected answer.
     """
-    cost = get_stages(result, turn_index)["assess"]["cost"]
+    cost = glom(get_stages(result, turn_index), "assess.cost", default=None)
     cost_text = "" if cost == None else f"{cost:.2f}"
     return (
         Text(cost_text, style="bold green")
@@ -345,7 +335,7 @@ def expected(result, turn_index=None):
     return get_turn(result, turn_index)["expected"]
 
 
-def passed_predicate(result, turn_index = None):
+def passed_predicate(result, turn_index=None):
     """
     Predicate function to determine if the result is considered passing.
     This checks if the assessment stage's result is zero, indicating
@@ -353,7 +343,7 @@ def passed_predicate(result, turn_index = None):
 
     Used by the `format` and `summarize` sub-commands.
     """
-    return get_stages(result, turn_index)["assess"]["cost"] == 0
+    return glom(get_stages(result, turn_index), "assess.cost", default=None) == 0
 
 
 ###############################################################################
@@ -385,9 +375,9 @@ menu_pipeline_spec = PipelineSpec(
     # summarize the results of the run.
     summarizer=SummarizerSpec(
         columns=[
-            ColumnSpec(name="cost", contents=cost_cell),
+            column_spec(name="cost", contents=cost_cell),
             keywords_column,
-            ColumnSpec(name="user", contents=user_cell),
+            column_spec(name="user", contents=user_cell),
         ]
     ),
 )

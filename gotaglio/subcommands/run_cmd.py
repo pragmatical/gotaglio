@@ -1,5 +1,6 @@
 import asyncio
 from rich.progress import Progress, SpinnerColumn, TimeElapsedColumn
+from typing import Any, cast
 
 from ..constants import app_configuration
 from ..director import Director
@@ -12,6 +13,7 @@ from ..shared import (
 )
 from ..summarize import summarize
 
+
 def run_command(pipeline_specs: PipelineSpecs, args):
     cases_file = args.cases
     pipeline_name = args.pipeline
@@ -20,9 +22,13 @@ def run_command(pipeline_specs: PipelineSpecs, args):
 
     pipeline_spec = pipeline_specs.get(pipeline_name)
 
-    cases = read_data_file(cases_file, False, False)
+    # TODO: remove this temporary cast once we get pydantic validation of the cases.
+    cases = cast(Any, read_data_file(cases_file, False, False))
 
-    director = Director(pipeline_spec, cases, None, flat_config_patch, concurrency)
+    # TODO: remove this cast after we validate or annotate the command-line arguments.
+    director = Director(
+        pipeline_spec, cases, None, flat_config_patch, cast(int, concurrency)
+    )
     print(f"Run configuration")
     print(f"  id: {director._id}")
     print(f"  cases: {cases_file}")
@@ -45,7 +51,10 @@ def rerun_command(pipeline_specs: PipelineSpecs, args):
     log = read_json_file(log_file_name, False)
     metadata = log["metadata"]
 
-    concurrency = args.concurrency or app_configuration["default_concurrancy"]
+    # TODO: remove this cast once the args are typed.
+    concurrency = cast(
+        int, args.concurrency or app_configuration["default_concurrancy"]
+    )
 
     cases = [record["case"] for record in log["results"]]
     if "pipeline" not in metadata:
@@ -79,7 +88,7 @@ def rerun_command(pipeline_specs: PipelineSpecs, args):
     run_with_progress_bar(director)
 
     director.write()
-    director.summarize()
+    summarize(pipeline_spec, director._results)
 
 
 def run_with_progress_bar(

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 import os
 import sys
 import traceback
-from typing import Any, List
+from typing import Any, Callable, List
 import uuid
 
 from .constants import app_configuration
@@ -76,7 +76,7 @@ class Director:
 
             async def sem_task(case):
                 async with semaphore:
-                    return await process_one_case(case, self._dag, completed)
+                    return await self.process_one_case(case, completed)
 
             tasks = [sem_task(case) for case in self._cases]
             results = await asyncio.gather(*tasks)
@@ -103,6 +103,14 @@ class Director:
                 progress.stop()
             return self._results
 
+    async def process_one_case(
+        self,
+        case: dict[str, Any],
+        completed: Callable | None = None,
+        turn: int | None = None,
+    ):
+        return await process_one_case(case, self._dag, completed, turn)
+
     def write(self):
         # Write results to log file
         log_folder = app_configuration["log_folder"]
@@ -117,6 +125,7 @@ class Director:
         return self._pipeline.diff_configs()
 
 
+# TODO: consider pydantic validation of cases
 def validate_cases(cases):
     if not isinstance(cases, list):
         raise ValueError("Cases must be a list.")

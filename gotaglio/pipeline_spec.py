@@ -3,19 +3,14 @@ from rich.console import Console
 from typing import Any, Callable
 
 
-class TurnLocator(BaseModel):
-    index: int = Field(..., description="Turn index")
-    isolated: bool = Field(False, description="Is the turn isolated")
-
-
 class FormatterSpec(BaseModel):
-    before_case: Callable[[Console, dict[str, Any]], None] = Field(
+    before_case: Callable[[Console, dict[str, Any]], None] | None = Field(
         default=None, description="Function to generate contents before each case"
     )
-    after_case: Callable[[Console, dict[str, Any]], None] = Field(
+    after_case: Callable[[Console, dict[str, Any]], None] | None = Field(
         default=None, description="Function to generate contents after each case"
     )
-    format_turn: Callable[[Console, int, dict[str, Any]], None] = Field(
+    format_turn: Callable[[Console, int, dict[str, Any]], None] | None = Field(
         default=None, description="Function to generate contents for each turn"
     )
 
@@ -25,13 +20,13 @@ class ColumnSpec(BaseModel):
     params: dict[str, Any] = Field(
         {}, description="Rich formatting parameters for the column"
     )
-    contents: Callable[[dict[str, Any]], Any] = Field(
+    contents: Callable[[dict[str, Any], int], Any] = Field(
         ..., description="Function to create the cell contents"
     )
 
 
 def column_spec(
-    name: str, contents: Callable[[dict[str, Any]], Any], **kwargs
+    name: str, contents: Callable[[dict[str, Any], int], Any], **kwargs
 ) -> ColumnSpec:
     """
     Convenience factory creates ColumnSpec for use in SummarizerSpec.
@@ -51,16 +46,16 @@ class PipelineSpec(BaseModel):
         ..., description="Function to create the DAG"
     )
     expected: Callable[[dict[str, Any]], Any] = Field(
-        default=None, description="Function that returns the expected result of a turn."
+        ..., description="Function that returns the expected result of a turn."
     )
-    formatter: FormatterSpec | Callable = Field(
+    formatter: FormatterSpec | Callable | None = Field(
         default=None, description="Optional formatter spec or function"
     )
     passed_predicate: Callable[[dict[str, Any]], bool] = Field(
         default=lambda result: False,
         description="Function to determine if the summarization passed",
     )
-    summarizer: SummarizerSpec | Callable = Field(
+    summarizer: SummarizerSpec | Callable | None = Field(
         default=None, description="Optional summarizer spec or function"
     )
 
@@ -73,7 +68,7 @@ class PipelineSpecs:
     def __init__(self, pipelines: list[PipelineSpec]):
         self.pipelines = pipelines
 
-    def get(self, name: str) -> PipelineSpec | None:
+    def get(self, name: str) -> PipelineSpec:
         """
         Retrieve a PipelineSpec by name.
         """

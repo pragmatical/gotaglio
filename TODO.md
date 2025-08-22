@@ -1,5 +1,11 @@
 # TODO
 
+* Server api support
+  * preview()
+  * validate()
+  * run() - already there
+* Stage metadata timestamps
+* Remove performance folder created by copilot
 * merge turns-rebase into main
 * is internal cache of template file necessary?
 * isolated_turn - for preview
