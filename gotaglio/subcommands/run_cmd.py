@@ -10,6 +10,7 @@ from ..shared import (
     parse_key_value_args,
     read_data_file,
     read_json_file,
+    write_log_file,
 )
 from ..summarize import summarize
 
@@ -26,11 +27,8 @@ def run_command(pipeline_specs: PipelineSpecs, args):
     cases = cast(Any, read_data_file(cases_file, False, False))
 
     # TODO: remove this cast after we validate or annotate the command-line arguments.
-    director = Director(
-        pipeline_spec, cases, None, flat_config_patch, cast(int, concurrency)
-    )
+    director = Director(pipeline_spec, None, flat_config_patch, cast(int, concurrency))
     print(f"Run configuration")
-    print(f"  id: {director._id}")
     print(f"  cases: {cases_file}")
     print(f"  pipeline: {pipeline_name}")
     diff = director.diff_configs()
@@ -39,10 +37,10 @@ def run_command(pipeline_specs: PipelineSpecs, args):
     print(f"  concurrancy: {concurrency}")
     print("")
 
-    run_with_progress_bar(director)
+    runlog = run_with_progress_bar(director, cases)
 
-    director.write()
-    summarize(pipeline_spec, director._results)
+    write_log_file(runlog, chatty=True)
+    summarize(pipeline_spec, runlog)
 
 
 def rerun_command(pipeline_specs: PipelineSpecs, args):
@@ -66,17 +64,16 @@ def rerun_command(pipeline_specs: PipelineSpecs, args):
     replacement_config = metadata["pipeline"]["config"]
     flat_config_patch = parse_key_value_args(args.key_values)
 
+    # TODO: remove this cast after we validate or annotate the command-line arguments.
     director = Director(
         pipeline_spec,
-        cases,
         replacement_config,
         flat_config_patch,
-        concurrency,
+        cast(int, concurrency),
     )
 
     print(f"Rerun configuration")
     print(f"  based on: {log["uuid"]}")
-    print(f"  id: {director._id}")
     print(f"  cases: {log_file_name}")
     print(f"  pipeline: {pipeline_name}")
     diff = director.diff_configs()
@@ -85,25 +82,24 @@ def rerun_command(pipeline_specs: PipelineSpecs, args):
     print(f"  concurrancy: {concurrency}")
     print("")
 
-    run_with_progress_bar(director)
+    runlog = run_with_progress_bar(director, cases)
 
-    director.write()
-    summarize(pipeline_spec, director._results)
+    write_log_file(runlog, chatty=True)
+    summarize(pipeline_spec, runlog["results"])
 
 
-def run_with_progress_bar(
-    director,
-):
+def run_with_progress_bar(director: Director, cases):
     with Progress(
         SpinnerColumn(),
         *Progress.get_default_columns(),
         TimeElapsedColumn(),
         transient=True,
     ) as progress:
-        task1 = progress.add_task("[red]Processing...", total=len(director._cases))
+        task = progress.add_task("[red]Processing...", total=len(cases))
 
         def completed():
-            progress.update(task1, advance=1)
+            progress.update(task, advance=1)
 
-        asyncio.run(director.process_all_cases(progress, completed))
-        progress.update(task1, visible=False)
+        runlog = asyncio.run(director.process_all_cases(cases, progress, completed))
+        progress.update(task, visible=False)
+        return runlog

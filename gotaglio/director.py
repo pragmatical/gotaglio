@@ -20,7 +20,6 @@ class Director:
     def __init__(
         self,
         pipeline_spec: PipelineSpec,
-        cases: List[dict[str, Any]],
         replacement_config: dict[str, Any] | None,
         flat_config_patch: dict[str, Any],
         max_concurrency: int,
@@ -37,11 +36,6 @@ class Director:
         )
         self._dag = self._pipeline.get_dag()
 
-        self._id = uuid.uuid4()
-        self._output_file = os.path.join(
-            app_configuration["log_folder"], f"{self._id}.json"
-        )
-
         self._metadata = {
             "command": " ".join(sys.argv),
             "start": str(datetime.fromtimestamp(self._start, timezone.utc)),
@@ -51,11 +45,6 @@ class Director:
                 "config": self._pipeline.get_config(),
             },
         }
-        self._results = {
-            "results": {},
-            "metadata": self._metadata,
-            "uuid": str(self._id),
-        }
 
         sha = get_git_sha()
         edits = get_current_edits() if sha else None
@@ -64,10 +53,16 @@ class Director:
         if edits:
             self._metadata["edits"] = edits
 
+    async def process_all_cases(self, cases, progress, completed):
+        # TODO: validation should be done when cases are loaded.
         validate_cases(cases)
-        self._cases = cases
+        id = uuid.uuid4()
+        runlog = {
+            "results": {},
+            "metadata": self._metadata.copy(),
+            "uuid": str(id),
+        }
 
-    async def process_all_cases(self, progress, completed):
         try:
             #
             # Perform the run
@@ -78,7 +73,7 @@ class Director:
                 async with semaphore:
                     return await self.process_one_case(case, completed)
 
-            tasks = [sem_task(case) for case in self._cases]
+            tasks = [sem_task(case) for case in cases]
             results = await asyncio.gather(*tasks)
 
             #
@@ -86,12 +81,12 @@ class Director:
             #
             end = datetime.now().timestamp()
             elapsed = end - self._start
-            self._metadata["end"] = str(datetime.fromtimestamp(end, timezone.utc))
-            self._metadata["elapsed"] = str(timedelta(seconds=elapsed))
-            self._results["results"] = results
+            runlog["metadata"]["end"] = str(datetime.fromtimestamp(end, timezone.utc))
+            runlog["metadata"]["elapsed"] = str(timedelta(seconds=elapsed))
+            runlog["results"] = results
 
         except Exception as e:
-            self._metadata["exception"] = {
+            runlog["metadata"]["exception"] = {
                 "message": str(e),
                 "traceback": traceback.format_exc(),
                 "time": str(datetime.now(timezone.utc)),
@@ -101,7 +96,7 @@ class Director:
             # disappear when the task is completed. It just stops updating.
             if progress:
                 progress.stop()
-            return self._results
+            return runlog
 
     async def process_one_case(
         self,
@@ -111,21 +106,12 @@ class Director:
     ):
         return await process_one_case(case, self._dag, completed, turn)
 
-    def write(self):
-        # Write results to log file
-        log_folder = app_configuration["log_folder"]
-        if not os.path.exists(log_folder):
-            os.makedirs(log_folder)
-        write_json_file(self._output_file, self._results)
-
-        print(f"Results written to {self._output_file}")
-        return {"log": self._output_file, "results": self._results}
-
     def diff_configs(self):
         return self._pipeline.diff_configs()
 
 
 # TODO: consider pydantic validation of cases
+# TODO: validation should be done by users of Director
 def validate_cases(cases):
     if not isinstance(cases, list):
         raise ValueError("Cases must be a list.")

@@ -8,7 +8,12 @@ from .constants import app_configuration_values
 from .director import Director
 from .format import format
 from .pipeline_spec import PipelineSpec, PipelineSpecs, PipelineSpecs
-from .shared import apply_patch_in_place, read_json_file, read_log_file_from_prefix
+from .shared import (
+    apply_patch_in_place,
+    read_json_file,
+    read_log_file_from_prefix,
+    write_log_file,
+)
 from .summarize import summarize
 
 
@@ -64,19 +69,20 @@ class Gotaglio:
 
         director = Director(
             pipeline_spec,
-            cases,
             replacement_config,
             flat_config_patch,
             concurrency,
         )
 
-        asyncio.run(director.process_all_cases(ProgressMock(), completed_mock))
-        summarize(pipeline_spec, director._results)
+        runlog = asyncio.run(
+            director.process_all_cases(cases, ProgressMock(), completed_mock)
+        )
+        summarize(pipeline_spec, runlog)
 
         if save:
-            director.write()
+            write_log_file(runlog, chatty = True)
 
-        return director._results
+        return runlog
 
     def run(
         self,
@@ -90,23 +96,23 @@ class Gotaglio:
         cases = cases_from_cases_or_filename(cases_or_filename)
         director = Director(
             pipeline_spec,
-            cases,
             None,
             flat_config_patch,
             concurrency,
         )
 
-        asyncio.run(director.process_all_cases(ProgressMock(), completed_mock))
-        summarize(pipeline_spec, director._results)
+        runlog = asyncio.run(
+            director.process_all_cases(cases, ProgressMock(), completed_mock)
+        )
+        summarize(pipeline_spec, runlog)
 
         if save:
-            director.write()
+            write_log_file(runlog, chatty = True)
 
-        return director._results
+        return runlog
 
-    def save(self, runlog, filename=None):
-        # TODO: implement
-        pass
+    def save(self, runlog, filename: str | None = None, chatty: bool = False):
+        write_log_file(runlog, filename, chatty)
 
     def summarize(self, runlog_or_prefix):
         runlog = runlog_from_runlog_or_prefix(runlog_or_prefix)
@@ -138,9 +144,10 @@ def completed_mock():
 
 def is_running_in_notebook():
     try:
-        from IPython import get_ipython
+        from IPython.core.getipython import get_ipython
 
-        if "IPKernelApp" in get_ipython().config:
+        ipython = get_ipython()
+        if ipython is not None and "IPKernelApp" in ipython.config:
             return True
     except ImportError:
         return False

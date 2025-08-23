@@ -1,5 +1,12 @@
 # TODO
 
+* Refactor director to better support preview() and validate()
+  * Move cases out of constructor
+  * typing annotations for cases
+* Test suite and test case validation
+  * General pydantic validator
+  * Special validator for test case
+  * Validation for runlogs
 * Server api support
   * preview()
   * validate()
