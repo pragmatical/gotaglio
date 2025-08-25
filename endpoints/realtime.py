@@ -11,6 +11,7 @@ from fastapi import FastAPI, WebSocket
 from fastapi.responses import HTMLResponse
 from fastapi import WebSocket, WebSocketDisconnect
 from dotenv import load_dotenv
+from jinja2 import Environment
 
 load_dotenv("credentials.env")
 
@@ -42,24 +43,56 @@ class Realtime:
             if self.session and not self.session.closed:
                 await self.session.close()
             raise ConnectionError(f"Cannot connect to Azure OpenAI Realtime API: {str(e)}")
+        
+
+    async def make_prompt(self) -> str:
+        """
+        Build the instructions prompt by rendering a Jinja2 template that includes a
+        menu placeholder.
+
+        Environment variables used:
+        - PROMPT_TEMPLATE_PATH: path to the prompt template text file
+        - MENU_PATH: path to the menu file to embed
+
+        The template should include a placeholder like `{{ menu }}` where the menu
+        text will be injected.
+        """
+        prompt_template_path = os.environ.get("PROMPT_TEMPLATE_PATH")
+        menu_path = os.environ.get("MENU_PATH")
+
+        if not prompt_template_path:
+            raise ValueError("PROMPT_TEMPLATE_PATH is not set in environment")
+        if not menu_path:
+            raise ValueError("MENU_PATH is not set in environment")
+
+        def _read_text_file(path: str) -> str:
+            """Read a text file from an absolute or relative path; if relative, also try relative to this file's directory."""
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    return f.read()
+            except FileNotFoundError:
+                alt = os.path.join(os.path.dirname(__file__), path)
+                with open(alt, "r", encoding="utf-8") as f:
+                    return f.read()
+
+        template_text = _read_text_file(prompt_template_path)
+        menu_text = _read_text_file(menu_path)
+
+        env = Environment()
+        template = env.from_string(template_text)
+        rendered = template.render(menu=menu_text)
+        return rendered
 
     async def send_session_config(self):
-        # Load prompt from local file
-        prompt_path = os.environ.get("PROMPT_TEMPLATE_PATH")
-        with open(prompt_path, "r", encoding="utf-8") as f:
-            prompt_text = f.read()
-
-        # Basic realtime instructions
-        enhanced_prompt = (
-            "Respond in spanish. " + prompt_text
-        )
+        # Build prompt from template and menu
+        prompt_text = await self.make_prompt()
 
         # Simple session configuration
         config = {
             "type": "session.update",
             "session": {
                 "modalities": ["text", "audio"],
-                "instructions": enhanced_prompt,
+                "instructions": prompt_text,
                 "voice": self.voice_choice,
                 "input_audio_format": "pcm16",
                 "output_audio_format": "pcm16",
