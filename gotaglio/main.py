@@ -2,19 +2,22 @@ import argparse
 
 from .constants import app_configuration
 from .exceptions import ExceptionContext
+from .pipeline_spec import PipelineSpec, PipelineSpecs
 from .registry import Registry
-from .subcommands.add_ids import add_ids
-from .subcommands.compare import compare
-from .subcommands.format import format
-from .subcommands.help import show_help
-from .subcommands.history import show_history
-from .subcommands.list_models import list_models
-from .subcommands.list_pipelines import list_pipelines
-from .subcommands.run import rerun_pipeline, run_pipeline
-from .subcommands.summarize import summarize
+from .subcommands.add_ids_cmd import add_ids
+from .subcommands.compare_cmd import compare_command
+from .subcommands.format_cmd import format_command
+from .subcommands.help_cmd import show_help
+from .subcommands.history_cmd import show_history
+from .subcommands.list_models_cmd import list_models
+from .subcommands.list_pipelines_cmd import list_pipelines
+from .subcommands.run_cmd import rerun_command, run_command
+from .subcommands.summarize_cmd import summarize_command
 
 
-def main(pipelines):
+def main(pipelines: list[PipelineSpec]):
+    pipeline_specs = PipelineSpecs(pipelines)
+ 
     # Use create_registry() to delay Registry configuration until we
     # actually need to instantiate a Registry. This avoids Registry
     # instantiation exceptions before argument parsing exceptions.
@@ -131,7 +134,7 @@ def main(pipelines):
             add_ids(args.suite, args.force)
 
         elif args.command == "compare":
-            compare(create_registry, args)
+            compare_command(pipeline_specs, args)
 
         elif args.command == "help":
             show_help(parser, args)
@@ -140,22 +143,22 @@ def main(pipelines):
             show_history()
 
         elif args.command == "models":
-            list_models(create_registry)
+            list_models()
 
         elif args.command == "pipelines":
-            list_pipelines(create_registry)
+            list_pipelines(pipeline_specs)
 
         elif args.command == "rerun":
-            rerun_pipeline(create_registry, args)
+            rerun_command(pipeline_specs, args)
 
         elif args.command == "run":
-            run_pipeline(create_registry, args)
+            run_command(pipeline_specs, args)
 
         elif args.command == "format":
-            format(create_registry, args)
+            format_command(pipeline_specs, args)
 
         elif args.command == "summarize":
-            summarize(create_registry, args)
+            summarize_command(pipeline_specs, args)
 
         else:
             parser.print_help()

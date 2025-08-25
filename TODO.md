@@ -1,5 +1,168 @@
 # TODO
 
+* isolated_turn - for preview
+* validate turn
+* whole case statistics for multi-step - e.g. all turns pass, case pass rate
+* should summarize also display configuration information?
+* x print config information at top of format
+* x menu sample - historical_users, historical_carts, linked_turns
+* x Test publish
+* x Test with downstream packages
+* x Update downstream packages
+* x rename 2-versions: pipeline2, director2
+* x remove turn_index from context
+* Menu shoud include entire prior conversation
+  * filter query based on priors
+  * is passed_predicate right? What about turns? is it for the case or the turn?
+  * pipeline spec should validate expected() function is not None (use ... also)
+  in format_turn, is stages the right name? Maybe turn_result?
+* x Should format_turn take turn_result?
+* x Eliminate MappingSpec
+* x menu.ipynd crash on format dc20a60b-d7f0-4e04-9841-9b5f5789d31c
+* x rename get_turn to get_turn_case? Rationalize all three names
+* x in status_cell() variable name x
+* x uses_turns should be in pipeline_spec
+* x menu.ipynb crashes in format on line 48
+
+
+* dag.ipynb has extra output cells at end
+* unit tests for pipelines
+  * single turn
+  * multiple turns
+* preview() method
+* TODO: consider creating full conversation history for all preceding turns. Will need to somehow pass in the entire context and a turn index.
+* Keyword filtering
+* Update documentation
+* Is it ok for config merge to add new keys that didn't exist before? What about typos?
+* Design note about coercing types of a=b command line parameters.
+  * It seems like argparse can't help here as it doesn't know about the type.
+  * Perhaps pydantic can help. It might also help with invalid keys.
+* x Configure publish workflow.
+* x Investigate process_one_case() implementation differences
+  * x director - what is "result["turn"] = turn"?
+* x Better name for format_case. Code reuse?
+* x Compare
+* x Ensure sample cases have unique uuids - not copied from one another
+* x Does director need format() and summarize()?
+* x Is there any reason format() and summarize() can't create their own consoles?
+* x Finish up formatter
+* x Dag sample
+* . Overarching main() for all samples
+* x Jupyter notebooks
+* x Calculator formatting
+  * x JSON fenced code block - remove
+  * x Auto expand/collapse heuristic
+  * x All cases say failed
+
+~~~
+python samples\menu\menu.py run menu samples\menu\data\cases.yaml prepare.template=samples\menu\data\template.txt infer.model.name=perfect
+
+734 - failing
+618 - passing
+
+python samples\menu\menu.py summarize latest
+
+
+python samples\calc\calc.py run calc samples\calc\data\cases.yaml prepare.template=samples\calc\data\template.txt infer.model.name=perfect
+
+45f b90
+python samples\calc\calc.py compare 45f b90
+
+python samples\dag\dag.py run dag samples\dag\data\cases.yaml
+
+~~~
+
+* Today
+  * x Expand/collapse prompt
+  * TODO: model for saving state between formatter spec function calls
+  * Handle missing optional PipelineSpec parts (e.g. mappings)
+  * x Perhaps TurnMappingSpec becomes MappingSpec with optional `turns` path
+  * x Use spec.mappings.turns
+  * x perfect and flakey model parameterized by turns spec
+  * Translate gotag.py
+  * Code duplication: traceback.format_exc()?
+  * x Rename run.py to run_command.py and etc.
+  * x Abstract looking up pipeline spec
+  * Translate rerun
+  * . Translate summarize
+  * Continue cleaning up TODOs in Pipeline2.format
+  * x format.py's format() should take spec
+  * x summarize.py's summarize should take spec
+  * Naming format, formatter, etc.
+  * Do we need both Director.summarize() and summarize()?
+  * Formatting cleanup/refactor
+    * x Director2.format_results()
+    * x Pipeline2.format()
+    * x format.py: * format()
+    * x FormatterSpec
+    * Gotaglio.format()
+    * x PipelineSpec.format
+    * formatter_spec parameter and local variable
+    * Registry.format()
+  * Dealing with turns in format, summarize, compare
+    * Summarizer.summarize status cell
+  * Registry becomes Models or ModelRegistry
+  * Remove registry functions for format, summarize, compare, etc.
+  * pipelines becomes Pipelines or PipelineRegistry
+  * Test default formatter, summarizer, pass_predicate, turn_mapper
+  * Consistant turn_mapper name
+  * x pipeline.diff_configs()
+  * pipeline preview() operation
+  * # TODO: move these functions out of registry.
+  * # TODO: what about optional uuid_prefix parameter?
+  * # TODO: lazy construction of models on first use
+  * 'Pipeline2' object has no attribute 'diff_configs'
+  * x breaking change notes
+  * x directory walk to find configs
+  * x configs can be json or yaml
+  * .gotaglio.credentials.json/yaml
+  * .gotaglio.models.json/yaml
+  * x read_data_file
+  * x write_data_file
+  * x extract tokenizer to own file
+  * x passed predicate moves to PipelineSpec
+  * x Pipelines should have the ability to locally register models.
+  * . Extensible format
+    * Port cli samples - simple, calculator, menu
+    * Port notebooks
+    * Create tour demo and docs - show all commands and sub-commands
+  * Extensible compare
+  * Rewrite samples, update documentation
+  * Type annotations everywhere
+    * Use modern tpying
+    * mypy?
+    * search everywhere for `typing`
+  * x In pipeline2.py, line 77: "user": turn["user"], # TODO: configurable
+  * x Summary
+    * x Complete: 6/2 (300.00%) - two cases with three steps each
+    * x Pass/fail predicate
+    * x keywords column
+  * x Log logs\43131cfe-1627-4d6f-ae48-5e4ee5527934.json shows `turn` object and `case` object
+  * x Rename TurnSpec to TurnMapping?
+    * x Can't copy/remap all fields - should instead get fields from case. e.g. need `user` and `base`
+  * x Extensible perfect and flakey models
+  * Exception when `expected != "answer"` - summary has no rows
+  * Path to models.json and .credentials.json
+* Before
+  * Configurable pipeline with turns
+    * Configurable
+      * Initial value field
+      * "user" field for summarize()
+      * tokenizer
+      * repairs
+    * mechanism to override summarize() and format()
+    * compare() method
+  * Lazily load tokenizer
+  * Better error formatting in notebooks
+    * e.g. missing models.json or .credentials.json
+    * gt.run() should write log file, even if summarize() crashes.
+  * Understand system configuration options
+    * Perhaps have an override for turn count
+  * Run individual pipeline turns - for service
+  * Read and write JSON or YAML
+    * Extension detect
+    * utf-8 handling
+    * System config for output format when no extension specified
 * Top top
   * [Poetry vs uv](https://teams.microsoft.com/l/message/19:f470c3664251434a981ea790c11c7b61@thread.tacv2/1741214705520?tenantId=72f988bf-86f1-41af-91ab-2d7cd011db47&groupId=11dded2c-9d9a-470c-a312-e8eeceb5a1ab&parentMessageId=1741214705520&teamName=IS%20Engineering&channelName=GUILD%20-%20Software%20Engineering&createdTime=1741214705520)
   * Consider jsonl for cases

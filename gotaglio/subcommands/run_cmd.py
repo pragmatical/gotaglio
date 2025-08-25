@@ -3,35 +3,31 @@ from rich.progress import Progress, SpinnerColumn, TimeElapsedColumn
 
 from ..constants import app_configuration
 from ..director import Director
+from ..pipeline_spec import PipelineSpecs
 from ..shared import (
     log_file_name_from_prefix,
     parse_key_value_args,
+    read_data_file,
     read_json_file,
 )
+from ..summarize import summarize
 
-
-def run_pipeline(registry_factory, args):
+def run_command(pipeline_specs: PipelineSpecs, args):
     cases_file = args.cases
     pipeline_name = args.pipeline
     flat_config_patch = parse_key_value_args(args.key_values)
     concurrency = args.concurrency or app_configuration["default_concurrancy"]
 
-    cases = read_json_file(cases_file, False)
+    pipeline_spec = pipeline_specs.get(pipeline_name)
 
-    director = Director(
-        registry_factory,
-        pipeline_name,
-        cases,
-        None,
-        flat_config_patch,
-        concurrency,
-    )
+    cases = read_data_file(cases_file, False, False)
 
+    director = Director(pipeline_spec, cases, None, flat_config_patch, concurrency)
     print(f"Run configuration")
     print(f"  id: {director._id}")
     print(f"  cases: {cases_file}")
     print(f"  pipeline: {pipeline_name}")
-    diff = director._pipeline.diff_configs()
+    diff = director.diff_configs()
     lines = [f"    {k}: {v1} => {v2}" for k, v1, v2 in diff]
     print("\n".join(lines))
     print(f"  concurrancy: {concurrency}")
@@ -39,11 +35,11 @@ def run_pipeline(registry_factory, args):
 
     run_with_progress_bar(director)
 
-    director.write_results()
-    director.summarize_results()
+    director.write()
+    summarize(pipeline_spec, director._results)
 
 
-def rerun_pipeline(registry_factory, args):
+def rerun_command(pipeline_specs: PipelineSpecs, args):
     original_id = args.id
     log_file_name = log_file_name_from_prefix(original_id)
     log = read_json_file(log_file_name, False)
@@ -56,12 +52,13 @@ def rerun_pipeline(registry_factory, args):
         raise Exception("No pipeline metadata found in results file")
 
     pipeline_name = metadata["pipeline"]["name"]
+    pipeline_spec = pipeline_specs.get(pipeline_name)
+
     replacement_config = metadata["pipeline"]["config"]
     flat_config_patch = parse_key_value_args(args.key_values)
 
     director = Director(
-        registry_factory,
-        pipeline_name,
+        pipeline_spec,
         cases,
         replacement_config,
         flat_config_patch,
@@ -73,7 +70,7 @@ def rerun_pipeline(registry_factory, args):
     print(f"  id: {director._id}")
     print(f"  cases: {log_file_name}")
     print(f"  pipeline: {pipeline_name}")
-    diff = director._pipeline.diff_configs()
+    diff = director.diff_configs()
     lines = [f"    {k}: {v1} => {v2}" for k, v1, v2 in diff]
     print("\n".join(lines))
     print(f"  concurrancy: {concurrency}")
@@ -81,8 +78,8 @@ def rerun_pipeline(registry_factory, args):
 
     run_with_progress_bar(director)
 
-    director.write_results()
-    director.summarize_results()
+    director.write()
+    director.summarize()
 
 
 def run_with_progress_bar(

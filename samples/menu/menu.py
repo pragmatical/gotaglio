@@ -1,486 +1,436 @@
-"""
-This module demonstrates the implementation of a simple, linear pipeline
-for a restaurant ordering bot.
-
-The pipeline has the following stages:
-    - prepare: prepares the system, agent, and user messages for the
-               for the model. Uses a jinga2 template to format the system
-               message.
-    - infer: invokes the model to generate a response.
-    - extract: extracts a JSON shopping cart from the model response.
-    - assess: compares the model response to the expected answer.
-
-The pipeline also provides implementations the following sub-commnads,
-which can be invoked from the command line:
-    - summarize: prints a summary of the results.
-    - format: pretty prints the each case
-    - compare: compares two pipeline runs.
-"""
-
+from glom import glom
 import json
 import os
 from rich.console import Console
-from glom import glom
-from rich.table import Table
 from rich.text import Text
 import sys
-import tiktoken
+from typing import Any
 
 # Add the parent directory to the sys.path so that we can import from the
 # gotaglio package, as if it had been installed.
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
+from gotaglio.dag import Dag
 from gotaglio.exceptions import ExceptionContext
-from gotaglio.helpers import IdShortener
+from gotaglio.format import format_messages
 from gotaglio.main import main
-from gotaglio.models import Model
-from gotaglio.pipeline import Internal, Pipeline, Prompt
+from gotaglio.pipeline_spec import (
+    ColumnSpec,
+    FormatterSpec,
+    get_result,
+    get_stages,
+    get_turn,
+    PipelineSpec,
+    SummarizerSpec,
+)
+from gotaglio.pipeline import Internal, Prompt
 from gotaglio.repair import Repair
-from gotaglio.shared import build_template
+from gotaglio.shared import build_template, to_json_string
+from gotaglio.summarize import keywords_column
+from gotaglio.tokenizer import tokenizer
 
 
-class MenuPipeline(Pipeline):
-    # The Pipeline abstract base class requires _name and _description.
-    # These are used by the Registry to list and instantiate pipelines.
-    # The `pipelines` subcommand will print a list of available pipelines,
-    # with their names and descriptions.
-    _name = "menu"
-    _description = "An example pipeline for an LLM-based food ordering bot."
+###############################################################################
+#
+# Default Configuration Values
+#
+###############################################################################
 
-    def __init__(self, registry, replacement_config, flat_config_patch):
-        """
-        Initializes the pipeline with the given Registry and configuration.
-
-        Args:
-          - registry: an instance of class Registry. Provides access to models.
-          - replacement_config: a configuration that should be used instead of the
-              default configuration provided by the pipeline. The replacement_config
-              is used when rerunning a case from a log file.
-          - flat_config_patch: a dictionary of glom-style key-value pairs that that
-              override individual configuration values. These key-value pairs come from
-              the command line and allow one to adjust model parameters or rerun a case
-              with, say, a different model.
-        """
-
-        # Default configuration values for each pipeline stage.
-        # The structure and interpretation of each configuration dict is
-        # dictated by the needs of corresponding pipeline stage.
-        #
-        # An instance of Prompt indicates that the value must be provided on
-        # the command line. In this case, the user would need to provide values
-        # for the following keys on the command line:
-        #   - prepare.template
-        #   - infer.model.name
-        #
-        # An instance of Internal indicates that the value is provided by the
-        # pipeline runtime. Using a value of Internal will prevent the
-        # corresponding key from being displayed in help messages.
-        #
-        # There is no requirement to define a configuration dict for each stage.
-        # It is the implementation of the pipeline that determines which stages
-        # require configuration dicts.
-        default_config = {
-            "prepare": {
-                "template": Prompt("Template file for system message"),
-                "template_text": Internal(),
-            },
-            "infer": {
-                "model": {
-                    "name": Prompt("Model name to use for inference stage"),
-                    "settings": {
-                        "max_tokens": 800,
-                        "temperature": 0.7,
-                        "top_p": 0.95,
-                        "frequency_penalty": 0,
-                        "presence_penalty": 0,
-                    },
-                }
+# Default configuration values for each pipeline stage.
+# The structure and interpretation of each configuration dict is
+# dictated by the needs of corresponding pipeline stages.
+#
+# An instance of `Prompt` indicates that the value must be provided on
+# the command line. In this case, the user would need to provide values
+# for the following keys on the command line:
+#   - prepare.template
+#   - infer.model.name
+#
+# An instance of `Internal` indicates that the value is provided by the
+# pipeline runtime. Using a value of `Internal` will prevent the
+# corresponding key from being displayed in help messages.
+#
+# There is no requirement to define a configuration dict for each stage.
+# It is the implementation of the pipeline that determines which stages
+# require configuration dicts.
+configuration = {
+    "prepare": {
+        # Specifies whether prompt should include assistant messages
+        # in the conversational history.
+        "assistant_history": True,
+        # Specifies whether prompt should include user messages
+        # in the conversational history.
+        "user_history": True,
+        # Specifies whether the cart on turn entry should be the
+        # `extracted` cart from the previous turn (True) or the
+        # `expected` cart (False).
+        "linked_turns": True,
+        "template": Prompt("Template file for system message"),
+        # Internal cache of the template text read from `prepare.template`.
+        # This field is set by the stage() function.
+        "template_text": Internal(),
+    },
+    "infer": {
+        "model": {
+            "name": Prompt("Model name to use for inference stage"),
+            "settings": {
+                "max_tokens": 800,
+                "temperature": 0.7,
+                "top_p": 0.95,
+                "frequency_penalty": 0,
+                "presence_penalty": 0,
             },
         }
-        super().__init__(default_config, replacement_config, flat_config_patch)
+    },
+}
 
-        # Save registry here for later use in the stages() method.
-        self._registry = registry
 
-        # Construct and register some model mocks, specific to this pipeline.
-        Flakey(registry, {})
-        Perfect(registry, {})
+###############################################################################
+#
+# Stage Functions
+#
+###############################################################################
+def stages(name, config, registry):
+    """
+    Defines the structure of a simple, linear pipeline with four stages:
+      **prepare** - creates the system prompt and user messages for the model
+      **infer** - invokes the model to generate a response
+      **extract** - attempts to extract a numerical answer from the model response
+      **assess** - compares the extracted answer to the expected answer
 
-    # The structure of the pipeline is defined by the stages() method.
-    # This example demonstrates a simple, linear pipeline with four stages.
-    def stages(self):
-        #
-        # Perform some setup here so that any initialization errors encountered
-        # are caught before running the cases.
-        #
+    Parameters:
+      name (str): Name of the pipeline. Can be used for error message formatting. Unused in this example.
+      config (dict): Dictionary that supplies configuration settings used by stages.
+      registry (object): Registry object providing access to models.
 
-        # Compile the jinja2 template used in the `prepare` stage.
-        template = build_template(
-            self.config(),
-            "prepare.template",
-            "prepare.template_text",
-        )
+    Returns:
+      dag_spec (object): A DAG specification object representing the pipeline stages
+      and their execution order.
 
-        # Instantiate the model for the `infer` stage.
-        model = self._registry.model(glom(self.config(), "infer.model.name"))
+    Pipeline Stages:
+      - prepare: Assembles system, assistant, and user messages for the model.
+      - infer: Invokes the model to generate a response based on prepared messages.
+      - extract: Attempts to extract a numerical answer from the model response.
+      - assess: Compares the extracted answer to the expected answer for evaluation.
+    """
 
-        #
-        # Define the pipeline stage functions
-        #
-        """
-        Define the pipeline stage functions. Each stage function is a coroutine
-        that takes a context dictionary as an argument.
+    # Compile the jinja2 template used in the `prepare` stage.
+    # By building the template here, we ensure that any errors in the template
+    # compilation are caught before the stage functions are run.
+    template = build_template(
+        config,
+        "prepare.template",
+        "prepare.template_text",
+    )
 
-        context["case"] has the `case` data for the current case. Typically
-        this comes from the cases JSON file specified as a parameter to the
-        `run` sub-command.
+    # Instantiate the model for the `infer` stage.
+    # By creating the model here, we ensure that any errors, such as a bad
+    # model name or configuration issues, are caught before the stage functions
+    # are run.
+    model = registry.model(glom(config, "infer.model.name"))
 
-        context["stages"][name] has the return value for stage `name`. Note
-        that context["stages"][name] will only be defined if after the stage
-        has to conclusion without raising an exception.
+    # Cache a few configuration values for the prepare stage.
+    assistant_history = glom(config, "prepare.assistant_history")
+    user_history = glom(config, "prepare.user_history")
+    linked_turns = glom(config, "prepare.linked_turns") 
 
-        Note that a stage function will only be invoked if the previous stage
-        has completed with a return value. 
-        """
+    # Define the pipeline stage functions. Each stage function is a coroutine
+    # that takes a context dictionary as an argument.
+    #
+    # context["case"] has the `case` data for the current case. Typically
+    # this comes from the cases.json or cases.yamlfile specified as a parameter
+    # to the `run` sub-command.
+    #
+    # context["stages"][name] has the return value for stage `name`. Note
+    # that context["stages"][name] will only be defined if after the stage
+    # has successfully run to conclusion without raising an exception.
+    #
+    # Note that a stage function will only be invoked if the previous stage
+    # has completed with a return value.
 
-        # Create the system and user messages
-        async def prepare(context):
-            messages = [
-                {"role": "system", "content": await template(context)},
-                {
-                    "role": "assistant",
-                    "content": json.dumps({"items": []}, indent=2, ensure_ascii=False),
-                },
-            ]
-            case = context["case"]
-            for c in case["turns"][:-1]:
-                messages.append({"role": "user", "content": c["query"]})
-                messages.append(
-                    {
-                        "role": "assistant",
-                        "content": json.dumps(
-                            c["expected"], indent=2, ensure_ascii=False
-                        ),
-                    }
-                )
-            messages.append({"role": "user", "content": case["turns"][-1]["query"]})
+    # Stage 1:Create the system and user messages
+    async def prepare(context):
+        i = len(context["turns"]) - 1
 
-            return messages
+        # Get previous assistant and user messages.
+        previous = [x for x in (
+            context["turns"][i - 1]["stages"]["prepare"]["value"]
+            if i != 0
+            else []
+        ) if x["role"] != "system"]
 
-        # Invoke the model to generate a response
-        async def infer(context):
-            return await model.infer(context["stages"]["prepare"], context)
-
-        # Attempt to extract a JSON shopping cart from the model response.
-        # Note that this method will raise an exception if the response is not
-        # a number.
-        async def extract(context):
-            with ExceptionContext(f"Extracting JSON from LLM response."):
-                text = context["stages"]["infer"]
-
-                # Strip off fenced code block markers, if present.
-                marker = "```json\n"
-                if text.startswith(marker):
-                    text = text[len(marker) :]
-                text = text.strip("```")
-                return json.loads(text)
-
-        # Compare the model response to the expected shopping cart.
-        async def assess(context):
-            repair = Repair("id", "options", [], ["name"], "name")
-            repair.resetIds()
-            observed = repair.addIds(context["stages"]["extract"]["items"])
-            expected = repair.addIds(context["case"]["turns"][-1]["expected"]["items"])
-            return repair.diff(observed, expected)
-
-        # The pipeline stages will be executed in the order specified in the
-        # dictionary returned by the stages() method. The keys of the
-        # dictionary are the names of the stages.
-        return {
-            "prepare": prepare,
-            "infer": infer,
-            "extract": extract,
-            "assess": assess,
-        }
-
-    # This method is used to summarize the results of each a pipeline run.
-    # It is invoked by the `run`, `rerun`, and `summarize` sub-commands.
-    def summarize(self, runlog):
-        results = runlog["results"]
-        if len(results) == 0:
-            print("No results.")
-        else:
-            # To make the summary more readable, create a short, unique prefix
-            # for each case id.
-            short_id = IdShortener([result["case"]["uuid"] for result in results])
-
-            # Using Table from the rich text library.
-            # https://rich.readthedocs.io/en/stable/introduction.html
-            table = Table(title=f"Summary for {runlog['uuid']}")
-            table.add_column("id", justify="right", style="cyan", no_wrap=True)
-            table.add_column("run", style="magenta")
-            table.add_column("score", justify="right", style="green")
-            table.add_column("keywords", justify="left", style="green")
-
-            # Set up some counters for totals to be presented after the table.
-            total_count = len(results)
-            complete_count = 0
-            passed_count = 0
-            failed_count = 0
-            error_count = 0
-
-            # Add one row for each case.
-            for result in results:
-                succeeded = result["succeeded"]
-                cost = result["stages"]["assess"]["cost"] if succeeded else None
-
-                if succeeded:
-                    complete_count += 1
-                    if cost == 0:
-                        passed_count += 1
-                    else:
-                        failed_count += 1
+        if not assistant_history:
+            # Want to keep the initial cart.
+            # Keep only the initial assistant message, filter out the rest
+            assistant_found = False
+            filtered = []
+            for x in previous:
+                if x["role"] == "assistant":
+                    # If we're suppressing user history, the also remove
+                    # the first cart.
+                    if not assistant_found and user_history:
+                        filtered.append(x)
+                        assistant_found = True
                 else:
-                    error_count += 1
+                    filtered.append(x)
+            previous = filtered
 
-                complete = (
-                    Text("COMPLETE", style="bold green")
-                    if succeeded
-                    else Text("ERROR", style="bold red")
-                )
-                cost_text = "" if cost == None else f"{cost:.2f}"
-                score = (
-                    Text(cost_text, style="bold green")
-                    if cost == 0
-                    else Text(cost_text, style="bold red")
-                )
-                keywords = (
-                    ", ".join(sorted(result["case"]["keywords"]))
-                    if "keywords" in result["case"]
-                    else ""
-                )
-                table.add_row(
-                    short_id(result["case"]["uuid"]), complete, score, keywords
-                )
+        if not user_history:
+            previous = [x for x in previous if x["role"] != "user"]
 
-            # Display the table and the totals.
-            console = Console()
-            console.print(table)
-            console.print()
-            console.print(f"Total: {total_count}")
-            console.print(
-                f"Complete: {complete_count}/{total_count} ({(complete_count/total_count)*100:.2f}%)"
-            )
-            console.print(
-                f"Error: {error_count}/{total_count} ({(error_count/total_count)*100:.2f}%)"
-            )
-            console.print(
-                f"Passed: {passed_count}/{total_count} ({(passed_count/total_count)*100:.2f}%)"
-            )
-            console.print(
-                f"Failed: {failed_count}/{total_count} ({(failed_count/total_count)*100:.2f}%)"
-            )
-            console.print()
+        # Prepare the system message for this turn.
+        system = {"role": "system", "content": await template(context)}
 
-    # If uuid_prefix is specified, format those cases whose uuids start with
-    # uuid_prefix. Otherwise, format all cases.
-    def format(self, runlog, uuid_prefix):
-        # Lazily load the GPT-4o tokenizer here so that we don't slow down
-        # other scenarios that don't need it.
-        if not hasattr(self, "_tokenizer"):
-            self._tokenizer = tiktoken.get_encoding("cl100k_base")
-
-        results = runlog["results"]
-        if len(results) == 0:
-            print("No results.")
-        else:
-            # To make the summary more readable, create a short, unique prefix
-            # for each case id.
-            short_id = IdShortener([result["case"]["uuid"] for result in results])
-
-            for result in results:
-                if uuid_prefix and not result["case"]["uuid"].startswith(uuid_prefix):
-                    continue
-                print(f"## Case: {short_id(result['case']['uuid'])}")
-                if result["succeeded"]:
-                    if result["stages"]["assess"]["cost"] == 0:
-                        print("**PASSED**  ")
-                    else:
-                        print(
-                            f"**FAILED**: expected\n~~~json\n{json.dumps(result['case']["turns"][-1]['expected'], indent=2, ensure_ascii=False)}\n~~~\n\n"
-                        )
-                    # print(result["case"]["comment"])
-                    print()
-
-                    input_tokens = sum(
-                        len(self._tokenizer.encode(message["content"]))
-                        for message in result["stages"]["prepare"]
-                    )
-                    print(
-                        f"Input tokens: {input_tokens}, output tokens: {len(self._tokenizer.encode(result['stages']['infer']))}"
-                    )
-                    print()
-
-                    for x in result["stages"]["prepare"]:
-                        if x["role"] == "assistant":
-                            print(f"**{x['role']}:**")
-                            print("```json")
-                            print(x["content"])
-                            print("```")
-                        elif x["role"] == "user":
-                            print(f"**{x['role']}:** _{x['content']}_")
-                        print()
-                    print(f"**assistant:**")
-                    print("```json")
-                    print(json.dumps(result["stages"]["extract"], indent=2, ensure_ascii=False))
-                    print("```")
-                    print()
-
-                else:
-                    print("**ERROR**  ")
-                    print(f"Error: {result['exception']['message']}")
-                    print("~~~")
-                    print(f"Traceback: {result['exception']['traceback']}")
-                    print(f"Time: {result['exception']['time']}")
-                    print("~~~")
-
-    def compare(self, a, b):
-        console = Console()
-        console.print("TODO: compare()")
-
-        if a["uuid"] == b["uuid"]:
-            console.print(f"Run ids are the same.\n")
-            self.summarize(a)
-            return
-
-        if a["metadata"]["pipeline"]["name"] != b["metadata"]["pipeline"]["name"]:
-            console.print(
-                f"Cannot perform comparison because pipeline names are different: A is '{
-                    a['metadata']['pipeline']['name']
-                }', B is '{
-                    b['metadata']['pipeline']['name']
-                }'"
-            )
-            return
-
-        a_cases = {result["case"]["uuid"]: result for result in a["results"]}
-        b_cases = {result["case"]["uuid"]: result for result in b["results"]}
-        a_uuids = set(a_cases.keys())
-        b_uuids = set(b_cases.keys())
-        both = a_uuids.intersection(b_uuids)
-        just_a = a_uuids - b_uuids
-        just_b = b_uuids - a_uuids
-
-        console.print(f"A: {a["uuid"]}")
-        console.print(f"B: {b["uuid"]}")
-        console.print("")
-        console.print(f"{len(just_a)} case{'s' if len(just_a) != 1 else ''} only in A")
-        console.print(f"{len(just_b)} case{'s' if len(just_b) != 1 else ''} only in B")
-        console.print(f"{len(both)} cases in both A and B")
-        console.print("")
-
-        # TODO: handle no results case
-        if len(both) == 0:
-            console.print("There are no cases to compare.")
-            console.print()
-            # Fall through to print empty table
-
-        # To make the summary more readable, create a short, unique prefix
-        # for each case id.
-        short_id = IdShortener(both)
-
-        table = Table(title=f"Comparison of {"A, B"}", show_footer=True)
-        table.add_column("id", justify="right", style="cyan", no_wrap=True)
-        table.add_column("A", justify="right", style="magenta")
-        table.add_column("B", justify="right", style="green")
-        table.add_column("keywords", justify="left", style="green")
-
-        rows = []
-        pass_count_a = 0
-        pass_count_b = 0
-        for uuid in both:
-            (text_a, order_a) = format_case(a_cases[uuid])
-            (text_b, order_b) = format_case(b_cases[uuid])
-            keywords = ", ".join(sorted(a_cases[uuid]["case"].get("keywords", [])))
-            if order_a == 0:
-                pass_count_a += 1
-            if order_b == 0:
-                pass_count_b += 1
-            rows.append(
-                (
-                    (Text(short_id(uuid)), text_a, text_b, keywords),
-                    order_b * 4 + order_a,
-                )
-            )
-        rows.sort(key=lambda x: x[1])
-        for row in rows:
-            table.add_row(*row[0])
-
-        table.columns[0].footer = "Total"
-        table.columns[1].footer = Text(
-            f"{pass_count_a}/{len(both)} ({(pass_count_a/len(both))*100:.0f}%)"
-        )
-        table.columns[2].footer = Text(
-            f"{pass_count_b}/{len(both)} ({(pass_count_b/len(both))*100:.0f}%)"
+        # Prepare the assistant message that states the cart contents
+        # at the beginning of this turn.
+        cart = (
+            context["case"]["cart"]
+            if i == 0
+            else context["turns"][i - 1]["stages"]["extract"]
+            if linked_turns
+            else context["case"]["turns"][i - 1]["expected"]
         )
 
-        console.print(table)
-        console.print()
+        assistant = {"role": "assistant", "content": to_json_string(cart)}
+
+        # Prepare the user message for this turn.
+        user = {"role": "user", "content": context["case"]["turns"][i]["user"]}
+        
+        return [system] + previous + [assistant, user]
 
 
-def format_case(result):
-    if result["succeeded"]:
-        if result["stages"]["assess"] == 0:
-            return (Text("passed", style="bold green"), 0)
+    # Stage 2: Invoke the model to generate a response
+    async def infer(context):
+        stages = get_stages(context)
+        return await model.infer(stages["prepare"], context)
+
+    # Stage 3: Attempt to extract a numerical answer from the model response.
+    # Note that this method will raise an exception if the response is not
+    # a number.
+    async def extract(context):
+        stages = get_stages(context)
+        with ExceptionContext(f"Extracting JSON from LLM response."):
+            text = stages["infer"]
+
+            # Strip off fenced code block markers, if present.
+            marker = "```json\n"
+            if text.startswith(marker):
+                text = text[len(marker) :]
+            text = text.strip("```")
+            return json.loads(text)
+
+    # Stage 4: Compare the model response to the expected answer.
+    async def assess(context):
+        stages = get_stages(context)
+        turn = get_turn(context)
+        repair = Repair("id", "options", [], ["name"], "name")
+        repair.resetIds()
+        observed = repair.addIds(stages["extract"]["items"])
+        expected = repair.addIds(turn["expected"]["items"])
+        return repair.diff(observed, expected)
+
+    # Define the pipeline
+    # The dictionary keys supply the names of the stages that make up the
+    # pipeline. Stages will be executed in the order they are defined in the
+    # dictionary.
+    #
+    # For more complex pipelines, you can use the
+    # `dag_spec_from_linear()` function to create arbitrary
+    # directed acyclic graphs (DAGs) of stages.
+    stages = {
+        "prepare": prepare,
+        "infer": infer,
+        "extract": extract,
+        "assess": assess,
+    }
+
+    return Dag.from_linear(stages)
+
+
+###############################################################################
+#
+# Summarizer extensions
+#
+###############################################################################
+def passed_predicate(result):
+    """
+    Predicate function to determine if the result is considered passing.
+    This checks if the assessment stage's result is zero, indicating
+    that the LLM response matches the expected answer.
+
+    Used by the `format` and `summarize` sub-commands.
+    """
+    # TODO: is this right?
+    return glom(result, "stages.assess.cost", default=None) == 0
+
+
+def cost_cell(result, turn_index):
+    """
+    For user-defined `cost` column in the summary report table.
+    Provides contents and formatting for the cost cell for the summary table.
+    The cost is the difference between the model's response and the expected answer.
+    """
+    # Be defensive: stages or assess may be missing when a turn errors early.
+    cost = None
+    try:
+        stages = get_stages(result, turn_index)
+        assess = stages.get("assess")
+        if assess is None:
+            cost = None
         else:
-            return (Text("failed", style="bold red"), 1)
+            # Handle wrapped stage entries as { value, metadata, ...hoisted fields }
+            if isinstance(assess, dict) and "cost" not in assess and "value" in assess:
+                assess = assess["value"]
+            cost = assess.get("cost") if isinstance(assess, dict) else None
+    except Exception:
+        cost = None
+
+    cost_text = "" if cost is None else f"{cost:.2f}"
+    return (
+        Text(cost_text, style="bold green") if cost == 0 else Text(cost_text, style="bold red")
+    )
+
+
+def user_cell(result, turn_index):
+    """
+    For user-defined `user` column in the summary report table.
+    Provides contents and formatting for the user cell in the summary table.
+    This cell displays the user input for the specified turn index.
+    """
+    return get_turn(result, turn_index)["user"]
+
+
+###############################################################################
+#
+# Formatter extensions
+#
+###############################################################################
+def format_turn(console: Console, turn_index, result: dict[str, Any]):
+    turn_result = get_result(result, turn_index)
+    stages = turn_result["stages"]
+
+    def unwrap(stage_value):
+        if isinstance(stage_value, dict) and "value" in stage_value and "metadata" in stage_value:
+            return stage_value["value"]
+        return stage_value
+
+    prepare = unwrap(stages.get("prepare"))
+    infer = unwrap(stages.get("infer"))
+    extract = unwrap(stages.get("extract"))
+    assess = unwrap(stages.get("assess"))
+
+    passed = passed_predicate(result, turn_index)
+    if passed:
+        console.print(f"### Turn {turn_index + 1}: **PASSED**  ")
     else:
-        return (Text("error", style="bold red"), 2)
+        cost = assess.get("cost") if isinstance(assess, dict) else None
+        console.print(f"### Turn {turn_index + 1}: **FAILED:** (cost={cost})  ")
+    console.print()
+
+    input_tokens = sum(len(tokenizer.encode(message["content"])) for message in (prepare or []))
+    output_tokens = len(tokenizer.encode(infer or ""))
+    console.print(
+        f"Input tokens: {input_tokens}, output tokens: {output_tokens}  \n"
+    )
+
+    format_messages(console, prepare or [], collapse=["system"])
+    console.print("**assistant:**")
+    console.print("```json")
+    console.print(to_json_string(extract))
+    console.print("```")
+    console.print()
+
+    if passed:
+        console.print("**No repairs**")
+    else:
+        console.print("**expected:**")
+        console.print("<details><summary>Click to expand</summary>  \n")
+        console.print("```json")
+        console.print(to_json_string(result["case"]["turns"][turn_index]["expected"]))
+        console.print("```")
+        console.print("\n</details>  \n  \n")
+        console.print("")
+        console.print("**Repairs:**")
+        for step in (assess.get("steps", []) if isinstance(assess, dict) else []):
+            console.print(f"* {step}")
 
 
-class Flakey(Model):
+###############################################################################
+#
+# Pipeline extensions
+#
+###############################################################################
+def expected(result, turn_index=None):
     """
-    A mock model class that cycles through
-      1. returning the expected answer
-      2. returning "hello world"
-      3. raising an exception
+    Returns the expected value from a turn. Used by mock models.
     """
-
-    def __init__(self, registry, configuration):
-        self._counter = -1
-        registry.register_model("flakey", self)
-
-    async def infer(self, messages, result=None):
-        self._counter += 1
-        if self._counter % 3 == 0:
-            return json.dumps(result["case"]["turns"][-1]["expected"], ensure_ascii=False)
-        elif self._counter % 3 == 1:
-            return "hello world"
-        else:
-            raise Exception("Flakey model failed")
-
-    def metadata(self):
-        return {}
+    return get_turn(result, turn_index)["expected"]
 
 
-class Perfect(Model):
+def passed_predicate(result, turn_index = None):
     """
-    A mock model class that always returns the expected answer
-    from result["case"]["answer"]
+    Predicate function to determine if the result is considered passing.
+    Returns True when the assess stage reports cost == 0. If the assess
+    stage is missing or the turn errored, returns False.
+
+    Used by the `format` and `summarize` sub-commands.
     """
+    try:
+        stages = get_stages(result, turn_index)
+    except Exception:
+        return False
 
-    def __init__(self, registry, configuration):
-        registry.register_model("perfect", self)
+    assess = stages.get("assess") if isinstance(stages, dict) else None
+    if assess is None:
+        return False
 
-    async def infer(self, messages, result=None):
-        return json.dumps(result["case"]["turns"][-1]["expected"], ensure_ascii=False)
+    # Handle wrapped stage entries as { value, metadata, ...hoisted fields }
+    if isinstance(assess, dict) and "cost" not in assess and "value" in assess:
+        assess = assess["value"]
 
-    def metadata(self):
-        return {}
+    cost = assess.get("cost") if isinstance(assess, dict) else None
+    return cost == 0
+
+
+###############################################################################
+#
+# Pipeline specification
+#
+###############################################################################
+menu_pipeline_spec = PipelineSpec(
+    # Pipeline name used in `gotag run <pipeline>.`
+    name="menu",
+    #
+    # Pipeline description shown by `gotag pipelines.`
+    description="A multi-turn menu ordering pipeline",
+    # Default configuration values for use by pipeline stages.
+    configuration=configuration,
+    # Defines the directed acyclic graph (DAG) of stage functions.
+    create_dag=stages,
+    # Required function to extract the expected answer from the test case.
+    expected=expected,
+    # Optional FormatterSpec used by the `format` commend to display a rich
+    # transcript of the case.
+    formatter=FormatterSpec(
+        format_turn=format_turn,
+    ),
+    # Optional predicate determines whether a case is considered passing.
+    # Used by the `format` and `summarize` sub-commands.
+    passed_predicate=passed_predicate,
+    # Optional SummarizerSpec used by the `summarize` command to
+    # summarize the results of the run.
+    summarizer=SummarizerSpec(
+        columns=[
+            ColumnSpec(name="cost", contents=cost_cell),
+            keywords_column,
+            ColumnSpec(name="user", contents=user_cell),
+        ]
+    ),
+)
 
 
 def go():
-    main([MenuPipeline])
+    main([menu_pipeline_spec])
 
 
 if __name__ == "__main__":

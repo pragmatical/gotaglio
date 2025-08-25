@@ -1,46 +1,41 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
-import json
 import os
-import re
 import sys
 import traceback
+from typing import Any, List
 import uuid
 
 from .constants import app_configuration
-from .dag import build_dag_from_spec, dag_spec_from_linear, run_dag
-from .exceptions import ExceptionContext
 from .git_ops import get_current_edits, get_git_sha
 from .helpers import IdShortener
-from .make_console import MakeConsole
+from .models import register_models
+from .pipeline import Pipeline, process_one_case
+from .pipeline_spec import PipelineSpec
+from .registry import Registry
 from .shared import write_json_file
 
 
 class Director:
     def __init__(
         self,
-        registry_factory,
-        pipeline_name,
-        cases,
-        replacement_config,
-        flat_config_patch,
-        max_concurrancy,
+        pipeline_spec: PipelineSpec,
+        cases: List[dict[str, Any]],
+        replacement_config: dict[str, Any] | None,
+        flat_config_patch: dict[str, Any],
+        max_concurrency: int,
     ):
         self._start = datetime.now().timestamp()
-        self._concurrancy = max_concurrancy
-        self._pipeline_name = pipeline_name
+        self._spec = pipeline_spec
+        self._concurrency = max_concurrency
 
-        registry = registry_factory()
-        pipeline_factory = registry.pipeline(pipeline_name)
-        self._pipeline = pipeline_factory(
-            registry, replacement_config, flat_config_patch
+        registry = Registry()
+        register_models(registry)
+
+        self._pipeline = Pipeline(
+            pipeline_spec, replacement_config, flat_config_patch, registry
         )
-
-        stages = self._pipeline.stages()
-        spec = dag_spec_from_linear(stages) if isinstance(stages, dict) else stages
-        self._dag = build_dag_from_spec(spec)
-
-        self._config = self._pipeline.config()
+        self._dag = self._pipeline.get_dag()
 
         self._id = uuid.uuid4()
         self._output_file = os.path.join(
@@ -50,8 +45,11 @@ class Director:
         self._metadata = {
             "command": " ".join(sys.argv),
             "start": str(datetime.fromtimestamp(self._start, timezone.utc)),
-            "concurrency": self._concurrancy,
-            "pipeline": {"name": pipeline_name, "config": self._pipeline._config},
+            "concurrency": self._concurrency,
+            "pipeline": {
+                "name": pipeline_spec.name,
+                "config": self._pipeline.get_config(),
+            },
         }
         self._results = {
             "results": {},
@@ -74,7 +72,7 @@ class Director:
             #
             # Perform the run
             #
-            semaphore = asyncio.Semaphore(self._concurrancy)
+            semaphore = asyncio.Semaphore(self._concurrency)
 
             async def sem_task(case):
                 async with semaphore:
@@ -105,54 +103,18 @@ class Director:
                 progress.stop()
             return self._results
 
-    def write_results(self):
-        # Write log
+    def write(self):
+        # Write results to log file
         log_folder = app_configuration["log_folder"]
         if not os.path.exists(log_folder):
             os.makedirs(log_folder)
         write_json_file(self._output_file, self._results)
-        # with open(self._output_file, "w", encoding="utf-8") as f:
-        #     json.dump(self._results, f, indent=2, ensure_ascii=False)
 
         print(f"Results written to {self._output_file}")
         return {"log": self._output_file, "results": self._results}
 
-    def summarize_results(self):
-        # TODO: this is an example of code that doesn't use Registry.summaraize().
-        # This is because the pipeline was already created in __init()__
-        console = MakeConsole()
-        self._pipeline.summarize(console, self._results)
-        console.render()
-        # print(f"Results written to {self._output_file}")
-
-
-async def process_one_case(case, dag, completed):
-    ExceptionContext.clear_context()
-    start = datetime.now().timestamp()
-    result = {
-        "succeeded": False,
-        "metadata": {"start": str(datetime.fromtimestamp(start, timezone.utc))},
-        "case": case,
-        "stages": {},
-    }
-    try:
-        await run_dag(dag, result)
-    except Exception as e:
-        result["exception"] = {
-            "message": ExceptionContext.format_message(e),
-            "traceback": traceback.format_exc(),
-            "time": str(datetime.now(timezone.utc)),
-        }
-        return result
-
-    end = datetime.now().timestamp()
-    if completed:
-        completed()
-    elapsed = end - start
-    result["metadata"]["end"] = str(datetime.fromtimestamp(end, timezone.utc))
-    result["metadata"]["elapsed"] = str(timedelta(seconds=elapsed))
-    result["succeeded"] = True
-    return result
+    def diff_configs(self):
+        return self._pipeline.diff_configs()
 
 
 def validate_cases(cases):
