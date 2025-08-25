@@ -708,6 +708,28 @@
                         messagesDiv.scrollTop = messagesDiv.scrollHeight;
                     }
                     break;
+                
+                case 'response.text.delta':
+                    // Handle streaming response
+                    const currentExistingMsg = document.querySelector('.message-assistant.current');
+                    if (currentExistingMsg) {
+                        currentExistingMsg.textContent += message.delta;
+                    } else {
+                        const p = document.createElement('p');
+                        p.className = 'message-assistant current';
+                        p.textContent = message.delta;
+                        messagesDiv.appendChild(p);
+                        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                    }
+                    break;
+                
+                case 'response.text.done':
+                    // Complete the response
+                    const currentExistingMesg = document.querySelector('.message-assistant.current');
+                    if (currentExistingMesg) {
+                        currentExistingMesg.classList.remove('current');
+                    }
+                    break;
 
                 case 'response.audio_transcript.done':
                     // Complete the response
