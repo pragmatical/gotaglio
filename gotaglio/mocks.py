@@ -20,10 +20,12 @@ class Flakey(Model):
         self._expected = expected
         registry.register_model("flakey", self)
 
-    async def infer(self, messages, result=None):
+    async def infer(self, messages, context: dict[str, Any] | None = None):
+        if context is None:
+            raise ValueError("Context is required for Flakey model inference.")
         self._counter += 1
         if self._counter % 3 == 0:
-            return to_llm_string(self._expected(result))
+            return to_llm_string(self._expected(context))
         elif self._counter % 3 == 1:
             return "hello world"
         else:
@@ -45,9 +47,11 @@ class Perfect(Model):
         registry.register_model("perfect", self)
         self._expected = expected
 
-    async def infer(self, messages, result=None):
-        return to_llm_string(self._expected(result))
-
+    async def infer(self, messages, context: dict[str, Any] | None = None):
+        if context is None:
+            raise ValueError("Context is required for Perfect model inference.")
+        return to_llm_string(self._expected(context))
+    
     def metadata(self):
         return {}
 

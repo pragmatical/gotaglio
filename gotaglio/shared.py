@@ -214,7 +214,26 @@ def write_data_file(filename, data):
         elif suffix in [".yaml", ".yml"]:
             yaml.safe_dump(data, file, allow_unicode=True)
         else:
-            raise ValueError(f"Unsupported file format: {suffix}. Only .json, .yaml, and .yml are supported.")
+            raise ValueError(
+                f"Unsupported file format: {suffix}. Only .json, .yaml, and .yml are supported."
+            )
+
+
+def write_log_file(runlog, filename: str | None = None, chatty: bool = False):
+    output_file = (
+        os.path.join(app_configuration["log_folder"], f"{runlog['uuid']}.json")
+        if filename is None
+        else filename
+    )
+
+    # Write results to log file
+    log_folder = app_configuration["log_folder"]
+    if not os.path.exists(log_folder):
+        os.makedirs(log_folder)
+    write_json_file(output_file, runlog)
+
+    if chatty:
+        print(f"Results written to {output_file}")
 
 
 def to_json_string(data):

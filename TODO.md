@@ -1,5 +1,20 @@
 # TODO
 
+* Refactor director to better support preview() and validate()
+  * Move cases out of constructor
+  * typing annotations for cases
+* Test suite and test case validation
+  * General pydantic validator
+  * Special validator for test case
+  * Validation for runlogs
+* Server api support
+  * preview()
+  * validate()
+  * run() - already there
+* Stage metadata timestamps
+* Remove performance folder created by copilot
+* merge turns-rebase into main
+* is internal cache of template file necessary?
 * isolated_turn - for preview
 * validate turn
 * whole case statistics for multi-step - e.g. all turns pass, case pass rate

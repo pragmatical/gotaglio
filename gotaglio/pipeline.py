@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import traceback
-from typing import Any
+from typing import Any, Callable
 
 from .dag import run_dag
 
@@ -119,7 +119,12 @@ def ensure_required_configs(name, default_config, config):
                 raise ValueError("\n".join(lines))
 
 
-async def process_one_case(case, dag, completed):
+async def process_one_case(
+    case: dict[str, Any],
+    dag,
+    completed: Callable | None = None,
+    turn: int | None = None,
+):
     ExceptionContext.clear_context()
     start = datetime.now().timestamp()
     result = {
@@ -129,7 +134,7 @@ async def process_one_case(case, dag, completed):
     }
 
     try:
-        await run_dag(dag, result)
+        await run_dag(dag, result, turn)
     except Exception as e:
         result["exception"] = {
             "message": ExceptionContext.format_message(e),
@@ -138,11 +143,12 @@ async def process_one_case(case, dag, completed):
         }
         return result
 
+    result["succeeded"] = True
+    # TODO: should remaining code be in finally block?
     end = datetime.now().timestamp()
     if completed:
         completed()
     elapsed = end - start
     result["metadata"]["end"] = str(datetime.fromtimestamp(end, timezone.utc))
     result["metadata"]["elapsed"] = str(timedelta(seconds=elapsed))
-    result["succeeded"] = True
     return result

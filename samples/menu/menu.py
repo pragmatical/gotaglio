@@ -22,6 +22,7 @@ from gotaglio.pipeline_spec import (
     get_turn,
     PipelineSpec,
     SummarizerSpec,
+    column_spec,
 )
 from gotaglio.pipeline import Internal, Prompt
 from gotaglio.repair import Repair
@@ -132,7 +133,7 @@ def stages(name, config, registry):
     # Cache a few configuration values for the prepare stage.
     assistant_history = glom(config, "prepare.assistant_history")
     user_history = glom(config, "prepare.user_history")
-    linked_turns = glom(config, "prepare.linked_turns") 
+    linked_turns = glom(config, "prepare.linked_turns")
 
     # Define the pipeline stage functions. Each stage function is a coroutine
     # that takes a context dictionary as an argument.
@@ -145,19 +146,19 @@ def stages(name, config, registry):
     # that context["stages"][name] will only be defined if after the stage
     # has successfully run to conclusion without raising an exception.
     #
-    # Note that a stage function will only be invoked if the previous stage
-    # has completed with a return value.
+    # Note that a stage function will only be invoked if all of its previous or
+    # input stages have completed with a return value.
 
     # Stage 1:Create the system and user messages
     async def prepare(context):
         i = len(context["turns"]) - 1
 
         # Get previous assistant and user messages.
-        previous = [x for x in (
-            context["turns"][i - 1]["stages"]["prepare"]["value"]
-            if i != 0
-            else []
-        ) if x["role"] != "system"]
+        previous = [
+            x
+            for x in (context["turns"][i - 1]["stages"]["prepare"] if i != 0 else [])
+            if x["role"] != "system"
+        ]
 
         if not assistant_history:
             # Want to keep the initial cart.
@@ -186,23 +187,28 @@ def stages(name, config, registry):
         cart = (
             context["case"]["cart"]
             if i == 0
-            else context["turns"][i - 1]["stages"]["extract"]
-            if linked_turns
-            else context["case"]["turns"][i - 1]["expected"]
+            else (
+                context["turns"][i - 1]["stages"]["extract"]
+                if linked_turns and not context["isolated_turns"]
+                else context["case"]["turns"][i - 1]["expected"]
+            )
         )
 
         assistant = {"role": "assistant", "content": to_json_string(cart)}
 
         # Prepare the user message for this turn.
         user = {"role": "user", "content": context["case"]["turns"][i]["user"]}
-        
-        return [system] + previous + [assistant, user]
 
+        return [system] + previous + [assistant, user]
 
     # Stage 2: Invoke the model to generate a response
     async def infer(context):
         stages = get_stages(context)
-        return await model.infer(stages["prepare"], context)
+        # Pass per-pipeline model settings to the model via context
+        model_settings = glom(config, "infer.model.settings", default={})
+        ctx = dict(context)
+        ctx["model_settings"] = model_settings
+        return await model.infer(stages["prepare"], ctx)
 
     # Stage 3: Attempt to extract a numerical answer from the model response.
     # Note that this method will raise an exception if the response is not
@@ -252,42 +258,18 @@ def stages(name, config, registry):
 # Summarizer extensions
 #
 ###############################################################################
-def passed_predicate(result):
-    """
-    Predicate function to determine if the result is considered passing.
-    This checks if the assessment stage's result is zero, indicating
-    that the LLM response matches the expected answer.
-
-    Used by the `format` and `summarize` sub-commands.
-    """
-    # TODO: is this right?
-    return glom(result, "stages.assess.cost", default=None) == 0
-
-
-def cost_cell(result, turn_index):
+def cost_cell(result: dict[str, Any], turn_index: int):
     """
     For user-defined `cost` column in the summary report table.
     Provides contents and formatting for the cost cell for the summary table.
     The cost is the difference between the model's response and the expected answer.
     """
-    # Be defensive: stages or assess may be missing when a turn errors early.
-    cost = None
-    try:
-        stages = get_stages(result, turn_index)
-        assess = stages.get("assess")
-        if assess is None:
-            cost = None
-        else:
-            # Handle wrapped stage entries as { value, metadata, ...hoisted fields }
-            if isinstance(assess, dict) and "cost" not in assess and "value" in assess:
-                assess = assess["value"]
-            cost = assess.get("cost") if isinstance(assess, dict) else None
-    except Exception:
-        cost = None
-
-    cost_text = "" if cost is None else f"{cost:.2f}"
+    cost = glom(get_stages(result, turn_index), "assess.cost", default=None)
+    cost_text = "" if cost == None else f"{cost:.2f}"
     return (
-        Text(cost_text, style="bold green") if cost == 0 else Text(cost_text, style="bold red")
+        Text(cost_text, style="bold green")
+        if cost == 0
+        else Text(cost_text, style="bold red")
     )
 
 
@@ -306,37 +288,27 @@ def user_cell(result, turn_index):
 #
 ###############################################################################
 def format_turn(console: Console, turn_index, result: dict[str, Any]):
-    turn_result = get_result(result, turn_index)
-    stages = turn_result["stages"]
-
-    def unwrap(stage_value):
-        if isinstance(stage_value, dict) and "value" in stage_value and "metadata" in stage_value:
-            return stage_value["value"]
-        return stage_value
-
-    prepare = unwrap(stages.get("prepare"))
-    infer = unwrap(stages.get("infer"))
-    extract = unwrap(stages.get("extract"))
-    assess = unwrap(stages.get("assess"))
-
-    passed = passed_predicate(result, turn_index)
+    stages = get_result(result, turn_index)
+    passed = passed_predicate(result)
     if passed:
         console.print(f"### Turn {turn_index + 1}: **PASSED**  ")
     else:
-        cost = assess.get("cost") if isinstance(assess, dict) else None
+        cost = glom(stages, "stages.assess.cost", default=None)
         console.print(f"### Turn {turn_index + 1}: **FAILED:** (cost={cost})  ")
     console.print()
 
-    input_tokens = sum(len(tokenizer.encode(message["content"])) for message in (prepare or []))
-    output_tokens = len(tokenizer.encode(infer or ""))
+    input_tokens = sum(
+        len(tokenizer.encode(message["content"]))
+        for message in stages["stages"]["prepare"]
+    )
     console.print(
-        f"Input tokens: {input_tokens}, output tokens: {output_tokens}  \n"
+        f"Input tokens: {input_tokens}, output tokens: {len(tokenizer.encode(stages['stages']['infer']))}  \n"
     )
 
-    format_messages(console, prepare or [], collapse=["system"])
+    format_messages(console, stages["stages"]["prepare"], collapse=["system"])
     console.print("**assistant:**")
     console.print("```json")
-    console.print(to_json_string(extract))
+    console.print(to_json_string(stages["stages"]["extract"]))
     console.print("```")
     console.print()
 
@@ -351,7 +323,7 @@ def format_turn(console: Console, turn_index, result: dict[str, Any]):
         console.print("\n</details>  \n  \n")
         console.print("")
         console.print("**Repairs:**")
-        for step in (assess.get("steps", []) if isinstance(assess, dict) else []):
+        for step in stages["stages"]["assess"]["steps"]:
             console.print(f"* {step}")
 
 
@@ -367,29 +339,15 @@ def expected(result, turn_index=None):
     return get_turn(result, turn_index)["expected"]
 
 
-def passed_predicate(result, turn_index = None):
+def passed_predicate(result, turn_index=None):
     """
     Predicate function to determine if the result is considered passing.
-    Returns True when the assess stage reports cost == 0. If the assess
-    stage is missing or the turn errored, returns False.
+    This checks if the assessment stage's result is zero, indicating
+    that the LLM response matches the expected answer.
 
     Used by the `format` and `summarize` sub-commands.
     """
-    try:
-        stages = get_stages(result, turn_index)
-    except Exception:
-        return False
-
-    assess = stages.get("assess") if isinstance(stages, dict) else None
-    if assess is None:
-        return False
-
-    # Handle wrapped stage entries as { value, metadata, ...hoisted fields }
-    if isinstance(assess, dict) and "cost" not in assess and "value" in assess:
-        assess = assess["value"]
-
-    cost = assess.get("cost") if isinstance(assess, dict) else None
-    return cost == 0
+    return glom(get_stages(result, turn_index), "assess.cost", default=None) == 0
 
 
 ###############################################################################
@@ -421,9 +379,9 @@ menu_pipeline_spec = PipelineSpec(
     # summarize the results of the run.
     summarizer=SummarizerSpec(
         columns=[
-            ColumnSpec(name="cost", contents=cost_cell),
+            column_spec(name="cost", contents=cost_cell),
             keywords_column,
-            ColumnSpec(name="user", contents=user_cell),
+            column_spec(name="user", contents=user_cell),
         ]
     ),
 )

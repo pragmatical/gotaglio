@@ -1,9 +1,9 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
-import time
 from glom import glom
 import traceback
 from typing import Any, List
+import time
 
 from .exceptions import ExceptionContext
 
@@ -79,71 +79,89 @@ def check_for_cycles(dag, node, path):
 
 
 # TODO: use semaphore to limit concurrency at the task level. Plumb all the way through.
-async def run_task(dag, name, context):
-    # Resolve per-stage timing container directly in metadata for this run/turn
-    if "turns" in context:
-        # Multi-turn: current turn is the last one appended
-        meta_container = context["turns"][-1].setdefault("metadata", {}).setdefault(
-            "stages", {}
-        )
-    else:
-        # Single-turn: store under top-level metadata
-        meta_container = context.setdefault("metadata", {}).setdefault("stages", {})
+async def run_task(dag, name, context, stage_timing):
+    """
+    Execute a stage, recording timing under the provided stage_timing dict.
 
-    # Wall-clock start
-    start_ts = datetime.now().timestamp()
-    start_iso = str(datetime.fromtimestamp(start_ts, timezone.utc))
-    # Monotonic start for elapsed computation
-    start_perf = time.perf_counter()
-    # Pre-populate stage metadata entry
-    meta_container.setdefault(name, {})
-    meta_container[name]["start"] = start_iso
+    Timing contract:
+    - stage_timing[name] is created immediately with { start }
+    - on completion, we add end, elapsed, succeeded
+    - on error, succeeded is False and the exception propagates
+    """
+    start_monotonic = time.perf_counter()
+    start_dt = datetime.now(timezone.utc)
+
+    # Ensure the timing container entry exists from the start
+    stage_timing[name] = {"start": str(start_dt)}
+
+    succeeded = False
     try:
         result = await dag[name]["function"](context)
         succeeded = True
         return (name, result)
     except Exception as e:
-        # Record exception on context and re-raise so upstream can handle
+        # Attach exception at the top-level context for visibility
         context["exception"] = {
             "stage": name,
             "message": ExceptionContext.format_message(e),
             "traceback": traceback.format_exc(),
             "time": str(datetime.now(timezone.utc)),
         }
-        succeeded = False
         raise e
     finally:
-        # Wall-clock end
-        end_ts = datetime.now().timestamp()
-        end_iso = str(datetime.fromtimestamp(end_ts, timezone.utc))
-        # Monotonic elapsed
-        end_perf = time.perf_counter()
-        elapsed = str(timedelta(seconds=(end_perf - start_perf)))
-        meta = meta_container[name]
-        meta["end"] = end_iso
-        meta["elapsed"] = elapsed
-        meta["succeeded"] = succeeded
+        end_monotonic = time.perf_counter()
+        end_dt = datetime.now(timezone.utc)
+        elapsed = end_monotonic - start_monotonic
+        # Update the timing info for this stage
+        md = stage_timing.get(name, {})
+        md.update(
+            {
+                "end": str(end_dt),
+                "elapsed": str(timedelta(seconds=elapsed)),
+                "succeeded": succeeded,
+            }
+        )
+        stage_timing[name] = md
 
 
-def make_task(dag, name, context):
-    return asyncio.create_task(run_task(dag, name, context))
+def make_task(dag, name, context, stage_timing):
+    return asyncio.create_task(run_task(dag, name, context, stage_timing))
 
 
-async def run_dag(dag_object, context):
+async def run_dag(dag_object, context: dict[str, Any], turn_index: int | None = None):
     turns = glom(context, "case.turns", default=None)
     if turns is None:
-        stages = {}
+        # Single-turn run: initialize top-level metadata and timing container
+        stages: dict[str, Any] = {}
         context["stages"] = stages
-        # Ensure top-level metadata exists for single-turn timing
-        context.setdefault("metadata", {}).setdefault("stages", {})
-        await run_dag_helper(dag_object, context, stages)
+
+        start = datetime.now().timestamp()
+        metadata = {
+            "start": str(datetime.fromtimestamp(start, timezone.utc)),
+            "stages": {},
+        }
+        context["metadata"] = metadata
+
+        await run_dag_helper(dag_object, context, stages, metadata["stages"])
+
+        # Record end and elapsed for the overall run
+        end = datetime.now().timestamp()
+        elapsed = end - start
+        metadata["end"] = str(datetime.fromtimestamp(end, timezone.utc))
+        metadata["elapsed"] = str(timedelta(seconds=elapsed))
     else:
+        turn_count = len(turns)
         context["turns"] = []
-        for index in range(len(turns)):
+        if turn_index is not None:
+            if turn_index >= len(turns) or turn_index < 0:
+                raise IndexError(f"Turn index {turn_index} is out of range for available turns.")
+            turn_count = turn_index + 1
+            context["isolated_turn"] = True
+
+        for index in range(turn_count):
             start = datetime.now().timestamp()
             metadata = {
                 "start": str(datetime.fromtimestamp(start, timezone.utc)),
-                # Initialize per-stage timing container inside turn metadata immediately
                 "stages": {},
             }
             stages = {}
@@ -153,30 +171,29 @@ async def run_dag(dag_object, context):
                 "stages": stages,
             }
             context["turns"].append(turn)
-            try:
-                await run_dag_helper(dag_object, context, stages)
-            except Exception as e:
-                turn["exception"] = {
-                    "message": ExceptionContext.format_message(e),
-                    "traceback": traceback.format_exc(),
-                    "time": str(datetime.now(timezone.utc)),
-                }
-                # Record end/elapsed even on error
-                end = datetime.now().timestamp()
-                elapsed = end - start
-                metadata["end"] = str(datetime.fromtimestamp(end, timezone.utc))
-                metadata["elapsed"] = str(timedelta(seconds=elapsed))
-                # Stop processing turns after an error.
-                return
+
+            if turn_index is None or turn_index == index:
+                try:
+                    await run_dag_helper(dag_object, context, stages, metadata["stages"])
+                except Exception as e:
+                    turn["exception"] = {
+                        "message": ExceptionContext.format_message(e),
+                        "traceback": traceback.format_exc(),
+                        "time": str(datetime.now(timezone.utc)),
+                    }
+                    # Stop processing turns after an error.
+                    return
+
             # Record the successful completion of this turn.
+            turn["succeeded"] = True
+            # TODO: should the following lines be in a finally block?
             end = datetime.now().timestamp()
             elapsed = end - start
             metadata["end"] = str(datetime.fromtimestamp(end, timezone.utc))
             metadata["elapsed"] = str(timedelta(seconds=elapsed))
-            turn["succeeded"] = True
 
 
-async def run_dag_helper(dag_object, context, stages):
+async def run_dag_helper(dag_object, context, stages, stage_timing):
     dag = dag_object.dag
 
     # DESIGN NOTE: the dict of unfulfilled dependencies is stored per-run,
@@ -196,7 +213,7 @@ async def run_dag_helper(dag_object, context, stages):
     # cleanup after exceptions.
 
     # Create a list of tasks for the ready nodes
-    tasks = [make_task(dag, name, context) for name in ready]
+    tasks = [make_task(dag, name, context, stage_timing) for name in ready]
 
     while tasks:
         # Wait for any of the tasks to complete
@@ -206,7 +223,7 @@ async def run_dag_helper(dag_object, context, stages):
         for task in done:
             (name, result) = task.result()
 
-            # Record the result of this stage in the context (raw).
+            # Record the result of this stage in the context.
             if name in stages:
                 raise ValueError(
                     f"Internal error: node `stages.{name}` already in context"
@@ -219,7 +236,7 @@ async def run_dag_helper(dag_object, context, stages):
                 dependencies[output].remove(name)
                 if not dependencies[output]:
                     waiting.remove(output)
-                    tasks.add(make_task(dag, output, context))
+                    tasks.add(make_task(dag, output, context, stage_timing))
 
     if waiting:
         raise ValueError("Internal error: some nodes are still waiting to run")
