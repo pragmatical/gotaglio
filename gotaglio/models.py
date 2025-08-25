@@ -62,14 +62,22 @@ class AzureOpenAI(Model):
                 azure_endpoint=endpoint,
             )
 
+        # Pull runtime settings from context if provided (e.g., infer.model.settings)
+        settings = (context or {}).get("model_settings", {})
+        max_tokens = settings.get("max_tokens", 800)
+        temperature = settings.get("temperature", 0.7)
+        top_p = settings.get("top_p", 0.95)
+        frequency_penalty = settings.get("frequency_penalty", 0)
+        presence_penalty = settings.get("presence_penalty", 0)
+
         response = self._client.chat.completions.create(
             model=self._config["deployment"],
             messages=messages,
-            max_tokens=800,
-            temperature=0.7,
-            top_p=0.95,
-            frequency_penalty=0,
-            presence_penalty=0,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            frequency_penalty=frequency_penalty,
+            presence_penalty=presence_penalty,
             stop=None,
             stream=False,
         )
