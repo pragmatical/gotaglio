@@ -1,25 +1,44 @@
 #!/usr/bin/env python
 
-import aiohttp
 import asyncio
+import base64
 import json
 import logging
 import os
 import uuid
-import uvicorn
 from typing import Optional
 
 import aiohttp
+import uvicorn
+from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
-from dotenv import load_dotenv
+import socket
+from urllib.parse import urlparse
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 class Realtime:
-    def __init__(self):
+    def __init__(
+        self,
+        *,
+        max_file_seconds: Optional[int] = None,
+        auto_close_on_first_response: bool = False,
+        text_only_output: bool = False,
+    ) -> None:
+        """Realtime session proxy to Azure OpenAI Realtime API.
+
+        Args:
+            max_file_seconds: If provided, enforce a maximum audio duration per
+                connection based on bytes appended via input_audio_buffer.append
+                (assumes PCM16 24 kHz). Use for /realtime-file uploads.
+            auto_close_on_first_response: If True, close client socket after the
+                first full response is observed.
+            text_only_output: If True, configure the session for text-only
+                output (no audio synthesis), while still accepting audio input.
+        """
         # Unique id for this connection/session for log correlation
         self.session_id = uuid.uuid4().hex[:8]
         # Config
@@ -28,10 +47,15 @@ class Realtime:
         self.deployment = os.environ.get("AZURE_OPENAI_REALTIME_MODEL_NAME")
         self.voice_choice = os.environ.get("AZURE_OPENAI_REALTIME_VOICE_CHOICE")
         self.api_version = os.environ.get("AZURE_OPENAI_REALTIME_API_VERSION")
-        # Transports
-        self.session = None
-        self.ws_openai = None
+        # Options
+        self.max_file_seconds = max_file_seconds
+        self.auto_close_on_first_response = auto_close_on_first_response
+        self.text_only_output = text_only_output
+        # Runtime state
+        self.session: Optional[aiohttp.ClientSession] = None
+        self.ws_openai: Optional[aiohttp.ClientWebSocketResponse] = None
         self.client_connected = True
+        self._audio_bytes_received = 0
 
     def _ensure_env(self) -> None:
         """Validate required environment variables before connecting."""
@@ -51,7 +75,11 @@ class Realtime:
         # Validate environment/config before attempting to connect
         self._ensure_env()
 
-        headers = {"api-key": self.api_key}
+        headers = {
+            "api-key": self.api_key,
+            # Azure Realtime commonly expects this beta header
+            "OpenAI-Beta": "realtime=v1",
+        }
         base_url = self.endpoint.replace("https://", "wss://")
         url = f"{base_url}/openai/realtime?api-version={self.api_version}&deployment={self.deployment}"
 
@@ -67,9 +95,10 @@ class Realtime:
             self.ws_openai = await self.session.ws_connect(
                 url,
                 headers=headers,
-                timeout=30,
+                timeout=60,
                 heartbeat=20.0,
                 max_msg_size=10 * 1024 * 1024,
+                protocols=["realtime"],
             )
             logger.info("[%s] Connected to Azure Realtime", self.session_id)
             await self.send_session_config()
@@ -77,7 +106,8 @@ class Realtime:
             logger.exception("Failed to connect to Azure OpenAI")
             if self.session and not self.session.closed:
                 await self.session.close()
-            raise ConnectionError(f"Cannot connect to Azure OpenAI Realtime API: {str(e)}")
+            err = str(e)
+            raise ConnectionError(f"Cannot connect to Azure OpenAI Realtime API: {err}")
         
 
     
@@ -98,20 +128,28 @@ class Realtime:
         )
 
         # Simple session configuration
-        config = {
-            "type": "session.update",
-            "session": {
-                "modalities": ["text", "audio"],
-                "instructions": enhanced_prompt,
-                "voice": self.voice_choice,
-                "input_audio_format": "pcm16",
-                "output_audio_format": "pcm16",
-                "input_audio_transcription": {"model": "whisper-1"},
-                "turn_detection": {"type": "server_vad", "threshold": 0.2, "silence_duration_ms": 500},
-                "tools": [],
-                "tool_choice": "auto",
-            },
+        session_cfg = {
+            "modalities": ["text"] if self.text_only_output else ["text", "audio"],
+            "instructions": enhanced_prompt,
+            # Always allow audio input via PCM16
+            "input_audio_format": "pcm16",
+            "input_audio_transcription": {"model": "whisper-1"},
+            # For interactive/mic sessions use server_vad; for file uploads (auto-close mode) omit VAD
+            # to rely on explicit commit.
+            # We'll add turn_detection only when not auto-closing on first response
+            "tools": [],
+            "tool_choice": "auto",
         }
+        if not self.auto_close_on_first_response:
+            session_cfg["turn_detection"] = {"type": "server_vad", "threshold": 0.2, "silence_duration_ms": 5000}
+        if not self.text_only_output:
+            # Provide voice/output audio only when not text-only
+            session_cfg.update({
+                "voice": self.voice_choice,
+                "output_audio_format": "pcm16",
+            })
+
+        config = {"type": "session.update", "session": session_cfg}
 
         await self.ws_openai.send_json(config)
         logger.info("[%s] Sent session config", self.session_id)
@@ -154,6 +192,38 @@ class Realtime:
                     if "data" in message_data and "audio" not in message_data:
                         message_data["audio"] = message_data.pop("data")
 
+                    # Enforce optional max file duration (assumes PCM16 at 24kHz)
+                    if self.max_file_seconds and isinstance(message_data.get("audio"), str):
+                        try:
+                            b64 = message_data["audio"]
+                            # Compute bytes from base64 length without full decode for speed
+                            padding = b64.endswith("==") and 2 or (b64.endswith("=") and 1 or 0)
+                            bytes_len = (len(b64) * 3) // 4 - padding
+                            self._audio_bytes_received += max(bytes_len, 0)
+                            # 24_000 samples/sec * 2 bytes per sample (PCM16 mono)
+                            max_bytes = int(self.max_file_seconds) * 24000 * 2
+                            if self._audio_bytes_received > max_bytes:
+                                logger.warning(
+                                    "[%s] Max file duration exceeded: %ss (received ~%.2fs)",
+                                    self.session_id,
+                                    self.max_file_seconds,
+                                    self._audio_bytes_received / (24000 * 2),
+                                )
+                                await websocket.send_json(
+                                    {
+                                        "type": "error",
+                                        "error": {
+                                            "message": f"File too long. Max duration is {self.max_file_seconds} seconds.",
+                                            "code": "file_too_long",
+                                        },
+                                    }
+                                )
+                                # Stop forwarding further data
+                                self.client_connected = False
+                                break
+                        except Exception:  # best-effort; don't block on size check
+                            logger.exception("[%s] Failed to enforce max duration", self.session_id)
+
                 await self.ws_openai.send_json(message_data)
             except WebSocketDisconnect:
                 self.client_connected = False
@@ -180,6 +250,14 @@ class Realtime:
 
                         # Forward all other messages
                         await websocket.send_text(msg.data)
+
+                        # Optionally auto-close on first full response for file uploads
+                        if self.auto_close_on_first_response and message.get("type") in {"response.completed", "response.done"}:
+                            try:
+                                await websocket.close(code=1000)
+                            finally:
+                                self.client_connected = False
+                                break
 
                     except json.JSONDecodeError:
                         logger.exception("[%s] Failed to parse JSON from OpenAI", self.session_id)
@@ -234,6 +312,7 @@ async def serve_realtime_test_html():
     except FileNotFoundError:
         return HTMLResponse(content="realtime_test.html not found", status_code=404)
 
+
 @app.websocket("/realtime")
 async def realtime_websocket(websocket: WebSocket):
     try:
@@ -252,7 +331,6 @@ async def realtime_websocket(websocket: WebSocket):
             })
         except Exception:
             pass
-
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
