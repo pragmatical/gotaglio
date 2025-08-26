@@ -579,9 +579,33 @@
         }
 
         function disconnectWebSocket() {
-            if (socket) {
-                socket.close();
+            if (!socket) {
+                return;
             }
+
+            try {
+                // Disable the button immediately to avoid double clicks
+                disconnectBtn.disabled = true;
+
+                // Request a clean close with a code and reason
+                if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+                    socket.close(1000, 'Client requested disconnect');
+                }
+            } catch (e) {
+                console.error('Error closing WebSocket:', e);
+            }
+
+            // Fallback UI cleanup if onclose doesn't fire promptly
+            setTimeout(() => {
+                if (socket && socket.readyState !== WebSocket.CLOSED) {
+                    statusDiv.className = 'disconnected';
+                    statusDiv.textContent = 'Disconnected';
+                    connectBtn.disabled = false;
+                    startRecordingBtn.disabled = true;
+                    stopRecordingBtn.disabled = true;
+                    recordingIndicator.classList.add('hidden');
+                }
+            }, 500);
         }
         
         async function startRecording() {
