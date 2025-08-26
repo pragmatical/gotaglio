@@ -9,15 +9,16 @@ We need to run speech-in/speech-out and streamed text/audio interactions against
 - Exposes a simple contract for downstream steps and CLI users
 
 ## Goals (acceptance criteria)
-- [ ] New pipeline step type that performs realtime inference against Azure OpenAI (WebSocket transport MVP)
+- [ ] New Model class in `gotaglio/models.py` (e.g., `AzureOpenAIRealtime`) that performs realtime inference against Azure OpenAI over WebSocket (MVP)
 - [ ] Input: audio file path or bytes (16 kHz mono PCM/WAV/MP3/Opus; document supported codecs)
-- [ ] Output: structured result containing final transcript, model responses, plus a complete ordered list of raw streamed events
+- [ ] Output: final transcript text return value; complete ordered list of raw streamed events captured onto the `context` for assessment
 - [ ] Capture 100% of event frames/messages with timestamps and types for assessment
-- [ ] Config via model/step options: endpoint, api version, resource, deployment, key/credential, transport (ws|webrtc), timeouts, sampling rate
+- [ ] Config via model options: endpoint, api version, deployment, key/credential, timeouts, sampling rate, optional voice/modalities
+- [ ] Works within existing pipelines by calling the model from a DAG stage (no new pipeline step type required)
 - [ ] Graceful handling of reconnects/timeouts; partial session captured with error metadata
 - [ ] Unit tests with mocked WebSocket; deterministic event capture ordering
-- [ ] CLI example and sample pipeline spec
- - [ ] Leverage existing gotaglio conventions: standard logging via `logging.getLogger(__name__)`, run logs via `Director`/`shared.write_log_file`, case structure and CLI key=value patches
+- [ ] CLI example and sample stage that calls the model
+- [ ] Leverage existing gotaglio conventions: standard logging via `logging.getLogger(__name__)`, run logs via `Director`/`shared.write_log_file`, case structure and CLI key=value patches
 
 ## Non-goals
 - Full WebRTC support in MVP (plan and interface slots included, implemented later)
@@ -35,28 +36,18 @@ We need to run speech-in/speech-out and streamed text/audio interactions against
 6. Derive convenience outputs: final transcript, final text response(s), optional audio output references if provided by API
 7. Close connection and return `RealtimeResult`
 
-### Public pipeline API
-- Step kind: `realtime_infer` (alias: `azure_realtime_infer`)
-- Inputs
-  - `audio`: str|bytes|pathlib.Path (path to audio file) or an iterator of bytes for streaming (optional in MVP; start with file)
-  - `options` (dict):
-    - `transport`: "ws" | "webrtc" (default: "ws")
-    - `sample_rate_hz`: int (default 16000)
-    - `format`: "wav"|"mp3"|"flac"|"opus" (best-effort detection from file extension)
-    - `timeout_s`: float (default 60)
-    - `save_events_path`: Optional[str] — if provided, persist captured events as JSONL
-  - `model` (dict or model name mapped via `models.json`):
-    - `provider`: "azure-openai"
-    - `deployment`: string
-    - `api_version`: string
-    - `endpoint`: string (https://{resource}.openai.azure.com)
-    - `key`: env var name or direct value (prefer env var)
-- Outputs
-  - `RealtimeResult`:
-    - `events`: List[RealtimeEvent]
-    - `transcript`: Optional[str]
-    - `responses`: List[str] (aggregated text outputs, if any)
-    - `meta`: dict (timings, reconnects, bytes sent, etc.)
+### Public model API
+- Class: `AzureOpenAIRealtime` (registered by `register_models` when `type` is `AZURE_OPEN_AI_REALTIME`)
+- Config fields:
+  - `endpoint`, `api` (api-version), `deployment`, `key`
+  - Optional: `sample_rate_hz` (default 16000), `timeout_s` (default 60), `voice`, `modalities`
+- Methods:
+  - `async infer(messages, context=None) -> str`
+    - Messages ignored for realtime audio; use `context` to pass `audio_file` or `audio_bytes`
+    - Returns final transcript text (or "" if none). Captured events attached to `context["realtime_events"]`.
+  - Optional convenience: `async realtime_infer(audio_file: str, **opts) -> str` delegating to `infer`
+- Event capture contract:
+  - Model attaches a list of normalized events at `context["realtime_events"]` in arrival order; each event has `sequence`, `type`, `ts`, and `payload`.
 
 ### Integration with gotaglio conventions
 - Logging
@@ -80,9 +71,9 @@ We need to run speech-in/speech-out and streamed text/audio interactions against
 - RealtimeResult
   - Aggregates events and derived fields (transcript, responses)
 
-### Transport and client
-- MVP: WebSocket using `websockets` or `aiohttp` client; keep implementation async internally with a sync wrapper for pipeline compatibility
-- Optional future: WebRTC using `aiortc` (behind feature flag)
+### Transport inside model
+- MVP: WebSocket using a lightweight async client (e.g., `websockets`) implemented inside the model class
+- Optional future: WebRTC using `aiortc` (behind feature flag), still encapsulated in the model
 
 ### Authentication
 - Azure OpenAI Realtime requires the Azure resource endpoint, API version, and either API key or AAD bearer token
@@ -94,7 +85,7 @@ We need to run speech-in/speech-out and streamed text/audio interactions against
 - Preserve raw payload for later parsing; derive transcript/responses using event types defined by Azure Realtime
 
 ### Persistence
-- If `save_events_path` provided, write as JSONL (one event per line) plus a compact `result.json` with summary
+- Model will attach events to `context` for inclusion in run logs; a calling stage may also persist events to JSONL (optional `save_events_path` in pipeline config)
 - Optional: store audio copy into sibling folder for reproducibility
 
 ### Error handling
@@ -103,7 +94,7 @@ We need to run speech-in/speech-out and streamed text/audio interactions against
 - Network errors: retry connect once (configurable), annotate in `meta`
 
 ### CLI example
-- Example invocation via pipeline spec and `gotag run` that points to `samples/` audio file
+- Example run via existing CLI `gotag run` with cases file and a DAG stage that calls the model
 
 ### Case schema (placeholder for input file)
 - Single-turn case example:
@@ -111,20 +102,15 @@ We need to run speech-in/speech-out and streamed text/audio interactions against
 - Multi-turn case example:
   - `{ "uuid": "...", "turns": [ { "audio": "{audio_file}" } ] }`
 - Placeholder resolution:
-  - The step will substitute `{audio_file}` from pipeline config key `realtime.audio_file`
+  - The calling stage will substitute `{audio_file}` from pipeline config key `realtime.audio_file`
   - Provide at runtime with CLI patch: `realtime.audio_file=path/to/file.wav`
   - If the case specifies a concrete path, it takes precedence; if missing and no config provided, raise a clear error
 
 ## Impacted code
-- `gotaglio/pipeline.py`: add new step execution path for `realtime_infer`
-- `gotaglio/pipeline_spec.py`: schema/validation for new step kind and options
-- `gotaglio/models.py`: allow Azure OpenAI realtime-capable model config fields
-- `gotaglio/registry.py`: register new step kind
-- `gotaglio/endpoints/realtime.py`: leverage or extend if present; otherwise create `endpoints/azure_realtime.py`
-- `gotaglio/subcommands/run_cmd.py`: no change expected; ensure args pass-through works
-- `gotaglio/shared.py`: use `write_log_file` for artifacts; optionally add a tiny helper to expand `{audio_file}` placeholders from config within the step
-- `samples/` and `documentation/`: add sample and docs
-- New: `gotaglio/clients/azure_realtime.py` (client + DTOs)
+- `gotaglio/models.py`: add `AzureOpenAIRealtime` model class and any helper DTOs
+- `gotaglio/models.py::register_models`: support type `AZURE_OPEN_AI_REALTIME`
+- `samples/` and `documentation/`: add sample stage and docs
+- Optional: a small utility in a stage to persist `context["realtime_events"]` to JSONL using `shared.write_log_file`
 
 ## Edge cases and risks
 - Large audio files causing long send times or server-side truncation
@@ -143,7 +129,7 @@ We need to run speech-in/speech-out and streamed text/audio interactions against
 - Integration tests (optional, skipped w/o creds):
   - Real connect to Azure with short sample audio; verify at least basic event flow
 - Contract tests:
-  - Step schema validation errors on missing required fields
+  - Validation errors when audio input missing in context
 
 ## Migration/compat
 - Backwards compatible; adds new step kind. No breaking changes.
@@ -153,56 +139,37 @@ We need to run speech-in/speech-out and streamed text/audio interactions against
 - Feature flag: `GOTAGLIO_ENABLE_REALTIME` (default on if deps available)
 - Log metrics: total events, bytes sent/received, duration, error count
 - Docs: add `documentation/realtime.md` and sample pipeline
+- Dependencies: add `websockets` (or `aiohttp`) to project deps
 
-## Example pipeline spec (illustrative)
-```jsonc
-{
-  "name": "azure-realtime-transcribe-and-respond",
-  "steps": [
-    {
-      "id": "infer",
-      "kind": "realtime_infer",
-      "model": {
-        "provider": "azure-openai",
-        "endpoint": "${AZURE_OPENAI_ENDPOINT}",
-        "api_version": "2024-06-01",
-        "deployment": "gpt-4o-realtime-preview",
-        "key": "${AZURE_OPENAI_API_KEY}"
-      },
-      "inputs": {
-        "audio": "samples/audio/hello.wav"
-      },
-      "options": {
-        "transport": "ws",
-        "sample_rate_hz": 16000,
-        "timeout_s": 45,
-        "save_events_path": "logs/runs/${run_id}/events.jsonl"
-      }
-    }
-  ]
-}
+## Example usage in a stage (illustrative)
+```python
+from gotaglio.pipeline_spec import get_turn
+
+async def realtime_stage(context):
+    turn = get_turn(context)
+    audio = turn.get("audio")  # may be "{audio_file}" placeholder
+    # Resolve placeholder from pipeline config (not shown here)
+    model = context["registry"].model("azure-realtime")  # name from models.json
+    transcript = await model.infer(messages=[], context={"audio_file": audio})
+    # Attach transcript to stage result; events are in context["realtime_events"]
+    return {"transcript": transcript, "events_count": len(context.get("realtime_events", []))}
 ```
 
-CLI usage example (using placeholder via pipeline config Prompt):
+CLI usage example (placeholder via CLI patches):
 
 ```bash
-gotag run azure-realtime-transcribe-and-respond \
+gotag run my-pipeline \
   --cases cases/realtime.json \
-  realtime.audio_file=samples/audio/hello.wav \
-  options.save_events_path=logs/runs/${run_id}/events.jsonl
+  realtime.audio_file=samples/audio/hello.wav
 ```
 
 ## Tasks
-- [ ] Define DTOs: `RealtimeEvent`, `RealtimeResult`, `EventCapture`
-- [ ] Implement `clients/azure_realtime.py` (WS MVP): connect, send audio, receive events, normalize, capture
-- [ ] Add pipeline step execution in `pipeline.py` and register kind in `registry.py`
-- [ ] Extend `pipeline_spec.py` to validate new step schema and options
-- [ ] Add model fields in `models.py` with env resolution helpers
-- [ ] Persistence: JSONL writer and summary artifact
-- [ ] Unit tests with transport mocks; contract tests for schema validation
-- [ ] Sample audio and pipeline under `samples/realtime/`
+- [ ] Define DTOs: `RealtimeEvent` (normalized event), optional capture helper
+- [ ] Implement model `AzureOpenAIRealtime` (WS MVP): connect, send audio, receive events, normalize, capture on context
+- [ ] Register in `register_models` for type `AZURE_OPEN_AI_REALTIME`
+- [ ] Sample audio and example pipeline stage under `samples/realtime/`
 - [ ] Docs page `documentation/realtime.md`
-- [ ] Optional: add `--save-events` CLI flag passthrough
+- [ ] Unit tests with transport mocks; contract tests for missing audio
 - [ ] Optional (follow-up): WebRTC transport via `aiortc`
 
 ## Links
