@@ -77,7 +77,7 @@ We need to run speech-in/speech-out and streamed text/audio interactions against
 
 ### Authentication
 - Azure OpenAI Realtime requires the Azure resource endpoint, API version, and either API key or AAD bearer token
-- Support API key via `AZURE_OPENAI_API_KEY` or step-level `key` resolved from env
+- Support API key via `AZURE_OPENAI_API_KEY` or model-level `key` resolved from env
 
 ### Event normalization
 - Maintain received order using a local `sequence` counter
@@ -132,8 +132,8 @@ We need to run speech-in/speech-out and streamed text/audio interactions against
   - Validation errors when audio input missing in context
 
 ## Migration/compat
-- Backwards compatible; adds new step kind. No breaking changes.
-- Env vars: `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_VERSION`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT` (usable defaults when not specified at step)
+- Backwards compatible; implemented as an additional model type. No breaking changes.
+- Env vars: `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_VERSION`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT` (usable defaults when not specified at model config)
 
 ## Rollout
 - Feature flag: `GOTAGLIO_ENABLE_REALTIME` (default on if deps available)
