@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import uuid
+import uvicorn
 from typing import Optional
 
 import aiohttp
