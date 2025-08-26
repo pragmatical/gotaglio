@@ -17,6 +17,7 @@ We need to run speech-in/speech-out and streamed text/audio interactions against
 - [ ] Graceful handling of reconnects/timeouts; partial session captured with error metadata
 - [ ] Unit tests with mocked WebSocket; deterministic event capture ordering
 - [ ] CLI example and sample pipeline spec
+ - [ ] Leverage existing gotaglio conventions: standard logging via `logging.getLogger(__name__)`, run logs via `Director`/`shared.write_log_file`, case structure and CLI key=value patches
 
 ## Non-goals
 - Full WebRTC support in MVP (plan and interface slots included, implemented later)
@@ -57,6 +58,17 @@ We need to run speech-in/speech-out and streamed text/audio interactions against
     - `responses`: List[str] (aggregated text outputs, if any)
     - `meta`: dict (timings, reconnects, bytes sent, etc.)
 
+### Integration with gotaglio conventions
+- Logging
+  - Use `logging.getLogger(__name__)` consistent with `endpoints/realtime.py`
+  - Avoid prints; surface high-level run details through `Director` runlog and persist via `shared.write_log_file`
+- CLI
+  - Reuse existing `gotaglio/subcommands/run_cmd.py` flow; no new top-level commands
+  - Accept config via key=value patches (e.g., `realtime.audio_file=...`), leveraging `Pipeline.Prompt` where needed
+- Test cases
+  - Cases are `list[dict]` with required `uuid`; turns supported via `case["turns"]`
+  - Define a placeholder for input audio file in cases; resolve from pipeline configuration provided via CLI patches
+
 ### Data structures
 - RealtimeEvent
   - `type`: str (e.g., "session.created", "response.delta", "response.completed", "input_audio.buffer.committed", "error")
@@ -93,6 +105,16 @@ We need to run speech-in/speech-out and streamed text/audio interactions against
 ### CLI example
 - Example invocation via pipeline spec and `gotag run` that points to `samples/` audio file
 
+### Case schema (placeholder for input file)
+- Single-turn case example:
+  - `{ "uuid": "...", "audio": "{audio_file}", "answer": "<optional expected>" }`
+- Multi-turn case example:
+  - `{ "uuid": "...", "turns": [ { "audio": "{audio_file}" } ] }`
+- Placeholder resolution:
+  - The step will substitute `{audio_file}` from pipeline config key `realtime.audio_file`
+  - Provide at runtime with CLI patch: `realtime.audio_file=path/to/file.wav`
+  - If the case specifies a concrete path, it takes precedence; if missing and no config provided, raise a clear error
+
 ## Impacted code
 - `gotaglio/pipeline.py`: add new step execution path for `realtime_infer`
 - `gotaglio/pipeline_spec.py`: schema/validation for new step kind and options
@@ -100,6 +122,7 @@ We need to run speech-in/speech-out and streamed text/audio interactions against
 - `gotaglio/registry.py`: register new step kind
 - `gotaglio/endpoints/realtime.py`: leverage or extend if present; otherwise create `endpoints/azure_realtime.py`
 - `gotaglio/subcommands/run_cmd.py`: no change expected; ensure args pass-through works
+- `gotaglio/shared.py`: use `write_log_file` for artifacts; optionally add a tiny helper to expand `{audio_file}` placeholders from config within the step
 - `samples/` and `documentation/`: add sample and docs
 - New: `gotaglio/clients/azure_realtime.py` (client + DTOs)
 
@@ -116,6 +139,7 @@ We need to run speech-in/speech-out and streamed text/audio interactions against
   - Connect -> send audio -> receive deterministic sequence of events -> verify `events`, `transcript`, `responses`
   - Timeout path returns partial events and proper meta
   - Persistence: JSONL written and loadable
+  - Case placeholder expansion: case with `"audio": "{audio_file}"` resolves using CLI patch `realtime.audio_file=...`
 - Integration tests (optional, skipped w/o creds):
   - Real connect to Azure with short sample audio; verify at least basic event flow
 - Contract tests:
@@ -157,6 +181,15 @@ We need to run speech-in/speech-out and streamed text/audio interactions against
     }
   ]
 }
+```
+
+CLI usage example (using placeholder via pipeline config Prompt):
+
+```bash
+gotag run azure-realtime-transcribe-and-respond \
+  --cases cases/realtime.json \
+  realtime.audio_file=samples/audio/hello.wav \
+  options.save_events_path=logs/runs/${run_id}/events.jsonl
 ```
 
 ## Tasks

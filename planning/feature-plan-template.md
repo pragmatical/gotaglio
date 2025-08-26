@@ -17,10 +17,12 @@ Describe the user problem and why it matters.
 - Public API or CLI changes
 - Data structures and types
 - UX/CLI examples
+ - Alignment with existing conventions (logging via logging.getLogger(__name__), CLI key=value patches, Director runlog persistence)
 
 ## Impacted code
 List files and symbols that will change. Use backticks for paths and symbol names.
 - `path/to/file.py`: function `foo()` change: ...
+ - Note any CLI or runlog integrations (e.g., `subcommands/run_cmd.py`, `shared.write_log_file`)
 
 ## Edge cases and risks
 - Case 1
@@ -29,6 +31,7 @@ List files and symbols that will change. Use backticks for paths and symbol name
 ## Test plan
 - Unit tests to add/update
 - Integration/CLI tests
+ - Define any test case placeholders (e.g., `{audio_file}`) and how they resolve from pipeline configuration
 
 ## Migration/compat
 - Backwards compatibility notes
