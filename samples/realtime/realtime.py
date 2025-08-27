@@ -24,8 +24,8 @@ from gotaglio.pipeline import Internal, Prompt
 
 configuration = {
     "realtime": {
-        # Path to WAV file; used to resolve placeholders in cases
-        "audio_file": "samples/realtime/sample_audio.m4a",
+    # Path to WAV file; used to resolve placeholders in cases
+    "audio_file": "samples/realtime/hello.wav",
     },
     "infer": {
         "model": {

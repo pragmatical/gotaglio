@@ -66,6 +66,9 @@ async def test_realtime_model_happy_path(monkeypatch, tmp_path):
     assert result == "Hello, world"
     assert isinstance(context.get("realtime_events"), list)
     assert any(ev.get("type") == "response.create" for ev in context["realtime_events"])
+    # Ensure we log the final response text
+    finals = [ev for ev in context["realtime_events"] if ev.get("type") == "response.final"]
+    assert finals and finals[-1].get("text") == "Hello, world"
     # Check sequences strictly increasing
     assert_strictly_increasing_sequences(context["realtime_events"])
     # Exercise JSONL writer
