@@ -302,7 +302,7 @@ class Realtime:
 
 app = FastAPI()
 
-@app.get("/realtime_test.html")
+@app.get("/")
 async def serve_realtime_test_html():
     """Serve the test client HTML page from the endpoints directory."""
     html_path = os.path.join(os.path.dirname(__file__), "realtime_test.html")

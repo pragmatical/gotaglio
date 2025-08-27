@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Realitme API Test Client</title>
+    <title>Realtime API Test Client</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
@@ -77,7 +77,7 @@
     </style>
 </head>
 <body>
-    <h1>Realitme API Test Client</h1>
+    <h1>Realtime API Test Client</h1>
     <div style="background-color: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #c3e6cb;">
         <strong>Updated May 22, 2025:</strong> This client now uses the new message format required by the Azure OpenAI Realtime API.
     </div>
@@ -114,7 +114,6 @@
         <div class="controls">
             <button id="connectBtn">Connect</button>
             <button id="disconnectBtn" disabled>Disconnect</button>
-            <button id="healthCheckBtn">Check Server Status</button>
             <button id="testAudioBtn">Test Audio Output</button>
             <button id="clearAudioBtn">Stop All Audio</button>
             <button id="sendFileBtn">Send Audio File…</button>
@@ -363,44 +362,6 @@
             }
         }
 
-        // Add health check functionality
-        const healthCheckBtn = document.getElementById('healthCheckBtn');
-        if (healthCheckBtn) {
-            healthCheckBtn.addEventListener('click', () => checkServerStatus().catch(() => {}));
-        }
-
-        // Add test audio functionality
-        const testAudioBtn = document.getElementById('testAudioBtn');
-        if (testAudioBtn) {
-            testAudioBtn.addEventListener('click', testAudioOutput);
-        }
-
-        // Add clear audio functionality
-        const clearAudioBtn = document.getElementById('clearAudioBtn');
-        if (clearAudioBtn) {
-            clearAudioBtn.addEventListener('click', () => {
-                clearAudioPlayback();
-                logMessage('System', 'All audio playback stopped');
-            });
-        }
-
-        // File upload flow
-        if (sendFileBtn && fileInputEl) {
-            sendFileBtn.addEventListener('click', () => fileInputEl.click());
-            fileInputEl.addEventListener('change', async (e) => {
-                const file = e.target.files && e.target.files[0];
-                if (!file) return;
-                try {
-                    await uploadAudioFile(file);
-                } catch (err) {
-                    console.error(err);
-                    logMessage('System', `File upload failed: ${err && err.message ? err.message : err}`, 'error');
-                } finally {
-                    fileInputEl.value = '';
-                }
-            });
-        }
-
         // Test audio output with a simple tone
         async function testAudioOutput() {
             try {
@@ -629,7 +590,7 @@
                 }
             }, 500);
         }
-        
+
         async function startRecording() {
             try {
                 // Request access to the microphone with OpenAI Realtime API requirements (24kHz mono)
@@ -861,7 +822,7 @@
                         messagesDiv.scrollTop = messagesDiv.scrollHeight;
                     }
                     break;
-                
+
                 case 'response.text.delta':
                     // Handle streaming response
                     const currentExistingMsg = document.querySelector('.message-assistant.current');
@@ -890,7 +851,7 @@
                         }
                     }
                     break;
-                
+
                 case 'response.text.done':
                     // Complete the response
                     const currentExistingMesg = document.querySelector('.message-assistant.current');
