@@ -148,56 +148,15 @@ class AzureOpenAIRealtime(Model):
 
     def _make_audio_append_message(self, audio_bytes: bytes, context=None):
         """Create the audio buffer append payload in the expected format.
-        Ensures the audio is mono PCM16 at 24kHz and returns a JSON-serializable
-        dict with base64 data under the 'audio' key.
+        Returns a JSON-serializable dict with base64 data under the 'audio' key.
+        This implementation does not perform conversion; callers should supply
+        PCM16 mono @ 24kHz for best results.
         """
         import base64
-        audio_path = (context or {}).get("audio_file") if isinstance(context, dict) else None
-        pcm16 = self._to_pcm16_24k_mono(audio_bytes, audio_path)
         return {
             "type": "input_audio_buffer.append",
-            "audio": base64.b64encode(pcm16).decode("ascii"),
+            "audio": base64.b64encode(audio_bytes).decode("ascii"),
         }
-
-    def _to_pcm16_24k_mono(self, audio_bytes: bytes, audio_path: str | None) -> bytes:
-        """Convert input audio to PCM16 mono at 24kHz.
-        WAV-only assumption: uses Python's standard library to parse .wav input.
-        If conversion fails, returns the original bytes (best-effort) but caller may receive API errors.
-        """
-        # Try WAV path using stdlib
-        try:
-            import io, wave, audioop
-            buf = io.BytesIO(audio_bytes)
-            with wave.open(buf, 'rb') as w:
-                in_channels = w.getnchannels()
-                in_rate = w.getframerate()
-                sampwidth = w.getsampwidth()
-                frames = w.readframes(w.getnframes())
-
-            # Convert to 16-bit if needed
-            if sampwidth != 2:
-                try:
-                    frames = audioop.lin2lin(frames, sampwidth, 2)
-                    sampwidth = 2
-                except Exception:
-                    raise
-
-            # Convert to mono if needed
-            if in_channels != 1:
-                frames = audioop.tomono(frames, sampwidth, 0.5, 0.5)
-                in_channels = 1
-
-            # Resample to 24000 Hz if needed
-            if in_rate != 24000:
-                frames, _ = audioop.ratecv(frames, sampwidth, in_channels, in_rate, 24000, None)
-
-            return frames
-        except Exception:
-            pass
-
-    # WAV parsing failed; best-effort fallback: return original bytes
-    # (Assuming callers provide .wav input; other formats may be rejected by the API.)
-        return audio_bytes
 
     async def _receive_responses(
         self,
@@ -213,7 +172,6 @@ class AzureOpenAIRealtime(Model):
         import json as _json
 
         done = False
-        first_inbound_logged = False
         while not done:
             try:
                 raw = await asyncio.wait_for(ws.recv(), timeout=timeout_s)
@@ -221,15 +179,9 @@ class AzureOpenAIRealtime(Model):
                 await append_event(create_response_event("error.timeout"))
                 break
 
+            # Ignore binary frames entirely
             if isinstance(raw, (bytes, bytearray)):
-                # Redact binary contents in logs; record only size
-                await append_event(create_response_event("binary", **{"size": len(raw), "redacted": True}))
                 continue
-
-            # Log the very first inbound text frame distinctly to highlight
-            if not first_inbound_logged:
-                await append_event(create_response_event("ws.first_message"))
-                first_inbound_logged = True
 
             try:
                 message = _json.loads(raw)
@@ -241,25 +193,24 @@ class AzureOpenAIRealtime(Model):
                 continue
 
             t = message.get("type")
-            
 
             # Errors
             if t == "error":
                 await append_event(create_response_event("response.error", message))
                 continue
 
-            # Print all responses
-            else:
+            # Only record selected response events
+            if t in ("response.text.delta", "response.done"):
                 await append_event(create_response_event(t, message))
-                # If response.done is received close the websocket
-                if t == "response.done":
-                    try:
-                        if hasattr(ws, "close"):
-                            await ws.close()
-                    except Exception:
-                        await append_event(create_response_event("ws.close_error"))
-                    done = True
-                continue         
+            # If response.done is received close the websocket
+            if t == "response.done":
+                try:
+                    if hasattr(ws, "close"):
+                        await ws.close()
+                except Exception:
+                    await append_event(create_response_event("ws.close_error"))
+                done = True
+            continue
 
 
     async def _send_session_config(self, ws, context=None):
