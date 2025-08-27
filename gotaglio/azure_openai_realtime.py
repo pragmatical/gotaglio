@@ -60,6 +60,11 @@ class AzureOpenAIRealtime(Model):
 
         def create_event(ev_type: str) -> dict:
             return {"type": ev_type}
+        
+        def create_error_event(ev_type: str,error_message):
+            ev=create_event(ev_type)
+            ev["message"]=error_message
+            return ev
 
         def create_audio_event(ev_type: str, audio_bytes: bytes) -> dict:
             """Create a REDACTED audio event for logs.
@@ -67,26 +72,24 @@ class AzureOpenAIRealtime(Model):
             """
             return {"type": ev_type, "size": len(audio_bytes), "redacted": True}
 
-        def create_response_event(ev_type: str, text: str | None = None, **kwargs) -> dict:
-            ev = {"type": ev_type}
-            if text is not None:
-                ev["text"] = text
-            ev.update(kwargs)
+        def create_response_event(ev_type: str, message=None) -> dict:
+            ev = create_event(ev_type)
+            if message is not None:
+                ev["message"] = message
             return ev
 
         async def append_event(event: dict):
             nonlocal seq
             record = dict(event)
             record["sequence"] = seq
-            events.append(record)
+            # Attach a timestamp (float seconds since epoch) for observability
             try:
-                # Print only transcript delta events for live feedback
-                if record.get("type") == "response.audio_transcript.delta":
-                    from rich import print as rprint  # type: ignore
-                    rprint({"realtime": record})
+                import time
+                record["timestamp"] = time.time()
             except Exception:
-                if record.get("type") == "response.audio_transcript.delta":
-                    print({"realtime": record})
+                # If clock retrieval fails (unlikely), omit timestamp gracefully
+                pass
+            events.append(record)
             seq += 1
 
         # Pre-connection debug info
@@ -133,9 +136,9 @@ class AzureOpenAIRealtime(Model):
                     append_event,
                 )
 
-        except Exception:
+        except Exception as e:
             # Log a simple error event; details can be inspected in logs
-            await append_event(create_event("error"))
+            await append_event(create_error_event("error", str(e)))
 
         # Attach events to context for assessment
         if context is not None:
@@ -204,13 +207,11 @@ class AzureOpenAIRealtime(Model):
         append_event,
     ):
         """Receive messages from the websocket and aggregate final text.
-        Mirrors the previous inline loop, recording events via append_event.
-        Returns the aggregated final text (or empty string).
+        Records events via append_event and returns the aggregated final text.
         """
         import asyncio
         import json as _json
 
-        final_text: str | None = None
         done = False
         first_inbound_logged = False
         while not done:
@@ -226,67 +227,40 @@ class AzureOpenAIRealtime(Model):
                 continue
 
             # Log the very first inbound text frame distinctly to highlight
-            # the response that arrives after a successful connection.
             if not first_inbound_logged:
                 await append_event(create_response_event("ws.first_message"))
                 first_inbound_logged = True
+
             try:
                 message = _json.loads(raw)
             except Exception:
                 # Non-JSON, ignore body content
                 continue
 
-            # Handle errors first (mirror server behavior)
-            if isinstance(message, dict) and message.get("type") == "error":
-                await append_event(create_response_event("error", **{"info": message}))
+            if not isinstance(message, dict):
                 continue
 
-            # Capture the full inbound message for printing/debugging
-            try:
-                await append_event(create_response_event("openai.message", **{"message": message}))
-            except Exception:
-                # Never let logging impact the receive loop
-                pass
+            t = message.get("type")
+            
 
-            t = message.get("type") if isinstance(message, dict) else None
-            # Prefer audio transcript delta for building final_text and live prints
-            if t == "response.audio_transcript.delta":
-                delta_txt = message.get("delta")
-                if isinstance(delta_txt, str) and delta_txt:
-                    final_text = (final_text or "") + delta_txt
-                    await append_event(create_response_event("response.audio_transcript.delta", delta_txt))
+            # Errors
+            if t == "error":
+                await append_event(create_response_event("response.error", message))
                 continue
-            if t == "response.delta":
-                delta = message.get("delta") or {}
-                text = delta.get("text")
-                if text:
-                    final_text = (final_text or "") + text
-                    await append_event(create_response_event("response.delta", text))
-            elif t == "response.output_text.delta":
-                # Some Realtime variants emit plain text deltas
-                delta_txt = message.get("delta")
-                if isinstance(delta_txt, str) and delta_txt:
-                    final_text = (final_text or "") + delta_txt
-                    await append_event(create_response_event("response.delta", delta_txt))
-            elif t in ("response.completed", "session.completed"):
-                # Append completion event, close socket, and stop
-                await append_event(create_response_event(t))
-                try:
-                    if hasattr(ws, "close"):
-                        await ws.close()
-                except Exception:
-                    # Non-fatal; record a close error event
-                    await append_event(create_response_event("ws.close_error"))
-                done = True
-            elif t == "error":
-                # Surface server error payloads (fallback)
-                await append_event(create_response_event("error", **{"info": message}))
+
+            # Print all responses
             else:
-                # Unknown message; keep a lightweight event to preserve ordering
-                await append_event(create_response_event("message"))
-        # After loop finishes, record final aggregated text
-        await append_event({"type": "response.final", "text": (final_text or "")})
-        return final_text or ""
+                await append_event(create_response_event(t, message))
+                # If response.done is received close the websocket
+                if t == "response.done":
+                    try:
+                        if hasattr(ws, "close"):
+                            await ws.close()
+                    except Exception:
+                        await append_event(create_response_event("ws.close_error"))
+                    done = True
+                continue         
+
 
     async def _send_session_config(self, ws, context=None):
         """
@@ -327,7 +301,7 @@ class AzureOpenAIRealtime(Model):
                 "voice": voice,
                 "input_audio_format": "pcm16",
                 "output_audio_format": "pcm16",
-                "turn_detection": {"type": "server_vad", "threshold": 0.2, "silence_duration_ms": 2000},
+                "turn_detection": {"type": "none"},
                 "tools": [],
                 "tool_choice": "auto",
             },

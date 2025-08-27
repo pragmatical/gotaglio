@@ -1,6 +1,16 @@
 # AzureOpenAIRealtime Refactor Plan
 
-Status summary (current): Phases 0–4 completed and integrated; Phase 4.5 (event helper refactor with Create → Send → Append flow) implemented; added new event-flow tests. Remaining: additional Phase 5 tests (URL/header, session payload, error cases) and rollout steps.
+Status summary (current):
+- [x] Phases 0–4 completed and integrated
+- [x] Phase 4.5 implemented (event helper refactor with Create → Send → Append flow)
+- [x] append_event currently prints only transcript-delta events (filter in place)
+- [x] _receive_responses currently minimal (handles timeout, binary frames, first inbound, generic errors, and response.done closure); does not yet aggregate final_text or append response.final
+- [x] Session config payload currently sets modalities=["text"], turn_detection="none" (no transcription or server VAD enabled)
+
+Remaining:
+- [ ] Phase 5 additional tests (URL/header, session payload, error cases)
+- [ ] Phase 6 response handling simplification + timestamps
+- [ ] Rollout steps
 
 Goal: Improve reliability and maintainability of `AzureOpenAIRealtime` while keeping the same public class and `infer` signature. Implementation will be modeled on `endpoints/realtime.py` but will continue using the `websockets` library (not `aiohttp`). Public import path must remain `from gotaglio.models import AzureOpenAIRealtime`.
 
@@ -97,57 +107,35 @@ Configuration inputs to support (read from model init args, context, or env):
   - URL building and header construction.
   - Session config payload correctness (at least minimal snapshot or key assertions).
   - Error cases: missing env/config, connection failures.
-- [ ] Run all tests and fix any regressions.
+- [x] Run all tests and fix any regressions.
 
-## Phase 6 — Response handling refactor (planning only)
-- Goal: Simplify `_receive_responses` by aggregating the final text inside the same try block that processes inbound messages and by filtering printed output to only relevant transcript deltas. Remove the heavy post-loop branching; keep a small post-loop "response.final" append only.
+## Phase 6 — Response handling refactor (updated to current state)
+- Current state (reality check):
+  - append_event already filters printing to only transcript-delta events.
+  - _receive_responses currently handles: timeout, binary frames (redacted), first inbound marker, generic `error`, and `response.done` (closes and stops). It does not yet parse transcript deltas or aggregate `final_text`, and it does not append a trailing `response.final` event.
+  - Session configuration currently sets modalities=["text"], turn_detection="none" (no transcription or server VAD).
 
-- What to change (targeting the logic that currently runs after events are appended; starts around the current line ~248 in implementation):
-  - Move the construction of `final_text` into the main message-processing try block.
-  - Only print (stdout/rich) inbound events whose `type` is `response.audio_transcript.delta`.
-  - Build `final_text` exclusively from the `delta` field of `response.audio_transcript.delta` messages, concatenated in order.
-  - Continue appending all events to `context["realtime_events"]` as before; the print filter should not affect event appending.
+- Goal: Simplify `_receive_responses` by aggregating the final text inside the same try block that processes inbound messages and keep printing restricted to transcript delta events. Append a single `response.final` event at loop end.
 
-- Event factories for responses (clarified):
-  - `create_response_event(ev_type: str, text: str | None = None, **kwargs) -> dict`
-    - Unified shape: `{ "type": ev_type, "text": <optional>, ...extra }`.
-    - Use for: `message`, `error`, `response.completed`, `session.completed`, `ws.first_message`, `binary` (size+redacted), `error.timeout`, and also for transcript deltas if we want a normalized `text` view.
-  - Optionally keep a tiny helper for transcript deltas: `create_transcript_delta(delta_text: str) -> dict` returning `{ "type": "response.audio_transcript.delta", "text": delta_text }` to standardize appends.
+- Planned changes:
+  - Parse `response.audio_transcript.delta` messages; accumulate `final_text` from their `delta` field in-order.
+  - Also support `response.output_text.delta` and the generic `response.delta` (where delta.text is present) for compatibility; do not print these, but still accumulate.
+  - Keep printing policy: stdout/rich only for `response.audio_transcript.delta` events (append_event filter already in place).
+  - On `response.completed`/`session.completed` or `response.done`, close WS and break the loop.
+  - After loop: append `{"type": "response.final", "text": final_text or ""}`.
 
-- Processing flow in `_receive_responses` (reduced and focused):
-  Signature remains: `_receive_responses(ws, timeout_s, create_response_event, append_event)`.
-  1) Read next frame from the WS with timeout.
-  2) If binary: append `create_response_event("binary", size=len(raw), redacted=True)` and continue (do not print).
-  3) If text JSON: parse and branch by `type`:
-     - `response.audio_transcript.delta`:
-       - Extract `delta = (message.get("delta") or "")`.
-       - Accumulate: `final_text = (final_text or "") + delta`.
-       - Append: `await append_event(create_response_event("response.audio_transcript.delta", text=delta))` (also retain raw fields if desired via kwargs).
-       - Print this event only (filtered) for live feedback.
-     - `response.output_text.delta`:
-       - Treat as non-printed textual delta for compatibility: extract `delta`, accumulate into `final_text`, append an event. Do not print.
-     - `response.delta` (generic):
-       - If present, handle like above for compatibility, but prefer the specific `response.audio_transcript.delta` path when available.
-     - `response.completed` or `session.completed`:
-       - Append completion event; optionally call `await ws.close()` and break loop.
-     - `error`:
-       - Append structured error event with payload for diagnostics; decide whether to stop or continue based on severity.
-     - Unknown types:
-       - Append as a generic `message` event with the raw payload for later inspection; do not print.
-  4) After loop ends due to completion or timeout, append a single `{"type": "response.final", "text": final_text or ""}` event.
-
-- WebSocket closure:
-  - On receiving `response.completed` (or `session.completed`), gracefully close the socket after appending the completion event(s). Ensure `async with` exits cleanly; call `await ws.close()` proactively inside the branch if helpful. Handle any close exceptions with a benign `ws.close_error` event.
-
-- Printing policy (new):
-  - Only print events with `type == "response.audio_transcript.delta"`.
-  - All other inbound events are still appended to `realtime_events` but are not printed to stdout.
-
-- Tests to add in Phase 6:
-  - Verify that only `response.audio_transcript.delta` events are printed (mock/spy the print function or capture stdout) while all events are appended.
-  - Verify that `final_text` equals the concatenation of all `delta` values from `response.audio_transcript.delta` (and optionally include `response.output_text.delta` for backward compatibility).
-  - Verify completion triggers WS close (mockable), no double-closes, and that `response.final` is appended exactly once with the aggregated text.
+- Tests to add/adjust:
+  - Verify stdout only includes `response.audio_transcript.delta` prints while all events are still appended.
+  - Verify `final_text` equals concatenation of transcript deltas; include compatibility with `response.output_text.delta` and `response.delta.text`.
+  - Verify completion closes WS and `response.final` is appended exactly once.
   - Maintain strictly increasing `sequence` across all events.
+
+## Phase 6.1 — Event timestamps (new)
+- Add a timestamp to each appended event for better observability.
+  - Implementation: in `append_event`, add `import time` and set `record["timestamp"] = time.time()` (float seconds since epoch).
+  - Keep `sequence` as the strict ordering source of truth; `timestamp` is for diagnostics and may be equal for rapid events.
+  - Do not change existing tests’ expectations; add a small test asserting `timestamp` exists and is a float for a couple of events.
+  - Optional enhancement: consider ISO8601 in a sibling `timestamp_iso` if human readability is needed.
 
 ## Edge cases to account for
 - Missing or empty `AZURE_OPENAI_*` settings.
