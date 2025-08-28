@@ -139,6 +139,198 @@ async def test_infer_sends_expected_sequence_and_events(monkeypatch, tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_session_config_overrides_via_model_and_context(monkeypatch, tmp_path):
+    # Prepare fake audio
+    audio_path = tmp_path / "sound.wav"
+    audio_path.write_bytes(b"FAKEAUDIO123")
+
+    class DummyWS:
+        def __init__(self):
+            self.sent = []
+            self.closed = False
+            self._recv_iter = iter([
+                json.dumps({"type": "response.output_text.delta", "delta": "hola"}),
+                json.dumps({"type": "response.done", "output_text": "hola"}),
+            ])
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def send(self, data):
+            self.sent.append(data)
+
+        async def recv(self):
+            try:
+                return next(self._recv_iter)
+            except StopIteration:
+                return json.dumps({"type": "response.done"})
+
+        async def close(self):
+            self.closed = True
+
+    holder: dict[str, Any] = {}
+    def fake_connect(url, extra_headers=None, ping_timeout=None):
+        ws = DummyWS()
+        holder["ws"] = ws
+        return ws
+
+    import gotaglio.lazy_imports as li
+    monkeypatch.setattr(li.websockets, "connect", fake_connect)
+
+    # Model-level defaults
+    model = make_model(extra={
+        "voice": "vega",
+        "modalities": ["text", "audio"],
+        "turn_detection": {"type": "server_vad", "threshold": 0.5, "silence_duration_ms": 400},
+    })
+
+    # Context-level override should win
+    context = {
+        "audio_file": str(audio_path),
+        "voice": "orion",
+        "modalities": ["audio", "text", "audio"],  # duplicate to test dedupe and order
+        "turn_detection": {"type": "semantic_vad", "eagerness": "high"},
+    }
+
+    await model.infer(messages=[], context=context)
+
+    ws_used = holder.get("ws")
+    assert ws_used is not None
+    sent = [json.loads(s) for s in ws_used.sent]
+    session = sent[0]["session"]
+    assert session["voice"] == "orion"
+    assert session["modalities"] == ["audio", "text"]
+    assert session["turn_detection"]["type"] == "semantic_vad"
+    assert session["turn_detection"]["eagerness"] == "high"
+
+
+@pytest.mark.asyncio
+async def test_turn_detection_none_maps_to_type_none(monkeypatch, tmp_path):
+    audio_path = tmp_path / "sound.wav"
+    audio_path.write_bytes(b"FAKEAUDIO123")
+
+    class DummyWS:
+        def __init__(self):
+            self.sent = []
+            self.closed = False
+            self._recv_iter = iter([
+                json.dumps({"type": "response.done"}),
+            ])
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def send(self, data):
+            self.sent.append(data)
+
+        async def recv(self):
+            try:
+                return next(self._recv_iter)
+            except StopIteration:
+                return json.dumps({"type": "response.done"})
+
+        async def close(self):
+            self.closed = True
+
+    holder: dict[str, Any] = {}
+    def fake_connect(url, extra_headers=None, ping_timeout=None):
+        ws = DummyWS()
+        holder["ws"] = ws
+        return ws
+
+    import gotaglio.lazy_imports as li
+    monkeypatch.setattr(li.websockets, "connect", fake_connect)
+
+    model = make_model(extra={"turn_detection": None})
+    await model.infer(messages=[], context={"audio_file": str(audio_path)})
+
+    ws_used = holder.get("ws")
+    assert ws_used is not None
+    sent = [json.loads(s) for s in ws_used.sent]
+    session = sent[0]["session"]
+    assert session["turn_detection"]["type"] == "none"
+
+
+@pytest.mark.asyncio
+async def test_invalid_modalities_and_voice_raise(monkeypatch, tmp_path):
+    audio_path = tmp_path / "sound.wav"
+    audio_path.write_bytes(b"FAKEAUDIO123")
+
+    class DummyWS:
+        def __init__(self):
+            self.sent = []
+            self._recv_iter = iter([json.dumps({"type": "response.done"})])
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def send(self, data):
+            self.sent.append(data)
+
+        async def recv(self):
+            return json.dumps({"type": "response.done"})
+
+    def fake_connect(url, extra_headers=None, ping_timeout=None):
+        return DummyWS()
+
+    import gotaglio.lazy_imports as li
+    monkeypatch.setattr(li.websockets, "connect", fake_connect)
+
+    # Invalid modalities value
+    model = make_model()
+    with pytest.raises(ValueError):
+        await model.infer(messages=[], context={"audio_file": str(audio_path), "modalities": ["video"]})
+
+    # Invalid empty voice
+    with pytest.raises(ValueError):
+        await model.infer(messages=[], context={"audio_file": str(audio_path), "voice": ""})
+
+
+@pytest.mark.asyncio
+async def test_invalid_turn_detection_type_raises(monkeypatch, tmp_path):
+    audio_path = tmp_path / "sound.wav"
+    audio_path.write_bytes(b"FAKEAUDIO123")
+
+    class DummyWS:
+        def __init__(self):
+            self.sent = []
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def send(self, data):
+            self.sent.append(data)
+
+        async def recv(self):
+            return json.dumps({"type": "response.done"})
+
+    def fake_connect(url, extra_headers=None, ping_timeout=None):
+        return DummyWS()
+
+    import gotaglio.lazy_imports as li
+    monkeypatch.setattr(li.websockets, "connect", fake_connect)
+
+    model = make_model()
+    with pytest.raises(ValueError):
+        await model.infer(messages=[], context={
+            "audio_file": str(audio_path),
+            "turn_detection": {"type": "magic_vad"},
+        })
+
+
+@pytest.mark.asyncio
 async def test_infer_includes_instructions_when_provided(monkeypatch, tmp_path):
     # Prepare fake audio on disk
     audio_path = tmp_path / "sound.wav"

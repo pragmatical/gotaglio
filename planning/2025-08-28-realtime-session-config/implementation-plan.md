@@ -3,37 +3,37 @@
 This plan defines discrete, verifiable steps to implement configurable session parameters for the Azure OpenAI Realtime model.
 
 ## Pre-flight
-- [ ] Confirm no dependency changes needed (pure config/validation change)
-- [ ] Ensure logging stays via `logging.getLogger(__name__)`; no prints
-- [ ] No feature flags required; maintain defaults for backward compatibility
+- [x] Confirm no dependency changes needed (pure config/validation change)
+- [x] Ensure logging stays via `logging.getLogger(__name__)`; no prints
+- [x] No feature flags required; maintain defaults for backward compatibility
 
 ## Implementation
-- [ ] Update `gotaglio/azure_openai_realtime.py`
-  - [ ] Add private helpers:
-    - [ ] `_resolve_opt(context, key, default)` to apply precedence: `context[key]` > `context.get("realtime", {}).get(key)` > `self._config.get(key, default)`
-    - [ ] `_normalize_modalities(value)` to validate literals and return a deduped, order-preserving list
-    - [ ] `_normalize_turn_detection(value)` to support `None` -> `{ "type": "none" }`, and pass-through for `server_vad`/`semantic_vad` with validation; raise on unknown `type`
-  - [ ] In `_send_session_config`, resolve and include `voice`, `modalities`, `turn_detection` using the helpers
-  - [ ] Validation errors raise `ValueError` with clear messages
-- [ ] Add docstrings/comments explaining supported shapes
+- [x] Update `gotaglio/azure_openai_realtime.py`
+  - [x] Add private helpers:
+    - [x] `_resolve_opt(context, key, default)` to apply precedence: `context[key]` > `context.get("realtime", {}).get(key)` > `self._config.get(key, default)`
+    - [x] `_normalize_modalities(value)` to validate literals and return a deduped, order-preserving list
+    - [x] `_normalize_turn_detection(value)` to support `None` -> `{ "type": "none" }`, and pass-through for `server_vad`/`semantic_vad` with validation; raise on unknown `type`
+  - [x] In `_send_session_config`, resolve and include `voice`, `modalities`, `turn_detection` using the helpers
+  - [x] Validation errors raise `ValueError` with clear messages
+- [x] Add docstrings/comments explaining supported shapes
 
 ## Validation
-- [ ] Update `tests/test_azure_openai_realtime.py`
-  - [ ] Add tests asserting emitted session payload for:
-    - [ ] Defaults (unchanged behavior)
-    - [ ] `voice` override via model config and via `context`
-    - [ ] `modalities` override valid and invalid values
-    - [ ] `turn_detection=None` (disabled), `server_vad`, and `semantic_vad`
-    - [ ] Precedence: `context` > model config
-- [ ] Run tests and iterate until green
+- [x] Update `tests/test_azure_openai_realtime.py`
+  - [x] Add tests asserting emitted session payload for:
+    - [x] Defaults (unchanged behavior)
+    - [x] `voice` override via model config and via `context`
+    - [x] `modalities` override valid and invalid values
+    - [x] `turn_detection=None` (disabled), `server_vad`, and `semantic_vad`
+    - [x] Precedence: `context` > model config
+- [x] Run tests and iterate until green
 
 ## Samples and documentation
 - [ ] Update `documentation/realtime.md` with examples for configuring these fields
 - [ ] Optionally add examples in `models.json.template`
 
 ## Rollout
-- [ ] No dependency updates required in `pyproject.toml`
-- [ ] Update planning index in `planning/README.md`
+- [x] No dependency updates required in `pyproject.toml`
+- [x] Update planning index in `planning/README.md`
 
 Contract notes for helpers
 - _normalize_modalities(value)
