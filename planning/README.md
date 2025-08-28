@@ -14,8 +14,10 @@ Suggested workflow:
 2. Copy `feature-plan-template.md` to `feature-plan.md`
 3. Copy `implementation-plan-template.md` (optional) to `implementation-plan.md`
 4. Fill in both plans with enough detail for implementation
+5. Create a GitHub issue using `github-issue-template.md` and save it as `github-issue.md` in the same folder (link it in your PR)
 5. Link to impacted files with backticks (e.g., `gotaglio/pipeline.py`)
 6. Reference the plans from PR descriptions
 
 Index (add your plans here):
 - 2025-08-26-azure-openai-realtime/
+- 2025-08-28-realtime-session-config/
