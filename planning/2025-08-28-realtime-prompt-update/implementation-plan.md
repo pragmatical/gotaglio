@@ -1,9 +1,12 @@
 # Implementation plan — Realtime prompt update via session.update
 
 ## Pre-flight
-- [ ] Confirm where pipeline-level config flows into model context (inspect `pipeline.py`, `pipeline_spec.py`)
-- [ ] No new dependencies needed; reuse existing `websockets` and logging
-- [ ] Ensure no breaking changes to model constructor or registration
+- [x] Confirm where pipeline-level config flows into model context (inspect `pipeline.py`, `pipeline_spec.py`)
+  - Findings: `Pipeline` passes `configuration` to `spec.create_dag(name, config, registry)`. Stage factories (e.g., `samples/realtime/realtime.py::stages`) close over `config` and populate `context` (e.g., `context["audio_file"]`). Models can read runtime keys from `context` (e.g., `AzureOpenAI` reads `context["model_settings"]`). We’ll pass prompt instructions via `context` (e.g., `context["instructions"]` and optionally `context["session_update_instructions"]`) from the stage using values in `config["realtime"]`.
+- [x] No new dependencies needed; reuse existing `websockets` and logging
+  - Findings: `pyproject.toml` already includes `websockets = "^12.0"`. Logging is available project-wide; we will replace the lone `print` in `azure_openai_realtime.py` with `logging.getLogger(__name__)` during implementation.
+- [x] Ensure no breaking changes to model constructor or registration
+  - Findings: `gotaglio/models.py::register_models` constructs `AzureOpenAIRealtime(registry, model)` when `type == "AZURE_OPEN_AI_REALTIME"`. Our changes are internal to the class (config sourcing and optional extra `session.update`) and do not alter the constructor or registration.
 
 ## Implementation
 - [ ] `_send_session_config`:

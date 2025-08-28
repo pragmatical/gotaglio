@@ -13,5 +13,17 @@ Run:
 gotag run realtime \
   samples/realtime/data/cases.yaml \
   infer.model.name=azure-realtime \
-  realtime.audio_file=samples/realtime/hello.wav
+  infer.model.realtime.audio_file=samples/realtime/hello.wav
 ```
+
+Optional: set initial instructions via pipeline key (preferred under infer.model.realtime.instructions):
+
+```bash
+gotag run realtime \
+  samples/realtime/data/cases.yaml \
+  infer.model.name=azure-realtime \
+  infer.model.realtime.audio_file=samples/realtime/hello.wav \
+  infer.model.realtime.instructions="Respond in spanish. Keep replies concise."
+```
+
+Note: For backward compatibility, `realtime.instructions` is still accepted by the sample, but new pipelines should prefer `infer.model.realtime.instructions`.

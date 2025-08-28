@@ -1,4 +1,5 @@
 from typing import Any
+import logging
 
 # Import Model from models; this works because models defines Model before importing us
 from .models import Model  # type: ignore
@@ -22,6 +23,7 @@ class AzureOpenAIRealtime(Model):
     - timeout_s: default 60
     - voice: optional voice name
     - modalities: optional list, e.g., ["text", "audio"]
+    - convert_to_pcm16: bool, default False; if True, send audio as PCM16 mono 24kHz
     """
 
     def __init__(self, registry, configuration):
@@ -105,16 +107,36 @@ class AzureOpenAIRealtime(Model):
         try:
             async with self._connect_websocket(context) as ws:
                 await append_event(create_event("session.connected"))
-                print("WebSocket connection established")
+                logging.getLogger(__name__).info("WebSocket connection established")
 
                 # Send session configuration as the first message
                 await self._send_session_config(ws, context)
                 # Append a minimal event indicating config was sent
                 await append_event(create_event("session.update"))
+                # callers should provide compatible audio. We only base64-encode the bytes here.
+
+                # Determine whether to convert based on context override, else model config (default True)
+                convert_flag = False
+                if context is not None and isinstance(context.get("convert_to_pcm16"), bool):
+                    convert_flag = context.get("convert_to_pcm16")
+
+                if convert_flag:
+                    # Attempt to convert audio to PCM16 mono @ 24 kHz (Azure Realtime expectation).
+                    # If conversion fails (e.g., bytes not a WAV), gracefully fall back to original bytes.
+                    try:
+                        converted_bytes, converted = self._convert_to_pcm16_mono_24k(audio_bytes)
+                        if converted:
+                            await append_event(create_audio_event("audio.converted.pcm16_24k", converted_bytes))
+                            audio_bytes = converted_bytes
+                    except Exception as conv_exc:
+                        # Log conversion error but continue with original bytes
+                        await append_event(create_error_event("audio.convert.error", str(conv_exc)))
+                else:
+                    # Explicitly skipped conversion
+                    await append_event(create_event("audio.convert.skip"))
 
                 # Send audio bytes (single chunk for MVP)
                 # Build the full send frame including base64 audio, but log a redacted event.
-                # Ensure audio is PCM16 mono @ 24 kHz as required by Azure Realtime.
                 send_frame = self._make_audio_append_message(audio_bytes, context)
                 await ws.send(_json.dumps(send_frame))
                 await append_event(create_audio_event("input_audio_buffer.append", audio_bytes))
@@ -127,6 +149,8 @@ class AzureOpenAIRealtime(Model):
                 create = create_event("response.create")
                 await ws.send(_json.dumps(create))
                 await append_event(create)
+
+                # Mid-session prompt update via configuration is disabled; only initial session.update is sent
 
                 # Receive and process responses
                 final_text = await self._receive_responses(
@@ -145,6 +169,7 @@ class AzureOpenAIRealtime(Model):
             context["realtime_events"] = events
 
         return final_text or ""
+
 
     def _make_audio_append_message(self, audio_bytes: bytes, context=None):
         """Create the audio buffer append payload in the expected format.
@@ -199,8 +224,8 @@ class AzureOpenAIRealtime(Model):
                 await append_event(create_response_event("response.error", message))
                 continue
 
-            # Only record selected response events
-            if t in ("response.text.delta", "response.done"):
+            # Only record selected response events (include common delta naming variants)
+            if t in ("response.text.delta", "response.output_text.delta", "response.done"):
                 await append_event(create_response_event(t, message))
             # If response.done is received close the websocket
             if t == "response.done":
@@ -218,27 +243,26 @@ class AzureOpenAIRealtime(Model):
         Send the initial session.update payload to configure the Azure Realtime session.
         Modeled after endpoints/realtime.py but using the websockets API.
         """
-        import os
         import json as _json
 
-        # Load optional prompt template from env
-        prompt_text = ""
-        try:
-            prompt_path = os.environ.get("PROMPT_TEMPLATE_PATH")
-            if prompt_path and os.path.isfile(prompt_path):
-                with open(prompt_path, "r", encoding="utf-8") as f:
-                    prompt_text = f.read()
-        except Exception:
-            # Ignore prompt issues silently for robustness
-            pass
-
-        # Allow context to override/augment instructions if provided
-        ctx_instructions = (context or {}).get("instructions") if context else None
-        if isinstance(ctx_instructions, str) and ctx_instructions:
-            prompt_text = ctx_instructions
-
-        # Basic realtime instructions (keep parity with previous behavior)
-        enhanced_prompt = "Respond in spanish. " + (prompt_text or "")
+        # Resolve instructions with precedence:
+        # 1) context["instructions"]
+        # 2) context["realtime"]["instructions"]
+        # 3) model config self._config["instructions"]
+        # No default fallback: if none specified, omit instructions to use service defaults
+        resolved_instructions: str | None = None
+        if context:
+            cand = context.get("instructions")
+            if isinstance(cand, str) and cand:
+                resolved_instructions = cand
+            else:
+                cand = (context.get("realtime", {}) or {}).get("instructions")
+                if isinstance(cand, str) and cand:
+                    resolved_instructions = cand
+        if not resolved_instructions:
+            cand = self._config.get("instructions")
+            if isinstance(cand, str) and cand:
+                resolved_instructions = cand
 
         # Config from model settings, with defaults
         voice = self._config.get("voice", "alloy")
@@ -248,7 +272,6 @@ class AzureOpenAIRealtime(Model):
             "type": "session.update",
             "session": {
                 "modalities": modalities,
-                "instructions": enhanced_prompt,
                 "voice": voice,
                 "input_audio_format": "pcm16",
                 "output_audio_format": "pcm16",
@@ -257,6 +280,10 @@ class AzureOpenAIRealtime(Model):
                 "tool_choice": "auto",
             },
         }
+
+        # Only include instructions if explicitly provided
+        if resolved_instructions is not None:
+            payload["session"]["instructions"] = resolved_instructions
 
         await ws.send(_json.dumps(payload))
 
