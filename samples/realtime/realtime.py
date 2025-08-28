@@ -42,7 +42,7 @@ configuration = {
                 "audio_file": "samples/realtime/hello.wav",
                 # Voice to use for audio output (string)
                 # Example values: "alloy", "coral", "sage" (provider-specific)
-                "voice": "alloy",
+                #"voice": "alloy",
                 # Modalities the model should support: any combination of "text" and "audio"
                 # Here we use text-only; to enable speech out, include "audio"
                 "modalities": ["text"],
