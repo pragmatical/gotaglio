@@ -40,6 +40,14 @@ configuration = {
                 "instructions": None,
                 # Path to WAV file; used to resolve placeholders in cases
                 "audio_file": "samples/realtime/hello.wav",
+                # Voice to use for audio output (string)
+                # Example values: "alloy", "coral", "sage" (provider-specific)
+                #"voice": "alloy",
+                # Modalities the model should support: any combination of "text" and "audio"
+                # Here we use text-only; to enable speech out, include "audio"
+                "modalities": ["text"],
+                # Turn detection configuration:
+                "turn_detection": None,
             },
         }
     },
@@ -82,6 +90,17 @@ def stages(name, config, registry):
         initial_instructions = glom(config, "infer.model.realtime.instructions", default=None)
         if isinstance(initial_instructions, str) and initial_instructions:
             context["instructions"] = initial_instructions
+        # Propagate new realtime options (voice, modalities, turn_detection)
+        voice = glom(config, "infer.model.realtime.voice", default=None)
+        if isinstance(voice, str) and voice:
+            context["voice"] = voice
+        modalities = glom(config, "infer.model.realtime.modalities", default=None)
+        if isinstance(modalities, list) and modalities:
+            context["modalities"] = modalities
+        turn_detection = glom(config, "infer.model.realtime.turn_detection", default=None)
+        # Allow None to explicitly disable (maps to {"type": "none"} in the model)
+        if turn_detection is None or isinstance(turn_detection, dict):
+            context["turn_detection"] = turn_detection
         # The realtime model ignores messages content, but we keep structure consistent
         return []
 

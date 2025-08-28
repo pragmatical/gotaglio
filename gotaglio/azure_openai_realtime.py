@@ -104,13 +104,23 @@ class AzureOpenAIRealtime(Model):
         import json as _json
 
         final_text: str | None = None
+        # Validate session configuration early to raise on invalid inputs
+        try:
+            resolved_voice, resolved_modalities, resolved_turn_detection = self._resolve_session_params(context)
+        except Exception:
+            # Mirror missing-audio behavior: raise validation errors before connecting
+            raise
         try:
             async with self._connect_websocket(context) as ws:
                 await append_event(create_event("session.connected"))
                 logging.getLogger(__name__).info("WebSocket connection established")
 
                 # Send session configuration as the first message
-                await self._send_session_config(ws, context)
+                await self._send_session_config(ws, context, pre_resolved={
+                    "voice": resolved_voice,
+                    "modalities": resolved_modalities,
+                    "turn_detection": resolved_turn_detection,
+                })
                 # Append a minimal event indicating config was sent
                 await append_event(create_event("session.update"))
                 # callers should provide compatible audio. We only base64-encode the bytes here.
@@ -238,7 +248,7 @@ class AzureOpenAIRealtime(Model):
             continue
 
 
-    async def _send_session_config(self, ws, context=None):
+    async def _send_session_config(self, ws, context=None, pre_resolved: dict | None = None):
         """
         Send the initial session.update payload to configure the Azure Realtime session.
         Modeled after endpoints/realtime.py but using the websockets API.
@@ -264,9 +274,13 @@ class AzureOpenAIRealtime(Model):
             if isinstance(cand, str) and cand:
                 resolved_instructions = cand
 
-        # Config from model settings, with defaults
-        voice = self._config.get("voice", "alloy")
-        modalities = self._config.get("modalities", ["text"])
+        # Resolve and validate realtime configuration (voice, modalities, turn_detection)
+        if pre_resolved is not None:
+            voice = pre_resolved["voice"]
+            modalities = pre_resolved["modalities"]
+            turn_detection = pre_resolved["turn_detection"]
+        else:
+            voice, modalities, turn_detection = self._resolve_session_params(context)
 
         payload = {
             "type": "session.update",
@@ -275,7 +289,7 @@ class AzureOpenAIRealtime(Model):
                 "voice": voice,
                 "input_audio_format": "pcm16",
                 "output_audio_format": "pcm16",
-                "turn_detection": {"type": "none"},
+                "turn_detection": turn_detection,
                 "tools": [],
                 "tool_choice": "auto",
             },
@@ -286,6 +300,77 @@ class AzureOpenAIRealtime(Model):
             payload["session"]["instructions"] = resolved_instructions
 
         await ws.send(_json.dumps(payload))
+
+    def _resolve_session_params(self, context=None):
+        """Resolve and validate (voice, modalities, turn_detection) using precedence rules.
+        Returns a tuple: (voice: str, modalities: list[str], turn_detection: dict)
+        """
+        voice = self._resolve_opt(context, "voice", self._config.get("voice", "alloy"))
+        if not isinstance(voice, str) or not voice.strip():
+            raise ValueError("voice must be a non-empty string")
+        modalities_raw = self._resolve_opt(context, "modalities", self._config.get("modalities", ["text"]))
+        modalities = self._normalize_modalities(modalities_raw)
+        turn_det_raw = self._resolve_opt(context, "turn_detection", None)
+        turn_detection = self._normalize_turn_detection(turn_det_raw)
+        return voice, modalities, turn_detection
+
+    def _resolve_opt(self, context, key: str, default):
+        """Resolve an option from context or model config with precedence.
+        Order: context[key] > context.get("realtime", {}).get(key) > self._config.get(key, default) > default
+        """
+        if context and key in context and context[key] is not None:
+            return context[key]
+        if context and isinstance(context.get("realtime"), dict):
+            rt = context.get("realtime") or {}
+            if key in rt and rt[key] is not None:
+                return rt[key]
+        return self._config.get(key, default)
+
+    def _normalize_modalities(self, value):
+        """Validate and normalize modalities into a deduped, order-preserving list of ['text','audio']."""
+        allowed = {"text", "audio"}
+        if isinstance(value, list):
+            seen = set()
+            out: list[str] = []
+            for v in value:
+                if not isinstance(v, str):
+                    raise ValueError("modalities must be a list of strings")
+                lv = v.strip()
+                if lv not in allowed:
+                    raise ValueError(f"invalid modality: {lv}")
+                if lv not in seen:
+                    seen.add(lv)
+                    out.append(lv)
+            if not out:
+                raise ValueError("modalities cannot be empty")
+            return out
+        raise ValueError("modalities must be a list of 'text' and/or 'audio'")
+
+    def _normalize_turn_detection(self, value):
+        """Normalize turn_detection config to an Azure-compatible dict.
+        Accepts:
+          - None -> {"type": "none"}
+          - {"type": "server_vad", ...}
+          - {"type": "semantic_vad", ...}
+          - {"type": "none"}
+        Other types raise ValueError. Unknown keys are dropped; known keys are preserved.
+        """
+        if value is None:
+            return {"type": "none"}
+        if not isinstance(value, dict):
+            raise ValueError("turn_detection must be a dict or None")
+
+        t = value.get("type")
+        if t == "none":
+            return {"type": "none"}
+        if t == "server_vad":
+            allowed = {"threshold", "prefix_padding_ms", "silence_duration_ms", "create_response", "interrupt_response"}
+            return {k: v for k, v in value.items() if k in allowed or k == "type"}
+        if t == "semantic_vad":
+            allowed = {"eagerness", "create_response", "interrupt_response"}
+            return {k: v for k, v in value.items() if k in allowed or k == "type"}
+
+        raise ValueError(f"unsupported turn_detection type: {t}")
 
     def _connect_websocket(self, context=None):
         """
