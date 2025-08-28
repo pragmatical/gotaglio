@@ -3,7 +3,7 @@ from typing import Any, cast
 
 from .constants import app_configuration
 from .exceptions import ExceptionContext
-from .lazy_imports import azure_ai_inference, azure_core_credentials, openai
+from .lazy_imports import azure_ai_inference, azure_core_credentials, openai, websockets
 from .shared import read_data_file
 
 
@@ -139,6 +139,9 @@ class AzureOpenAI5(Model):
         return {k: v for k, v in self._config.items() if k != "key"}
 
 
+from .azure_openai_realtime import AzureOpenAIRealtime  # re-export for public API
+
+
 def register_models(registry):
     config_files = app_configuration["model_config_files"]
     credentials_files = app_configuration["model_credentials_files"]
@@ -174,6 +177,8 @@ def register_models(registry):
                     AzureOpenAI(registry, model)
                 elif model["type"] == "AZURE_OPEN_AI_5":
                     AzureOpenAI5(registry, model)
+                elif model["type"] == "AZURE_OPEN_AI_REALTIME":
+                    AzureOpenAIRealtime(registry, model)
                 else:
                     raise ValueError(
                         f"Model {model['name']} has unsupported model type: {model['type']}"

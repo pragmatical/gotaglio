@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Realitme API Test Client</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container { margin-bottom: 20px; }
+        #status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        .connecting { background-color: #fff3cd; color: #856404; }
+        #messages {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ced4da;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #f5c6cb;
+        }
+        .warning-message {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ffeeba;
+        }
+        .info-message {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #bee5eb;
+        }
+        .controls { margin: 20px 0; }
+        button {
+            padding: 8px 16px;
+            margin-right: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover { background-color: #0069d9; }
+        button:disabled { background-color: #6c757d; cursor: not-allowed; }
+        .message-user { color: #0066cc; }
+        .message-assistant { color: #006600; }
+        .message-system { color: #666; font-style: italic; }
+        #audioControls { display: flex; gap: 10px; align-items: center; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <h1>Realitme API Test Client</h1>
+    <div style="background-color: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #c3e6cb;">
+        <strong>Updated May 22, 2025:</strong> This client now uses the new message format required by the Azure OpenAI Realtime API.
+    </div>
+
+    <div class="container">
+        <div id="connectionSettings">
+            <h3>Connection Settings</h3>
+            <form id="serverConfigForm">
+                <div style="display: flex; margin-bottom: 10px; gap: 10px;">
+                    <div style="flex: 2;">
+                        <label for="host">Host:</label>
+                        <input type="text" id="host" value="localhost" style="width: 100%; padding: 6px;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label for="port">Port:</label>
+                        <input type="number" id="port" value="8000" style="width: 100%; padding: 6px;">
+                    </div>
+                </div>
+                <div style="display: flex; margin-bottom: 10px;">
+                    <div style="flex: 1;">
+                        <label for="path">Path:</label>
+                        <input type="text" id="path" value="/realtime" style="width: 100%; padding: 6px;">
+                    </div>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label>WebSocket URL:</label>
+                    <div id="wsUrlDisplay" style="padding: 6px; background: #f0f0f0; border-radius: 4px;">ws://localhost:8080/realtime</div>
+                </div>
+            </form>
+        </div>
+
+        <div id="status" class="disconnected">Disconnected</div>
+
+        <div class="controls">
+            <button id="connectBtn">Connect</button>
+            <button id="disconnectBtn" disabled>Disconnect</button>
+            <button id="healthCheckBtn">Check Server Status</button>
+            <button id="testAudioBtn">Test Audio Output</button>
+            <button id="clearAudioBtn">Stop All Audio</button>
+        </div>
+
+        <div id="audioControls">
+            <button id="startRecording" disabled>Start Recording</button>
+            <button id="stopRecording" disabled>Stop Recording</button>
+            <div id="recordingIndicator" class="hidden">🔴 Recording...</div>
+            <div id="playbackIndicator" class="hidden">🔊 Playing audio...</div>
+        </div>
+
+        <h3>Messages</h3>
+        <div id="messages"></div>
+
+        <!-- Message format information -->
+        <div style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 5px; border: 1px solid #ddd;">
+            <h4 style="margin-top: 0;">Audio Format Information</h4>
+            <p>This client sends audio data in the OpenAI Realtime API format:</p>
+            <pre style="background-color: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto;">
+{
+  "type": "input_audio_buffer.append",
+  "audio": "base64EncodedAudioData"
+}
+            </pre>
+            <p><strong>Audio Format:</strong> Mono PCM16 at 24kHz (as required by OpenAI Realtime API)</p>
+            <p><strong>Encoding:</strong> Base64-encoded raw PCM16 samples</p>
+            <p><strong>Note:</strong> The audio is processed in real-time using Web Audio API to ensure correct format.</p>
+
+            <h4>Audio Output</h4>
+            <p>Audio responses from the server are automatically played through your default audio output device.</p>
+            <p><strong>Troubleshooting:</strong></p>
+            <ul>
+                <li>Use the "Test Audio Output" button to verify your speakers/headphones are working</li>
+                <li>Check browser console for audio-related errors</li>
+                <li>Ensure your browser allows audio playback (some browsers require user interaction first)</li>
+                <li>Audio playback requires a modern browser with Web Audio API support</li>
+            </ul>
+        </div>
+
+        <!-- Troubleshooting Information -->
+        <div style="margin-top: 30px; padding: 15px; background-color: #f8f9fa; border-radius: 5px; border: 1px solid #ddd;">
+            <h4 style="margin-top: 0;">Troubleshooting WebSocket Connections</h4>
+            <p>If you encounter issues with the WebSocket connection, check the following:</p>
+            <ul>
+                <li><strong>Internal Server Error</strong>: This usually indicates a configuration issue with turn detection. The server will attempt to recover automatically.</li>
+                <li><strong>Configuration Error</strong>: Check the server environment variables, especially those related to turn detection configuration:</li>
+                <ul>
+                    <li>For <code>azure_semantic_vad</code> turn detection, make sure the appropriate noise reduction is configured</li>
+                    <li>For <code>server_vad</code>, check that the threshold and silence duration parameters are properly set</li>
+                </ul>
+                <li><strong>Connection Refused</strong>: Make sure the server is running and accessible at the specified host and port</li>
+                <li><strong>Empty Responses</strong>: Verify that your microphone is working and that audio is being captured properly</li>
+            </ul>
+            <p>For more detailed troubleshooting, please refer to the <a href="TROUBLESHOOTING.md" target="_blank">Troubleshooting Guide</a>.</p>
+        </div>
+    </div>    <script>
+        const statusDiv = document.getElementById('status');
+        const messagesDiv = document.getElementById('messages');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const startRecordingBtn = document.getElementById('startRecording');
+        const stopRecordingBtn = document.getElementById('stopRecording');
+        const recordingIndicator = document.getElementById('recordingIndicator');
+        const playbackIndicator = document.getElementById('playbackIndicator');
+
+        // Server configuration elements
+        const hostInput = document.getElementById('host');
+        const portInput = document.getElementById('port');
+        const pathInput = document.getElementById('path');
+        const wsUrlDisplay = document.getElementById('wsUrlDisplay');
+
+        // Update WebSocket URL display when configuration changes
+        function updateWsUrlDisplay() {
+            const host = hostInput.value || 'localhost';
+            const port = portInput.value || '8080';
+            const path = pathInput.value || '/realtime';
+            wsUrlDisplay.textContent = `ws://${host}:${port}${path}`;
+        }
+
+        // Add event listeners to update URL display
+        hostInput.addEventListener('input', updateWsUrlDisplay);
+        portInput.addEventListener('input', updateWsUrlDisplay);
+        pathInput.addEventListener('input', updateWsUrlDisplay);
+
+        // Initialize URL display
+        updateWsUrlDisplay();
+
+        // WebSocket and audio settings
+        // Allow configuring the server URL from the query string, e.g. ?server=ws://localhost:8080
+        const urlParams = new URLSearchParams(window.location.search);
+
+        // Populate form fields from URL params if available
+        if (urlParams.get('host')) {
+            hostInput.value = urlParams.get('host');
+        }
+        if (urlParams.get('port')) {
+            portInput.value = urlParams.get('port');
+        }
+        if (urlParams.get('path')) {
+            pathInput.value = urlParams.get('path');
+        }
+
+        // Update URL display after setting from params
+        updateWsUrlDisplay();
+
+        let socket;
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        let connectionRetries = 0;
+        const MAX_RETRIES = 3;
+
+        // Audio output context and buffers
+        let outputAudioContext;
+        let audioQueue = [];
+        let isPlayingAudio = false;
+        let currentAudioSource = null;
+        let isNewResponse = true;
+
+        // Connect to WebSocket server
+        connectBtn.addEventListener('click', connectWebSocket);
+        disconnectBtn.addEventListener('click', disconnectWebSocket);
+        startRecordingBtn.addEventListener('click', startRecording);
+        stopRecordingBtn.addEventListener('click', stopRecording);
+
+        // Initialize audio output context
+        function initializeAudioOutput() {
+            if (!outputAudioContext) {
+                outputAudioContext = new (window.AudioContext || window.webkitAudioContext)({
+                    sampleRate: 24000
+                });
+                logMessage('System', 'Audio output context initialized');
+            }
+        }
+
+        // Clear audio queue and stop current playback
+        function clearAudioPlayback() {
+            audioQueue = [];
+            isPlayingAudio = false;
+            playbackIndicator.classList.add('hidden');
+
+            if (currentAudioSource) {
+                try {
+                    currentAudioSource.stop();
+                    currentAudioSource = null;
+                } catch (e) {
+                    // Source might already be stopped
+                }
+            }
+            console.log('Audio playback cleared');
+        }
+
+        // Play audio from base64 PCM16 data
+        async function playAudioData(base64Audio) {
+            try {
+                if (!outputAudioContext) {
+                    initializeAudioOutput();
+                }
+
+                // Resume audio context if it's suspended (required by browser policies)
+                if (outputAudioContext.state === 'suspended') {
+                    await outputAudioContext.resume();
+                }
+
+                // Decode base64 to binary
+                const binaryString = atob(base64Audio);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                // Convert PCM16 to Float32 for Web Audio API
+                const int16Array = new Int16Array(bytes.buffer);
+                const float32Array = new Float32Array(int16Array.length);
+                for (let i = 0; i < int16Array.length; i++) {
+                    float32Array[i] = int16Array[i] / 32768; // Convert to [-1, 1] range
+                }
+
+                // Create audio buffer
+                const audioBuffer = outputAudioContext.createBuffer(1, float32Array.length, 24000);
+                audioBuffer.getChannelData(0).set(float32Array);
+
+                // Create and configure audio source
+                const source = outputAudioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(outputAudioContext.destination);
+
+                // Track the current source for potential cleanup
+                currentAudioSource = source;
+
+                // Return a promise that resolves when the audio finishes playing
+                return new Promise((resolve) => {
+                    source.onended = () => {
+                        console.log('Audio chunk finished playing');
+                        if (currentAudioSource === source) {
+                            currentAudioSource = null;
+                        }
+                        resolve();
+                    };
+
+                    // Play the audio
+                    source.start();
+                    console.log('Started playing audio chunk with', float32Array.length, 'samples');
+                });
+
+            } catch (error) {
+                console.error('Error playing audio:', error);
+                logMessage('System', `Audio playback error: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        // Queue-based audio playback for smooth streaming
+        function queueAudioData(base64Audio) {
+            audioQueue.push(base64Audio);
+            if (!isPlayingAudio) {
+                playNextAudioChunk();
+            }
+        }
+
+        async function playNextAudioChunk() {
+            if (audioQueue.length === 0) {
+                isPlayingAudio = false;
+                playbackIndicator.classList.add('hidden');
+                return;
+            }
+
+            isPlayingAudio = true;
+            playbackIndicator.classList.remove('hidden');
+
+            const audioData = audioQueue.shift();
+
+            try {
+                // Wait for the current audio chunk to finish before playing the next one
+                await playAudioData(audioData);
+                // Immediately play the next chunk without delay to prevent gaps
+                playNextAudioChunk();
+            } catch (error) {
+                console.error('Error in audio queue:', error);
+                // On error, try the next chunk after a short delay
+                setTimeout(playNextAudioChunk, 100);
+            }
+        }
+
+        // // Add health check functionality
+        // const healthCheckBtn = document.getElementById('healthCheckBtn');
+        // if (healthCheckBtn) {
+        //     healthCheckBtn.addEventListener('click', checkServerStatus);
+        // }
+
+        // Add test audio functionality
+        const testAudioBtn = document.getElementById('testAudioBtn');
+        if (testAudioBtn) {
+            testAudioBtn.addEventListener('click', testAudioOutput);
+        }
+
+        // Add clear audio functionality
+        const clearAudioBtn = document.getElementById('clearAudioBtn');
+        if (clearAudioBtn) {
+            clearAudioBtn.addEventListener('click', () => {
+                clearAudioPlayback();
+                logMessage('System', 'All audio playback stopped');
+            });
+        }
+
+        // Test audio output with a simple tone
+        async function testAudioOutput() {
+            try {
+                if (!outputAudioContext) {
+                    initializeAudioOutput();
+                }
+
+                // Resume audio context if suspended
+                if (outputAudioContext.state === 'suspended') {
+                    await outputAudioContext.resume();
+                }
+
+                // Generate a simple test tone (440Hz sine wave for 0.5 seconds)
+                const sampleRate = 24000;
+                const duration = 0.5;
+                const frequency = 440;
+                const samples = sampleRate * duration;
+
+                const audioBuffer = outputAudioContext.createBuffer(1, samples, sampleRate);
+                const channelData = audioBuffer.getChannelData(0);
+
+                for (let i = 0; i < samples; i++) {
+                    channelData[i] = Math.sin(2 * Math.PI * frequency * i / sampleRate) * 0.3;
+                }
+
+                const source = outputAudioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(outputAudioContext.destination);
+                source.start();
+
+                logMessage('System', 'Playing test audio tone (440Hz)');
+                console.log('Test audio played - if you hear a tone, audio output is working');
+
+            } catch (error) {
+                console.error('Test audio failed:', error);
+                logMessage('System', `Test audio failed: ${error.message}`, 'error');
+            }
+        }
+
+        // // Check server status on page load
+        // window.addEventListener('DOMContentLoaded', async () => {
+        //     try {
+        //         await checkServerStatus();
+        //     } catch (e) {
+        //         console.error("Error checking server status:", e);
+        //     }
+        // });
+
+        // async function checkServerStatus() {
+        //     const host = hostInput.value || 'localhost';
+        //     const port = portInput.value || '8080';
+
+        //     try {
+        //         const response = await fetch(`http://${host}:${port}/realtime-status`);
+        //         if (response.ok) {
+        //             const data = await response.json();
+
+        //             // Check for WebSocket support
+        //             if (!data.websocket_support.has_websocket_support) {
+        //                 logMessage('System', 'WARNING: Server does not have WebSocket support. Connection will fail.', 'warning');
+        //                 logMessage('System', 'The server needs the websockets library installed.', 'warning');
+        //             } else {
+        //                 logMessage('System', `Server has WebSocket support (${data.websocket_support.libraries_available.join(', ')})`, 'info');
+        //             }
+
+        //             // Check for environment variables
+        //             if (!data.environment_config.all_required_vars_set) {
+        //                 logMessage('System', `Missing environment variables: ${data.environment_config.missing_vars.join(', ')}`, 'warning');
+        //             }
+
+        //             // Check turn detection type
+        //             const turnDetectionType = data.environment_config.turn_detection_type;
+        //             if (turnDetectionType === 'server_vad') {
+        //                 logMessage('System', 'Using basic voice activity detection (server_vad)', 'info');
+        //                 logMessage('System', 'NOTE: End-of-utterance detection is not available with this configuration.', 'info');
+        //             } else if (turnDetectionType === 'cascaded') {
+        //                 logMessage('System', 'Using advanced cascaded pipeline with end-of-utterance detection', 'info');
+        //             }
+
+        //             return data;
+        //         } else {
+        //             logMessage('System', `Server status check failed: ${response.status} ${response.statusText}`, 'warning');
+        //             return null;
+        //         }
+        //     } catch (e) {
+        //         logMessage('System', `Error checking server status: ${e.message}`, 'error');
+        //         logMessage('System', 'Verify that the server is running at the configured host and port.', 'warning');
+        //         return null;
+        //     }
+        // }
+
+        function connectWebSocket() {
+            statusDiv.className = 'connecting';
+            statusDiv.textContent = 'Connecting...';
+
+            // Build WebSocket URL from configuration
+            const host = hostInput.value || 'localhost';
+            const port = portInput.value || '8080';
+            const path = pathInput.value || '/realtime';
+            const serverUrl = `ws://${host}:${port}${path}`;
+
+            // Log connection attempt
+            logMessage('System', `Connecting to: ${serverUrl}`);
+
+            try {
+                socket = new WebSocket(serverUrl);
+
+                // Add connection timeout
+                const connectionTimeout = setTimeout(() => {
+                    if (socket.readyState !== WebSocket.OPEN) {
+                        logMessage('System', 'Connection timeout - server not responding');
+                        socket.close();
+                    }
+                }, 5000);
+
+                socket.onopen = () => {
+                    clearTimeout(connectionTimeout);
+                    statusDiv.className = 'connected';
+                    statusDiv.textContent = 'Connected';
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = false;
+                    startRecordingBtn.disabled = false;
+                    logMessage('System', 'Connected to server');
+
+                    // Initialize audio output context on connection
+                    initializeAudioOutput();
+                };
+
+                socket.onmessage = (event) => {
+                    try {
+                        const message = JSON.parse(event.data);
+                        processMessage(message);
+                    } catch (e) {
+                        logMessage('System', `Error parsing message: ${e.message}`);
+                        console.error('Error parsing message:', e, event.data);
+                        // If it's not JSON, display it as plain text
+                        if (typeof event.data === 'string') {
+                            logMessage('System', `Raw message: ${event.data.substring(0, 100)}${event.data.length > 100 ? '...' : ''}`);
+                        }
+                    }
+                };
+
+                socket.onclose = (event) => {
+                    clearTimeout(connectionTimeout);
+                    statusDiv.className = 'disconnected';
+                    statusDiv.textContent = 'Disconnected';
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                    startRecordingBtn.disabled = true;
+                    stopRecordingBtn.disabled = true;
+                    recordingIndicator.classList.add('hidden');
+
+                    // Show close code and reason
+                    const reason = event.reason ? ` (${event.reason})` : '';
+                    logMessage('System', `Disconnected from server: code ${event.code}${reason}`);
+
+                    if (mediaRecorder && isRecording) {
+                        mediaRecorder.stop();
+                        isRecording = false;
+                    }
+                };
+                socket.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    logMessage('System', `WebSocket error: ${error.type}`, 'error');
+                    logMessage('System', `Common causes: Server not running, wrong URL, or network issues`, 'warning');
+
+                    // Advanced diagnostics
+                    logMessage('System', `Diagnostic: Checking if server has websockets support...`, 'info');
+
+                    // Try to make a regular HTTP request to server to check status
+                    fetch(`http://${host}:${port}/realtime-status`)
+                        .then(response => {
+                            if (response.ok) {
+                                return response.json();
+                            } else {
+                                logMessage('System', `Server is running but returned status ${response.status}. Check server logs.`, 'warning');
+                                return null;
+                            }
+                        })
+                        .then(data => {
+                            if (data) {
+                                if (!data.websocket_support.has_websocket_support) {
+                                    logMessage('System', `Server is missing WebSocket library. Install 'websockets' package in the container.`, 'error');
+                                    logMessage('System', `You can rebuild the container with WebSocket support using the rebuild_service.sh script.`, 'info');
+                                } else if (data.environment_config.turn_detection_type === 'server_vad') {
+                                    logMessage('System', `Using 'server_vad' for turn detection. If you get 'End of utterance detection' errors, change to 'cascaded'.`, 'warning');
+                                }
+                            }
+                        })
+                        .catch(e => {
+                            logMessage('System', `Could not connect to server via HTTP either. Server may be down or inaccessible.`, 'error');
+                            logMessage('System', `Error: ${e.message}`, 'error');
+                            logMessage('System', `Check if the server is running and accessible at ${host}:${port}`, 'info');
+                        });
+                };
+            } catch (error) {
+                statusDiv.className = 'disconnected';
+                statusDiv.textContent = 'Connection Error';
+                logMessage('System', `Connection error: ${error.message}`);
+                console.error('Connection error:', error);
+            }
+        }
+
+        function disconnectWebSocket() {
+            if (!socket) {
+                return;
+            }
+
+            try {
+                // Disable the button immediately to avoid double clicks
+                disconnectBtn.disabled = true;
+
+                // Request a clean close with a code and reason
+                if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+                    socket.close(1000, 'Client requested disconnect');
+                }
+            } catch (e) {
+                console.error('Error closing WebSocket:', e);
+            }
+
+            // Fallback UI cleanup if onclose doesn't fire promptly
+            setTimeout(() => {
+                if (socket && socket.readyState !== WebSocket.CLOSED) {
+                    statusDiv.className = 'disconnected';
+                    statusDiv.textContent = 'Disconnected';
+                    connectBtn.disabled = false;
+                    startRecordingBtn.disabled = true;
+                    stopRecordingBtn.disabled = true;
+                    recordingIndicator.classList.add('hidden');
+                }
+            }, 500);
+        }
+        
+        async function startRecording() {
+            try {
+                // Request access to the microphone with OpenAI Realtime API requirements (24kHz mono)
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        channelCount: 1,  // Mono
+                        sampleRate: 24000 // 24kHz sample rate for OpenAI
+                    }
+                });
+
+                const audioContext = new AudioContext({
+                    sampleRate: 24000 // 24kHz sample rate for OpenAI
+                });
+                const source = audioContext.createMediaStreamSource(stream);
+                const processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+                source.connect(processor);
+                processor.connect(audioContext.destination);
+
+                // Process audio directly through AudioContext to get PCM16 data
+                processor.onaudioprocess = function(e) {
+                    if (socket && socket.readyState === WebSocket.OPEN) {
+                        const inputBuffer = e.inputBuffer.getChannelData(0);
+
+                        // Convert Float32 to Int16 (PCM16)
+                        const pcm16Buffer = new Int16Array(inputBuffer.length);
+                        for (let i = 0; i < inputBuffer.length; i++) {
+                            // Clamp values to [-1, 1] and convert to 16-bit signed integer
+                            const clampedValue = Math.max(-1, Math.min(1, inputBuffer[i]));
+                            pcm16Buffer[i] = Math.floor(clampedValue * 32767);
+                        }
+
+                        // Convert to base64
+                        const base64Data = btoa(String.fromCharCode(...new Uint8Array(pcm16Buffer.buffer)));
+
+                        const message = {
+                            type: 'input_audio_buffer.append',
+                            audio: base64Data
+                        };
+
+                        socket.send(JSON.stringify(message));
+                        console.log('Sent PCM16 audio chunk, samples:', inputBuffer.length);
+                    }
+                };
+
+                // Keep MediaRecorder as fallback but don't use it for real-time sending
+                mediaRecorder = new MediaRecorder(stream);
+
+                audioChunks = [];
+
+                mediaRecorder.addEventListener('dataavailable', event => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                        // Note: Real-time audio is now sent via AudioContext processor
+                        // MediaRecorder is kept for potential recording/playback features
+                    }
+                });
+
+                mediaRecorder.addEventListener('stop', () => {
+                    stopRecordingBtn.disabled = true;
+                    startRecordingBtn.disabled = false;
+                    recordingIndicator.classList.add('hidden');
+
+                    // Release microphone
+                    stream.getTracks().forEach(track => track.stop());
+
+                    // Disconnect audio processing
+                    try {
+                        processor.disconnect();
+                        source.disconnect();
+                        audioContext.close();
+                    } catch (e) {
+                        console.warn('Error cleaning up audio context:', e);
+                    }
+                });
+
+                // Start recording
+                mediaRecorder.start(100);  // Capture in 100ms chunks for fallback recording
+                isRecording = true;
+                startRecordingBtn.disabled = true;
+                stopRecordingBtn.disabled = false;
+                recordingIndicator.classList.remove('hidden');
+
+                logMessage('System', 'Started recording with OpenAI-compatible PCM16 24kHz format');
+            } catch (error) {
+                logMessage('System', `Error accessing microphone: ${error.message}`);
+                console.error('Error accessing microphone:', error);
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                logMessage('System', 'Stopped recording');
+            }
+        }        function processMessage(message) {
+            console.log('Received message:', message);
+
+            // Add timestamp to all message types for debugging
+            const timestamp = new Date().toISOString().substring(11, 23); // HH:MM:SS.sss format
+
+            switch (message.type) {
+                case 'conversation.item.input_audio_transcription.completed':
+                    if (message.transcript) {
+                        logMessage('User', message.transcript);
+                    } else {
+                        logMessage('System', 'Received empty transcription');
+                    }
+                    break;
+
+                case 'response.audio_transcript.delta':
+                    // Handle streaming response
+                    const existingMsg = document.querySelector('.message-assistant.current');
+                    if (existingMsg) {
+                        existingMsg.textContent += message.delta;
+                    } else {
+                        const p = document.createElement('p');
+                        p.className = 'message-assistant current';
+                        p.textContent = message.delta;
+                        messagesDiv.appendChild(p);
+                        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                    }
+                    break;
+                
+                case 'response.text.delta':
+                    // Handle streaming response
+                    const currentExistingMsg = document.querySelector('.message-assistant.current');
+                    if (currentExistingMsg) {
+                        currentExistingMsg.textContent += message.delta;
+                    } else {
+                        const p = document.createElement('p');
+                        p.className = 'message-assistant current';
+                        p.textContent = message.delta;
+                        messagesDiv.appendChild(p);
+                        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                    }
+                    break;
+                
+                case 'response.text.done':
+                    // Complete the response
+                    const currentExistingMesg = document.querySelector('.message-assistant.current');
+                    if (currentExistingMesg) {
+                        currentExistingMesg.classList.remove('current');
+                    }
+                    break;
+
+                case 'response.audio_transcript.done':
+                    // Complete the response
+                    const currentMsg = document.querySelector('.message-assistant.current');
+                    if (currentMsg) {
+                        currentMsg.classList.remove('current');
+                    }
+                    break;
+
+                case 'response.audio.delta':
+                    // Handle streaming audio response
+                    if (message.delta) {
+                        // Clear any previous audio if this is the start of a new response
+                        if (isNewResponse) {
+                            clearAudioPlayback();
+                            isNewResponse = false;
+                            console.log('New audio response started, cleared previous audio');
+                        }
+                        console.log('Received audio delta, queuing for playback');
+                        // queueAudioData(message.delta);
+                    }
+                    break;
+
+                case 'response.audio.done':
+                    // Audio response complete
+                    console.log('Audio response complete');
+                    logMessage('System', 'Audio response finished');
+                    isNewResponse = true; // Ready for next response
+                    break;
+
+                case 'response.audio_bytes':
+                    // This is audio data - play it
+                    console.log('Received audio response data');
+                    if (message.audio) {
+                        // queueAudioData(message.audio);
+                    }
+                    break;
+
+                case 'response.output_item.added':
+                    // New output item added (could be audio or text)
+                    if (message.item && message.item.type === 'audio') {
+                        console.log('Audio output item added');
+                    }
+                    break;
+
+                case 'error':
+                    // Extract and format the error information for better user experience
+                    const errorObj = message.error || {};
+                    const errorMsg = errorObj.message || "Unknown error";
+                    const errorCode = errorObj.code || "unknown";
+                    const errorType = errorObj.type || "unknown_error";
+                    const errorParam = errorObj.param || "none";
+                    const errorId = errorObj.event_id || "none";
+
+                    // Log the error with proper formatting
+                    logMessage('System', `API Error: ${errorMsg}`, 'error');
+
+                    // Log additional error details
+                    logMessage('System', `Error details - Type: ${errorType}, Code: ${errorCode}, Param: ${errorParam}, Event ID: ${errorId}`, 'error');
+
+                    // Add more details for specific error types
+                    if (errorCode === 'internal_error' || errorType === 'server_error') {
+                        logMessage('System', 'This is a server-side error. The system is attempting to recover automatically.', 'warning');
+                        logMessage('System', 'The connection will remain open while recovery is attempted.', 'info');
+                    } else if (errorCode === 'client_error') {
+                        logMessage('System', 'There was a problem with the message format. Please check the audio format requirements.', 'warning');
+                    } else if (errorCode === 'configuration_error' || errorMsg.includes('configuration')) {
+                        logMessage('System', 'Server configuration error. The connection may need to be restarted with different settings.', 'warning');
+
+                        // Show specific guidance based on error param
+                        if (errorParam.includes('turn_detection') || errorMsg.includes('turn detection')) {
+                            logMessage('System', 'The current turn detection configuration is not compatible. Try changing to a different type in the server settings.', 'info');
+                        }
+
+                        // Suggest reconnecting after a brief delay
+                        setTimeout(() => {
+                            if (confirm('The connection had a configuration error. Would you like to reconnect?')) {
+                                disconnectWebSocket();
+                                setTimeout(connectWebSocket, 1000);
+                            }
+                        }, 2000);
+                    }
+
+                    // Log detailed information for debugging
+                    console.error('API Error:', errorObj);
+                    break;
+
+                case 'response.output_item.done':
+                    if (message.item && message.item.type === 'function_call') {
+                        logMessage('System', `Tool call: ${message.item.name}`);
+                    }
+                    break;
+
+                case 'tool_result.update':
+                    if (message.call_id) {
+                        let resultText = 'Tool result received';
+                        try {
+                            const result = JSON.parse(message.result);
+                            if (result.error) {
+                                resultText = `Tool error: ${result.error}`;
+                            } else {
+                                resultText = `Tool result: ${message.result.substring(0, 100)}${message.result.length > 100 ? '...' : ''}`;
+                            }
+                        } catch (e) {
+                            resultText = `Tool result: ${message.result}`;
+                        }
+                        logMessage('System', resultText);
+                    }
+                    break;
+
+                default:
+                    // Log message type for debugging
+                    console.log(`Message type [${message.type}]:`, message);
+            }
+        }
+
+        function logMessage(sender, text, level = 'default') {
+            const p = document.createElement('p');
+            p.className = `message-${sender.toLowerCase()}`;
+
+            // Apply styling based on message level
+            if (level === 'error') {
+                p.className += ' error-message';
+            } else if (level === 'warning') {
+                p.className += ' warning-message';
+            } else if (level === 'info') {
+                p.className += ' info-message';
+            }
+
+            p.textContent = `${sender}: ${text}`;
+            messagesDiv.appendChild(p);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+    </script>
+</body>
+</html>
