@@ -59,6 +59,8 @@ class AzureOpenAIRealtime(Model):
         # Event capture
         events: list[dict[str, Any]] = []
         seq = 0
+        # Monotonic baseline captured when audio first starts streaming (first append)
+        audio_start_monotonic_ns: int | None = None
 
         def create_event(ev_type: str) -> dict:
             return {"type": ev_type}
@@ -81,13 +83,29 @@ class AzureOpenAIRealtime(Model):
             return ev
 
         async def append_event(event: dict):
-            nonlocal seq
+            nonlocal seq, audio_start_monotonic_ns
             record = dict(event)
             record["sequence"] = seq
             # Attach a timestamp (float seconds since epoch) for observability
             try:
                 import time
                 record["timestamp"] = time.time()
+                # Also include a UTC timestamp string for human-friendly logs
+                from datetime import datetime, timezone
+                record["timestamp_utc"] = (
+                    datetime.now(timezone.utc)
+                    .isoformat(timespec="microseconds")
+                    .replace("+00:00", "Z")
+                )
+                # Establish or compute elapsed time since audio started streaming
+                t_now_ns = time.monotonic_ns()
+                if record.get("type") == "input_audio_buffer.append" and audio_start_monotonic_ns is None:
+                    audio_start_monotonic_ns = t_now_ns
+                if audio_start_monotonic_ns is None:
+                    record["elapsed_ms_since_audio_start"] = None
+                else:
+                    # Ensure first append reports 0ms
+                    record["elapsed_ms_since_audio_start"] = int(max(0, (t_now_ns - audio_start_monotonic_ns) // 1_000_000))
             except Exception:
                 # If clock retrieval fails (unlikely), omit timestamp gracefully
                 pass
