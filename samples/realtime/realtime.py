@@ -24,8 +24,7 @@ from gotaglio.pipeline import Internal, Prompt
 
 configuration = {
     "realtime": {
-    # Path to WAV file; used to resolve placeholders in cases
-    "audio_file": "samples/realtime/hello.wav",
+    # Note: audio_file and instructions now live under infer.model.realtime
     },
     "infer": {
         "model": {
@@ -34,6 +33,13 @@ configuration = {
             "settings": {
                 "timeout_s": 30,
                 "sample_rate_hz": 16000,
+            },
+            # Optional: place realtime-specific knobs here
+            "realtime": {
+                # Initial instructions for the realtime session (system prompt)
+                "instructions": None,
+                # Path to WAV file; used to resolve placeholders in cases
+                "audio_file": "samples/realtime/hello.wav",
             },
         }
     },
@@ -58,7 +64,7 @@ def stages(name, config, registry):
     async def prepare(context):
         # Resolve audio from case and config
         audio = context["case"].get("audio")
-        cfg_path = glom(config, "realtime.audio_file", default=None)
+        cfg_path = glom(config, "infer.model.realtime.audio_file", default=None)
 
         if isinstance(audio, str) and "{audio_file}" in audio and cfg_path:
             resolved = audio.replace("{audio_file}", str(cfg_path))
@@ -71,6 +77,11 @@ def stages(name, config, registry):
             raise ValueError("Audio file path must be provided via case or config")
 
         context["audio_file"] = resolved
+        # Propagate instructions into context so the model can pick them up with precedence
+        # Use instructions under infer.model.realtime.instructions
+        initial_instructions = glom(config, "infer.model.realtime.instructions", default=None)
+        if isinstance(initial_instructions, str) and initial_instructions:
+            context["instructions"] = initial_instructions
         # The realtime model ignores messages content, but we keep structure consistent
         return []
 

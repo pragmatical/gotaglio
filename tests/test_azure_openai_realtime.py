@@ -116,7 +116,8 @@ async def test_infer_sends_expected_sequence_and_events(monkeypatch, tmp_path):
     # Contains expected session config
     assert sent[0]["session"]["voice"] == "alloy"
     assert sent[0]["session"]["modalities"] == ["text"]
-    assert sent[0]["session"]["instructions"].startswith("Respond in spanish.")
+    # Instructions should be omitted when not explicitly provided
+    assert "instructions" not in sent[0]["session"]
     # Then audio append frame
     assert sent[1]["type"] == "input_audio_buffer.append"
     assert isinstance(sent[1]["audio"], str) and sent[1]["audio"]
@@ -135,6 +136,66 @@ async def test_infer_sends_expected_sequence_and_events(monkeypatch, tmp_path):
     audio_event = next(e for e in events if e["type"] == "input_audio_buffer.append")
     assert audio_event.get("redacted") is True
     assert audio_event.get("size") == len(audio_bytes)
+
+
+@pytest.mark.asyncio
+async def test_infer_includes_instructions_when_provided(monkeypatch, tmp_path):
+    # Prepare fake audio on disk
+    audio_path = tmp_path / "sound.wav"
+    audio_bytes = b"FAKEAUDIO123"
+    audio_path.write_bytes(audio_bytes)
+
+    # WebSocket dummy that records send frames
+    class DummyWS:
+        def __init__(self):
+            self.sent = []
+            self.closed = False
+            self._recv_iter = iter([
+                json.dumps({"type": "response.output_text.delta", "delta": "hola"}),
+                json.dumps({"type": "response.done", "output_text": "hola"}),
+            ])
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def send(self, data):
+            self.sent.append(data)
+
+        async def recv(self):
+            try:
+                return next(self._recv_iter)
+            except StopIteration:
+                return json.dumps({"type": "response.done"})
+
+        async def close(self):
+            self.closed = True
+
+    holder: dict[str, Any] = {}
+
+    def fake_connect(url, extra_headers=None, ping_timeout=None):
+        ws = DummyWS()
+        holder["ws"] = ws
+        return ws
+
+    import gotaglio.lazy_imports as li
+    monkeypatch.setattr(li.websockets, "connect", fake_connect)
+
+    model = make_model()
+    custom_instructions = "Please respond in Pig Latin."
+    context = {"audio_file": str(audio_path), "instructions": custom_instructions}
+    await model.infer(messages=[], context=context)
+
+    ws_used = holder.get("ws")
+    assert ws_used is not None
+    sent = [json.loads(s) for s in ws_used.sent]
+    assert sent[0]["type"] == "session.update"
+    assert sent[0]["session"]["instructions"] == custom_instructions
+
+
+    
 
 
 @pytest.mark.asyncio
