@@ -58,7 +58,7 @@ async def test_append_event_has_timestamp(monkeypatch, tmp_path):
 
     events = context.get("realtime_events", [])
     assert events, "expected events"
-    # Check a few events have timestamp and that it's a float
+    # Check a few events have timestamp_utc and it's a string
     for ev in events[:3]:
-        assert "timestamp" in ev
-        assert isinstance(ev["timestamp"], float)
+        assert "timestamp_utc" in ev
+        assert isinstance(ev["timestamp_utc"], str)

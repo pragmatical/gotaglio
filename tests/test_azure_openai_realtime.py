@@ -136,6 +136,18 @@ async def test_infer_sends_expected_sequence_and_events(monkeypatch, tmp_path):
     audio_event = next(e for e in events if e["type"] == "input_audio_buffer.append")
     assert audio_event.get("redacted") is True
     assert audio_event.get("size") == len(audio_bytes)
+    # New timing fields
+    # All events should include timestamp_utc and elapsed_ms_since_audio_start
+    for ev in events:
+        assert "timestamp_utc" in ev
+        assert "elapsed_ms_since_audio_start" in ev
+    # Pre-audio events have None elapsed
+    pre_audio_types = {"audio.resolved", "debug.ws", "session.connected", "session.update", "audio.convert.skip"}
+    for ev in events:
+        if ev.get("type") in pre_audio_types:
+            assert ev.get("elapsed_ms_since_audio_start") is None
+    # First audio append should be 0ms elapsed
+    assert audio_event.get("elapsed_ms_since_audio_start") == 0
 
 
 @pytest.mark.asyncio
@@ -428,6 +440,10 @@ async def test_receive_timeout_records_event_and_returns_empty(monkeypatch, tmp_
     events = context.get("realtime_events", [])
     types = [e.get("type") for e in events]
     assert "error.timeout" in types
+    # Timeout path still includes timing fields
+    for ev in events:
+        assert "timestamp_utc" in ev
+        assert "elapsed_ms_since_audio_start" in ev
 
 
 def test_metadata_excludes_key():
