@@ -140,7 +140,6 @@ async def test_infer_sends_expected_sequence_and_events(monkeypatch, tmp_path):
     # All events should include timestamp_utc and elapsed_ms_since_audio_start
     for ev in events:
         assert "timestamp_utc" in ev
-        assert "timestamp" in ev  # backward-compatible float epoch remains
         assert "elapsed_ms_since_audio_start" in ev
     # Pre-audio events have None elapsed
     pre_audio_types = {"audio.resolved", "debug.ws", "session.connected", "session.update", "audio.convert.skip"}

@@ -86,10 +86,9 @@ class AzureOpenAIRealtime(Model):
             nonlocal seq, audio_start_monotonic_ns
             record = dict(event)
             record["sequence"] = seq
-            # Attach a timestamp (float seconds since epoch) for observability
+            # Attach timestamps and elapsed metrics for observability
             try:
                 import time
-                record["timestamp"] = time.time()
                 # Also include a UTC timestamp string for human-friendly logs
                 from datetime import datetime, timezone
                 record["timestamp_utc"] = (
@@ -107,7 +106,7 @@ class AzureOpenAIRealtime(Model):
                     # Ensure first append reports 0ms
                     record["elapsed_ms_since_audio_start"] = int(max(0, (t_now_ns - audio_start_monotonic_ns) // 1_000_000))
             except Exception:
-                # If clock retrieval fails (unlikely), omit timestamp gracefully
+                # If clock retrieval fails (unlikely), omit timing gracefully
                 pass
             events.append(record)
             seq += 1
