@@ -175,3 +175,6 @@ models.json
 models.yaml
 models.yml
 out.md
+
+# Other files to ignore
+.DS_Store
