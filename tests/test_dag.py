@@ -182,24 +182,23 @@ async def test_run():
     # Should not raise an exception
     dag = Dag.from_spec(spec)
 
-    context = {"stages": {}}
-    await run_dag(dag, context)
+    context = await run_dag(dag, {})
 
-    a = context["stages"]["A"]
-    b = context["stages"]["B"]
-    c = context["stages"]["C"]
-    d = context["stages"]["D"]
+    a1 = context["stages"]["A"]
+    b1 = context["stages"]["B"]
+    c1 = context["stages"]["C"]
+    d1 = context["stages"]["D"]
 
-    assert a["end"] - a["start"] == 1
-    assert a["end"] <= b["start"]
-    assert a["end"] <= c["start"]
+    assert a1["end"] - a1["start"] == 1
+    assert a1["end"] <= b1["start"]
+    assert a1["end"] <= c1["start"]
 
     # b and c start in some order, b ends
-    assert b["end"] - a["end"] == 3
-    assert b["end"] <= d["start"]
+    assert b1["end"] - a1["end"] == 3
+    assert b1["end"] <= d1["start"]
 
     # b and c start in some order, b ends, c ends
-    assert c["end"] - a["end"] == 4
-    assert c["end"] <= d["start"]
+    assert c1["end"] - a1["end"] == 4
+    assert c1["end"] <= d1["start"]
 
-    assert d["end"] - d["start"] == 1
+    assert d1["end"] - d1["start"] == 1

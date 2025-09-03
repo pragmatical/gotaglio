@@ -119,6 +119,7 @@ def ensure_required_configs(name, default_config, config):
                 raise ValueError("\n".join(lines))
 
 
+# TODO: do we really need process_one_case() anymore?
 async def process_one_case(
     case: dict[str, Any],
     dag,
@@ -126,29 +127,10 @@ async def process_one_case(
     turn: int | None = None,
 ):
     ExceptionContext.clear_context()
-    start = datetime.now().timestamp()
-    result = {
-        "succeeded": False,
-        "metadata": {"start": str(datetime.fromtimestamp(start, timezone.utc))},
-        "case": case,
-    }
 
-    try:
-        await run_dag(dag, result, turn)
-    except Exception as e:
-        result["exception"] = {
-            "message": ExceptionContext.format_message(e),
-            "traceback": traceback.format_exc(),
-            "time": str(datetime.now(timezone.utc)),
-        }
-        return result
+    result = await run_dag(dag, case, turn)
 
-    result["succeeded"] = True
-    # TODO: should remaining code be in finally block?
-    end = datetime.now().timestamp()
     if completed:
         completed()
-    elapsed = end - start
-    result["metadata"]["end"] = str(datetime.fromtimestamp(end, timezone.utc))
-    result["metadata"]["elapsed"] = str(timedelta(seconds=elapsed))
+
     return result
