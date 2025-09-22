@@ -45,6 +45,7 @@ class Director:
                 "name": pipeline_spec.name,
                 "config": self._pipeline.get_config(),
             },
+            "instructions": "",
         }
 
         sha = get_git_sha()
@@ -87,6 +88,18 @@ class Director:
             runlog["metadata"]["end"] = str(datetime.fromtimestamp(end, timezone.utc))
             runlog["metadata"]["elapsed"] = str(timedelta(seconds=elapsed))
             runlog["results"] = results
+
+            for result in results:
+                turns = result.get("turns", [])
+                for turn in turns:
+                    if "realtime_events" not in turn:
+                       continue
+
+                    for ev in turn["realtime_events"]:
+                        if "session" in ev and isinstance(ev["session"], dict) and "instructions" in ev["session"]:
+                            runlog["metadata"]["instructions"] = ev["session"]["instructions"]
+                            ev["session"].pop("instructions")
+                            break
 
         except Exception as e:
             runlog["metadata"]["exception"] = {
