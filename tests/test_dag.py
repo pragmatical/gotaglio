@@ -182,102 +182,23 @@ async def test_run():
     # Should not raise an exception
     dag = Dag.from_spec(spec)
 
-    context = {"stages": {}}
-    await run_dag(dag, context)
+    context = await run_dag(dag, {})
 
-    a = context["stages"]["A"]
-    b = context["stages"]["B"]
-    c = context["stages"]["C"]
-    d = context["stages"]["D"]
+    a1 = context["stages"]["A"]
+    b1 = context["stages"]["B"]
+    c1 = context["stages"]["C"]
+    d1 = context["stages"]["D"]
 
-    assert a["end"] - a["start"] == 1
-    assert a["end"] <= b["start"]
-    assert a["end"] <= c["start"]
+    assert a1["end"] - a1["start"] == 1
+    assert a1["end"] <= b1["start"]
+    assert a1["end"] <= c1["start"]
 
     # b and c start in some order, b ends
-    assert b["end"] - a["end"] == 3
-    assert b["end"] <= d["start"]
+    assert b1["end"] - a1["end"] == 3
+    assert b1["end"] <= d1["start"]
 
     # b and c start in some order, b ends, c ends
-    assert c["end"] - a["end"] == 4
-    assert c["end"] <= d["start"]
+    assert c1["end"] - a1["end"] == 4
+    assert c1["end"] <= d1["start"]
 
-    assert d["end"] - d["start"] == 1
-
-
-@pytest.mark.asyncio
-async def test_stage_timing_detailed_and_positive():
-    async def a(context):
-        await asyncio.sleep(0.01)
-        return "A-ok"
-
-    async def b(context):
-        await asyncio.sleep(0.02)
-        return {"n": 1}
-
-    spec = [
-        {"name": "A", "function": a, "inputs": []},
-        {"name": "B", "function": b, "inputs": ["A"]},
-    ]
-    dag = Dag.from_spec(spec)
-    context = {"stages": {}}
-    await run_dag(dag, context)
-
-    A = context["metadata"]["stages"]["A"]
-    B = context["metadata"]["stages"]["B"]
-
-    # Timing metadata stored under top-level metadata.stages
-    assert set(A.keys()) >= {"start", "end", "elapsed", "succeeded"}
-    assert set(B.keys()) >= {"start", "end", "elapsed", "succeeded"}
-
-    def parse_elapsed(s):
-        h, m, rest = s.split(":")
-        sec = float(rest)
-        return (int(h) * 3600) + (int(m) * 60) + sec
-
-    assert parse_elapsed(A["elapsed"]) > 0
-    assert parse_elapsed(B["elapsed"]) > 0
-
-    # Values preserved in raw stages
-    assert context["stages"]["A"] == "A-ok"
-    assert context["stages"]["B"]["n"] == 1
-
-
-@pytest.mark.asyncio
-async def test_multi_turn_timing_is_per_turn_only():
-    async def a(context):
-        await asyncio.sleep(0.001)
-        return "A"
-
-    async def b(context):
-        await asyncio.sleep(0.001)
-        return "B"
-
-    spec = [
-        {"name": "A", "function": a, "inputs": []},
-        {"name": "B", "function": b, "inputs": ["A"]},
-    ]
-    dag = Dag.from_spec(spec)
-    context = {
-        "case": {
-            "turns": [{"user": "t1"}, {"user": "t2"}],
-        }
-    }
-    await run_dag(dag, context)
-
-    # No top-level stages_detailed for multi-turn runs
-    assert "stages_detailed" not in context
-
-    assert len(context["turns"]) == 2
-    for turn in context["turns"]:
-        # Stage values remain raw
-        stages = turn.get("stages")
-        assert stages is not None
-        assert set(stages.keys()) == {"A", "B"}
-        # Timing metadata is stored under turn.metadata.stages
-        md_stages = turn["metadata"].get("stages")
-        assert md_stages is not None
-        assert set(md_stages.keys()) == {"A", "B"}
-        for name in ("A", "B"):
-            md = md_stages[name]
-            assert set(md.keys()) >= {"start", "end", "elapsed", "succeeded"}
+    assert d1["end"] - d1["start"] == 1

@@ -1,5 +1,6 @@
 # TODO
 
+* # TODO: do we really need process_one_case() anymore?
 * Refactor director to better support preview() and validate()
   * Move cases out of constructor
   * typing annotations for cases

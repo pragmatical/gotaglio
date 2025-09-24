@@ -1,6 +1,7 @@
 import asyncio
 from glom import glom
 import pytest
+from typing import Any
 
 from gotaglio.dag import Dag
 from gotaglio.gotag import Gotaglio
@@ -31,6 +32,10 @@ def create_dag(name, config, registry):
     return Dag.from_linear(stages)
 
 
+def nop(_: dict[str, Any]):
+    pass
+
+
 def test_single_turn_pipeline():
     """
     Verifies that a single-turn pipeline can be created and run without crashing.
@@ -47,6 +52,7 @@ def test_single_turn_pipeline():
             "stage1": {"initial": 1000},
         },
         create_dag=create_dag,
+        expected=nop,
         passed_predicate=passed_predicate,
     )
 
@@ -90,6 +96,7 @@ def test_multi_turn_pipeline():
             "stage1": {"initial": 1000},
         },
         create_dag=create_dag,
+        expected=nop,
         passed_predicate=passed_predicate,
     )
 
