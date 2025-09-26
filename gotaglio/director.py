@@ -99,7 +99,6 @@ class Director:
                         if "session" in ev and isinstance(ev["session"], dict) and "instructions" in ev["session"]:
                             runlog["metadata"]["instructions"] = ev["session"]["instructions"]
                             ev["session"].pop("instructions")
-                            break
 
         except Exception as e:
             runlog["metadata"]["exception"] = {
